@@ -8,6 +8,13 @@
       "when": 1790256266067,
       "tag": "0000_jk_academy_core_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790410638042,
+      "tag": "0001_media_storage_policies",
+      "breakpoints": true
     }
   ]
 }

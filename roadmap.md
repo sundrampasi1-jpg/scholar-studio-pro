@@ -12,3 +12,5 @@
 - Admin/Teacher panel: dashboard, course content manager (batches/subjects/chapters/lessons), tests + questions, live classes, notes, doubts, announcements/notifications, students, teachers, payments + coupons + enrolments, reports, branding settings
 - Homepage social/search metadata (title, description, og tags)
 - Verify all routes/buttons, role separation, build + runtime errors clean
+- Admin: upload/record lesson videos (playable by students), upload PDFs, live class link + schedule
+- Installable app (manifest, app name, icon, standalone mode) for Android packaging

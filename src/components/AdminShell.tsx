@@ -1,17 +1,13 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart3,
   BookOpen,
-  CreditCard,
   FileQuestion,
   FileText,
-  GraduationCap,
   HelpCircle,
   LayoutDashboard,
   LogOut,
   Megaphone,
-  Palette,
   Radio,
   Users,
   Menu,
@@ -24,18 +20,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const modules = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, adminOnly: false, exact: true },
-  { to: "/admin/courses", label: "Courses & content", icon: BookOpen, adminOnly: false },
-  { to: "/admin/tests", label: "Tests & questions", icon: FileQuestion, adminOnly: false },
-  { to: "/admin/live", label: "Live classes", icon: Radio, adminOnly: false },
-  { to: "/admin/notes", label: "Notes & PDFs", icon: FileText, adminOnly: false },
-  { to: "/admin/doubts", label: "Doubts", icon: HelpCircle, adminOnly: false },
-  { to: "/admin/announcements", label: "Announcements", icon: Megaphone, adminOnly: false },
-  { to: "/admin/students", label: "Students", icon: Users, adminOnly: true },
-  { to: "/admin/teachers", label: "Teachers", icon: GraduationCap, adminOnly: true },
-  { to: "/admin/payments", label: "Payments & coupons", icon: CreditCard, adminOnly: true },
-  { to: "/admin/reports", label: "Reports", icon: BarChart3, adminOnly: false },
-  { to: "/admin/settings", label: "Branding & settings", icon: Palette, adminOnly: true },
+  { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/courses", label: "Courses, lessons & videos", icon: BookOpen },
+  { to: "/admin/notes", label: "PDFs & notes", icon: FileText },
+  { to: "/admin/tests", label: "Tests & questions", icon: FileQuestion },
+  { to: "/admin/live", label: "Live classes", icon: Radio },
+  { to: "/admin/doubts", label: "Doubts", icon: HelpCircle },
+  { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
+  { to: "/admin/students", label: "Students", icon: Users },
 ] as const;
 
 export function AdminShell({
@@ -49,13 +41,11 @@ export function AdminShell({
   subtitle?: string;
   actions?: ReactNode;
 }) {
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-
-  const visible = modules.filter((m) => !m.adminOnly || isAdmin);
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -82,7 +72,7 @@ export function AdminShell({
             <Brand compact />
           </Link>
           <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
-            {isAdmin ? "ADMIN" : "TEACHER"}
+            ADMIN
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Link to="/dashboard" className="hidden text-sm text-muted-foreground hover:underline sm:block">
@@ -103,7 +93,7 @@ export function AdminShell({
           )}
         >
           <nav className="flex flex-col gap-0.5">
-            {visible.map((m) => (
+            {modules.map((m) => (
               <Link
                 key={m.to}
                 to={m.to}

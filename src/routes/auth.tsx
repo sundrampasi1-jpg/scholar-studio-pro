@@ -4,6 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,24 @@ function AuthPage() {
       if (data.session) navigate({ to: redirect ?? "/dashboard", replace: true });
     });
   }, [navigate, redirect]);
+
+  async function handleGoogle() {
+    setError(null);
+    setLoading(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin + "/auth",
+      extraParams: { prompt: "select_account" },
+    });
+    if (result.error) {
+      setLoading(false);
+      setError(result.error.message ?? "Google sign-in failed.");
+      return;
+    }
+    if (result.redirected) return;
+    setLoading(false);
+    toast.success("Welcome!");
+    navigate({ to: redirect ?? "/dashboard", replace: true });
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -127,6 +146,12 @@ function AuthPage() {
               </Button>
             </div>
           ) : (
+            <>
+            <Button type="button" variant="outline" className="mb-4 w-full" onClick={handleGoogle} disabled={loading}>
+              <svg viewBox="0 0 24 24" className="mr-2 h-4 w-4" aria-hidden><path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3zM12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22zM6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14zM12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z"/></svg>
+              Continue with Google
+            </Button>
+            <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
             <Tabs value={mode} onValueChange={(v) => { setMode(v); setError(null); }}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Sign in</TabsTrigger>
@@ -219,6 +244,7 @@ function AuthPage() {
                 </form>
               </TabsContent>
             </Tabs>
+            </>
           )}
         </div>
       </div>

@@ -10,7 +10,7 @@ export async function uploadMedia(file: File | Blob, folder: string, filename?: 
   const path = `${folder}/${Date.now()}-${name}`;
   const { error } = await supabase.storage.from("media").upload(path, file, {
     upsert: false,
-    contentType: file.type || undefined,
+    ...(file.type ? { contentType: file.type } : {}),
   });
   if (error) throw error;
   const { data, error: signErr } = await supabase.storage

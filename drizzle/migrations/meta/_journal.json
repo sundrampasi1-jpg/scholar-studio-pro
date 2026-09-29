@@ -22,6 +22,13 @@
       "when": 1790470329431,
       "tag": "0002_owner_admin_assignment",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790649305299,
+      "tag": "0003_secure_paid_enrollment",
+      "breakpoints": true
     }
   ]
 }

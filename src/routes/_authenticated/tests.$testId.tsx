@@ -164,7 +164,7 @@ function TakeTest() {
     );
   }
 
-  const q = questions[current];
+  const q = questions[current]!;
   const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
   const ss = String(remaining % 60).padStart(2, "0");
 

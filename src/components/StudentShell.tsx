@@ -47,7 +47,7 @@ export function StudentShell({
 }: {
   children: ReactNode;
   title?: string;
-  subtitle?: string;
+  subtitle?: string | undefined;
   actions?: ReactNode;
 }) {
   const { user, isStaff, isAdmin } = useAuth();

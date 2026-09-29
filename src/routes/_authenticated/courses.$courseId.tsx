@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Circle, CreditCard, PlayCircle, FileText, Lock } from "lucide-react";
@@ -8,10 +9,21 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { fetchCourseProgress } from "@/lib/queries";
+import { createCourseOrder, markPaymentFailed, verifyCoursePayment } from "@/lib/payments.functions";
+
+function loadRazorpay() {
+  return new Promise<void>((resolve, reject) => {
+    if ((window as any).Razorpay) return resolve();
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Could not load payment window. Check your internet."));
+    document.body.appendChild(s);
+  });
+}
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
   head: () => ({
@@ -29,8 +41,6 @@ function CourseDetail() {
   const { courseId } = Route.useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [coupon, setCoupon] = useState("");
-  const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [checkoutState, setCheckoutState] = useState<"idle" | "unconfigured">("idle");
 
   const course = useQuery({
@@ -113,47 +123,56 @@ function CourseDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const applyCoupon = useMutation({
-    mutationFn: async () => {
-      const code = coupon.trim().toUpperCase();
-      const { data, error } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("code", code)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("That coupon code isn't valid.");
-      if (data.expires_at && new Date(data.expires_at) < new Date())
-        throw new Error("That coupon has expired.");
-      if (data.max_uses > 0 && data.used_count >= data.max_uses)
-        throw new Error("That coupon has reached its usage limit.");
-      return data.discount_percent;
-    },
-    onSuccess: (percent) => {
-      setAppliedDiscount(percent);
-      toast.success(`${percent}% discount applied`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const createOrder = useServerFn(createCourseOrder);
+  const verifyPay = useServerFn(verifyCoursePayment);
+  const failPay = useServerFn(markPaymentFailed);
 
   const startCheckout = useMutation({
     mutationFn: async () => {
-      const price = Number(course.data?.price ?? 0);
-      const discount = (price * appliedDiscount) / 100;
-      const { error } = await supabase.from("payments").insert({
-        user_id: user!.id,
-        course_id: courseId,
-        amount: price - discount,
-        discount,
-        coupon_code: appliedDiscount ? coupon.trim().toUpperCase() : null,
-        status: "pending",
-        provider: "none",
+      const order = await createOrder({ data: { courseId } });
+      if (!order.configured) {
+        setCheckoutState("unconfigured");
+        return;
+      }
+      await loadRazorpay();
+      await new Promise<void>((resolve, reject) => {
+        const rzp = new (window as any).Razorpay({
+          key: order.keyId,
+          order_id: order.orderId,
+          amount: order.amount,
+          currency: "INR",
+          name: "JK Academy",
+          description: order.title,
+          prefill: { email: user?.email },
+          theme: { color: "#dc2626" },
+          handler: async (r: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+            try {
+              await verifyPay({
+                data: { orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature },
+              });
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              void failPay({ data: { orderId: order.orderId } });
+              reject(new Error("Payment cancelled."));
+            },
+          },
+        });
+        rzp.on("payment.failed", () => {
+          void failPay({ data: { orderId: order.orderId } });
+        });
+        rzp.open();
       });
-      if (error) throw error;
+      toast.success("Payment verified — course unlocked!");
     },
-    onSuccess: () => {
-      setCheckoutState("unconfigured");
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["enrollment", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["my-course-ids"] });
       queryClient.invalidateQueries({ queryKey: ["my-payments"] });
     },
     onError: (e: Error) => toast.error(e.message),

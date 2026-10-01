@@ -15,11 +15,15 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDoubtsRouteImport } from './routes/_authenticated/doubts'
+import { Route as AuthenticatedHelpRouteImport } from './routes/_authenticated/help'
 import { Route as AuthenticatedLiveRouteImport } from './routes/_authenticated/live'
 import { Route as AuthenticatedNotesRouteImport } from './routes/_authenticated/notes'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
+import { Route as AuthenticatedPaymentsRouteImport } from './routes/_authenticated/payments'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedResultsRouteImport } from './routes/_authenticated/results'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_authenticated/admin.announcements'
@@ -27,6 +31,7 @@ import { Route as AuthenticatedAdminCoursesRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminDoubtsRouteImport } from './routes/_authenticated/admin.doubts'
 import { Route as AuthenticatedAdminLiveRouteImport } from './routes/_authenticated/admin.live'
 import { Route as AuthenticatedAdminNotesRouteImport } from './routes/_authenticated/admin.notes'
+import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
 import { Route as AuthenticatedAdminStudentsRouteImport } from './routes/_authenticated/admin.students'
 import { Route as AuthenticatedAdminTestsRouteImport } from './routes/_authenticated/admin.tests'
 import { Route as AuthenticatedCoursesIndexRouteImport } from './routes/_authenticated/courses.index'
@@ -64,6 +69,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnnouncementsRoute =
+  AuthenticatedAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -72,6 +83,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedDoubtsRoute = AuthenticatedDoubtsRouteImport.update({
   id: '/doubts',
   path: '/doubts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHelpRoute = AuthenticatedHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedLiveRoute = AuthenticatedLiveRouteImport.update({
@@ -90,6 +106,16 @@ const AuthenticatedNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPaymentsRoute = AuthenticatedPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedResultsRoute = AuthenticatedResultsRouteImport.update({
   id: '/results',
   path: '/results',
@@ -128,6 +154,12 @@ const AuthenticatedAdminNotesRoute = AuthenticatedAdminNotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminPaymentsRoute =
+  AuthenticatedAdminPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminStudentsRoute =
   AuthenticatedAdminStudentsRouteImport.update({
     id: '/students',
@@ -175,17 +207,22 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doubts': typeof AuthenticatedDoubtsRoute
+  '/help': typeof AuthenticatedHelpRoute
   '/live': typeof AuthenticatedLiveRoute
   '/notes': typeof AuthenticatedNotesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
+  '/payments': typeof AuthenticatedPaymentsRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/results': typeof AuthenticatedResultsRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/admin/doubts': typeof AuthenticatedAdminDoubtsRoute
   '/admin/live': typeof AuthenticatedAdminLiveRoute
   '/admin/notes': typeof AuthenticatedAdminNotesRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/students': typeof AuthenticatedAdminStudentsRoute
   '/admin/tests': typeof AuthenticatedAdminTestsRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
@@ -200,17 +237,22 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doubts': typeof AuthenticatedDoubtsRoute
+  '/help': typeof AuthenticatedHelpRoute
   '/live': typeof AuthenticatedLiveRoute
   '/notes': typeof AuthenticatedNotesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
+  '/payments': typeof AuthenticatedPaymentsRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/results': typeof AuthenticatedResultsRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/admin/doubts': typeof AuthenticatedAdminDoubtsRoute
   '/admin/live': typeof AuthenticatedAdminLiveRoute
   '/admin/notes': typeof AuthenticatedAdminNotesRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/students': typeof AuthenticatedAdminStudentsRoute
   '/admin/tests': typeof AuthenticatedAdminTestsRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
@@ -228,17 +270,22 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/doubts': typeof AuthenticatedDoubtsRoute
+  '/_authenticated/help': typeof AuthenticatedHelpRoute
   '/_authenticated/live': typeof AuthenticatedLiveRoute
   '/_authenticated/notes': typeof AuthenticatedNotesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
+  '/_authenticated/payments': typeof AuthenticatedPaymentsRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/results': typeof AuthenticatedResultsRoute
   '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/_authenticated/admin/doubts': typeof AuthenticatedAdminDoubtsRoute
   '/_authenticated/admin/live': typeof AuthenticatedAdminLiveRoute
   '/_authenticated/admin/notes': typeof AuthenticatedAdminNotesRoute
+  '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/students': typeof AuthenticatedAdminStudentsRoute
   '/_authenticated/admin/tests': typeof AuthenticatedAdminTestsRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
@@ -256,17 +303,22 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/admin'
+    | '/announcements'
     | '/dashboard'
     | '/doubts'
+    | '/help'
     | '/live'
     | '/notes'
     | '/notifications'
+    | '/payments'
+    | '/profile'
     | '/results'
     | '/admin/announcements'
     | '/admin/courses'
     | '/admin/doubts'
     | '/admin/live'
     | '/admin/notes'
+    | '/admin/payments'
     | '/admin/students'
     | '/admin/tests'
     | '/courses/$courseId'
@@ -281,17 +333,22 @@ export interface FileRouteTypes {
     | '/auth'
     | '/forgot-password'
     | '/reset-password'
+    | '/announcements'
     | '/dashboard'
     | '/doubts'
+    | '/help'
     | '/live'
     | '/notes'
     | '/notifications'
+    | '/payments'
+    | '/profile'
     | '/results'
     | '/admin/announcements'
     | '/admin/courses'
     | '/admin/doubts'
     | '/admin/live'
     | '/admin/notes'
+    | '/admin/payments'
     | '/admin/students'
     | '/admin/tests'
     | '/courses/$courseId'
@@ -308,17 +365,22 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/_authenticated/admin'
+    | '/_authenticated/announcements'
     | '/_authenticated/dashboard'
     | '/_authenticated/doubts'
+    | '/_authenticated/help'
     | '/_authenticated/live'
     | '/_authenticated/notes'
     | '/_authenticated/notifications'
+    | '/_authenticated/payments'
+    | '/_authenticated/profile'
     | '/_authenticated/results'
     | '/_authenticated/admin/announcements'
     | '/_authenticated/admin/courses'
     | '/_authenticated/admin/doubts'
     | '/_authenticated/admin/live'
     | '/_authenticated/admin/notes'
+    | '/_authenticated/admin/payments'
     | '/_authenticated/admin/students'
     | '/_authenticated/admin/tests'
     | '/_authenticated/courses/$courseId'
@@ -381,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/announcements': {
+      id: '/_authenticated/announcements'
+      path: '/announcements'
+      fullPath: '/announcements'
+      preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -393,6 +462,13 @@ declare module '@tanstack/react-router' {
       path: '/doubts'
       fullPath: '/doubts'
       preLoaderRoute: typeof AuthenticatedDoubtsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/help': {
+      id: '/_authenticated/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof AuthenticatedHelpRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/live': {
@@ -414,6 +490,20 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/payments': {
+      id: '/_authenticated/payments'
+      path: '/payments'
+      fullPath: '/payments'
+      preLoaderRoute: typeof AuthenticatedPaymentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/results': {
@@ -463,6 +553,13 @@ declare module '@tanstack/react-router' {
       path: '/notes'
       fullPath: '/admin/notes'
       preLoaderRoute: typeof AuthenticatedAdminNotesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/payments': {
+      id: '/_authenticated/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/students': {
@@ -523,6 +620,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminDoubtsRoute: typeof AuthenticatedAdminDoubtsRoute
   AuthenticatedAdminLiveRoute: typeof AuthenticatedAdminLiveRoute
   AuthenticatedAdminNotesRoute: typeof AuthenticatedAdminNotesRoute
+  AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminStudentsRoute: typeof AuthenticatedAdminStudentsRoute
   AuthenticatedAdminTestsRoute: typeof AuthenticatedAdminTestsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -534,6 +632,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminDoubtsRoute: AuthenticatedAdminDoubtsRoute,
   AuthenticatedAdminLiveRoute: AuthenticatedAdminLiveRoute,
   AuthenticatedAdminNotesRoute: AuthenticatedAdminNotesRoute,
+  AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminStudentsRoute: AuthenticatedAdminStudentsRoute,
   AuthenticatedAdminTestsRoute: AuthenticatedAdminTestsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
@@ -544,11 +643,15 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDoubtsRoute: typeof AuthenticatedDoubtsRoute
+  AuthenticatedHelpRoute: typeof AuthenticatedHelpRoute
   AuthenticatedLiveRoute: typeof AuthenticatedLiveRoute
   AuthenticatedNotesRoute: typeof AuthenticatedNotesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
+  AuthenticatedPaymentsRoute: typeof AuthenticatedPaymentsRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedResultsRoute: typeof AuthenticatedResultsRoute
   AuthenticatedCoursesCourseIdRoute: typeof AuthenticatedCoursesCourseIdRoute
   AuthenticatedLessonLessonIdRoute: typeof AuthenticatedLessonLessonIdRoute
@@ -559,11 +662,15 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDoubtsRoute: AuthenticatedDoubtsRoute,
+  AuthenticatedHelpRoute: AuthenticatedHelpRoute,
   AuthenticatedLiveRoute: AuthenticatedLiveRoute,
   AuthenticatedNotesRoute: AuthenticatedNotesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
+  AuthenticatedPaymentsRoute: AuthenticatedPaymentsRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedResultsRoute: AuthenticatedResultsRoute,
   AuthenticatedCoursesCourseIdRoute: AuthenticatedCoursesCourseIdRoute,
   AuthenticatedLessonLessonIdRoute: AuthenticatedLessonLessonIdRoute,

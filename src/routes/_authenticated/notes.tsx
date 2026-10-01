@@ -7,6 +7,7 @@ import { EmptyState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PdfViewer, downloadFile } from "@/components/PdfViewer";
 
 export const Route = createFileRoute("/_authenticated/notes")({
   head: () => ({
@@ -46,10 +47,8 @@ function NotesPage() {
             <p className="truncate font-medium">{viewing.title}</p>
             <div className="flex gap-2">
               {viewing.download && (
-                <Button asChild size="sm" variant="outline">
-                  <a href={viewing.url} target="_blank" rel="noreferrer" download>
-                    <Download className="mr-1.5 h-4 w-4" /> Download
-                  </a>
+                <Button size="sm" variant="outline" onClick={() => downloadFile(viewing.url, viewing.title)}>
+                  <Download className="mr-1.5 h-4 w-4" /> Download
                 </Button>
               )}
               <Button size="icon" variant="ghost" onClick={() => setViewing(null)} aria-label="Close">
@@ -57,7 +56,7 @@ function NotesPage() {
               </Button>
             </div>
           </div>
-          <iframe src={viewing.url} title={viewing.title} className="w-full flex-1" />
+          <PdfViewer url={viewing.url} className="flex-1 overflow-y-auto bg-surface p-3" />
         </div>
       )}
       <Input

@@ -204,7 +204,6 @@ function CourseDetail() {
   const isEnrolled = !!enrollment.data;
   const isFree = c.is_free || Number(c.price) === 0;
   const price = Number(c.price);
-  const payable = price - (price * appliedDiscount) / 100;
 
   return (
     <StudentShell title={c.title} subtitle={c.description ?? undefined}>
@@ -288,11 +287,8 @@ function CourseDetail() {
             ) : (
               <>
                 <p className="text-2xl font-semibold text-primary">
-                  {isFree ? "Free" : `₹${payable.toFixed(0)}`}
+                  {isFree ? "Free" : `₹${price.toFixed(0)}`}
                 </p>
-                {!isFree && appliedDiscount > 0 && (
-                  <p className="text-xs text-muted-foreground line-through">₹{price.toFixed(0)}</p>
-                )}
                 {isFree ? (
                   <Button
                     className="mt-4 w-full"
@@ -303,20 +299,6 @@ function CourseDetail() {
                   </Button>
                 ) : (
                   <div className="mt-4 space-y-3">
-                    <div className="flex gap-2">
-                      <Input
-                        value={coupon}
-                        onChange={(e) => setCoupon(e.target.value)}
-                        placeholder="Coupon code"
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={() => applyCoupon.mutate()}
-                        disabled={!coupon.trim() || applyCoupon.isPending}
-                      >
-                        Apply
-                      </Button>
-                    </div>
                     <Button
                       className="w-full"
                       onClick={() => startCheckout.mutate()}
@@ -326,11 +308,10 @@ function CourseDetail() {
                     </Button>
                     {checkoutState === "unconfigured" && (
                       <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
-                        <p className="font-semibold">Payment gateway not configured</p>
+                        <p className="font-semibold">Online payment is being set up</p>
                         <p className="mt-1 text-muted-foreground">
-                          Your order has been recorded as <strong>pending</strong>. Access is granted
-                          automatically once a payment provider is connected and the payment succeeds. An
-                          admin can also confirm this payment manually from the admin panel.
+                          The institute hasn't connected its payment account yet. Please try again later
+                          or contact us at 95695 51576.
                         </p>
                         <Link to="/payments" className="mt-2 inline-block font-medium text-primary">
                           View my payments

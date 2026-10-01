@@ -11,6 +11,7 @@ import {
   Radio,
   Users,
   Menu,
+  Wallet,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -28,6 +29,7 @@ const modules = [
   { to: "/admin/doubts", label: "Doubts", icon: HelpCircle },
   { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { to: "/admin/students", label: "Students", icon: Users },
+  { to: "/admin/payments", label: "Payments", icon: Wallet },
 ] as const;
 
 export function AdminShell({

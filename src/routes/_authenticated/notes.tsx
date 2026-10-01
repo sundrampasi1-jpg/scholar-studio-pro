@@ -7,6 +7,7 @@ import { EmptyState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PdfViewer, downloadFile } from "@/components/PdfViewer";
 
 export const Route = createFileRoute("/_authenticated/notes")({
   head: () => ({

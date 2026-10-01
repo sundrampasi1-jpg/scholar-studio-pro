@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { PdfViewer, downloadFile } from "@/components/PdfViewer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -176,13 +177,11 @@ function LessonPage() {
             <p className="flex items-center gap-2 font-medium">
               <FileText className="h-4 w-4 text-primary" /> Lesson notes
             </p>
-            <Button asChild size="sm" variant="outline">
-              <a href={l.pdf_url} target="_blank" rel="noreferrer">
-                <Download className="mr-1.5 h-4 w-4" /> Open PDF
-              </a>
+            <Button size="sm" variant="outline" onClick={() => downloadFile(l.pdf_url!, l.title)}>
+              <Download className="mr-1.5 h-4 w-4" /> Download PDF
             </Button>
           </div>
-          <iframe src={l.pdf_url} title="Lesson notes" className="mt-3 h-[60vh] w-full rounded-md border" />
+          <PdfViewer url={l.pdf_url} className="mt-3 max-h-[75vh] overflow-y-auto rounded-md border bg-surface p-2" />
         </div>
       )}
 

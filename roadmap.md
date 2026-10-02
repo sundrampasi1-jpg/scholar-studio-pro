@@ -19,3 +19,7 @@
 - [ ] Google login opens account chooser, direct sign-in
 - [ ] Admin Upload file / Record camera / Record screen work
 - [ ] Admin uploads visible to students in course; student download works
+- [x] Missing pages: profile, payments, help, announcements, admin payments
+- [x] PDFs page-by-page with zoom + download (phone friendly)
+- [ ] Real payments: waiting on owner's Razorpay keys (merchant/KYC)
+- [ ] Google without extra screen: waiting on owner's own Google sign-in credentials

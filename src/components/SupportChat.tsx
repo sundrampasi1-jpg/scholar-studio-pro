@@ -52,7 +52,10 @@ export function SupportChat({ studentId, senderId, asStaff }: { studentId: strin
     setSending(true);
     const { error } = await supabase.from("support_messages").insert({ student_id: studentId, sender_id: senderId, body, from_staff: !!asStaff });
     setSending(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     if (asStaff) {
       await supabase.from("notifications").insert({ user_id: studentId, title: "New reply from JK Academy", body: body.slice(0, 120), type: "chat", link: "/help" });
     }

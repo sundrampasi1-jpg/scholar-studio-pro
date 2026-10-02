@@ -29,6 +29,13 @@
       "when": 1790649305299,
       "tag": "0003_secure_paid_enrollment",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790912681793,
+      "tag": "0004_support_chat",
+      "breakpoints": true
     }
   ]
 }

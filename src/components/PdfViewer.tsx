@@ -6,6 +6,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const ref = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [pages, setPages] = useState(0);
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,9 +63,15 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         </p>
       )}
       {state === "ready" && pages > 0 && (
-        <p className="mb-2 text-center text-xs text-muted-foreground">{pages} pages</p>
+        <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Zoom out">−</button>
+          <span>{Math.round(zoom * 100)}% · {pages} pages</span>
+          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.min(3, z + 0.25))} aria-label="Zoom in">+</button>
+        </div>
       )}
-      <div ref={ref} className="mx-auto max-w-4xl" />
+      <div className="overflow-x-auto">
+        <div ref={ref} className="mx-auto max-w-4xl" style={{ width: `${zoom * 100}%`, maxWidth: zoom > 1 ? "none" : undefined }} />
+      </div>
     </div>
   );
 }

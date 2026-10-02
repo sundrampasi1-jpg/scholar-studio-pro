@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { HelpCircle, MessageCircle, Phone } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { Button } from "@/components/ui/button";
+import { SupportChat } from "@/components/SupportChat";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/help")({
   head: () => ({
@@ -16,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/help")({
 });
 
 function HelpPage() {
+  const { user } = useAuth();
   return (
     <StudentShell title="Contact & help" subtitle="We're here to help with courses, payments and studies.">
       <div className="grid gap-4 md:grid-cols-3">
@@ -44,6 +47,12 @@ function HelpPage() {
           </Button>
         </div>
       </div>
+      {user && (
+        <div className="mt-6">
+          <h2 className="mb-2 text-lg font-semibold">Chat with JK Academy</h2>
+          <SupportChat studentId={user.id} senderId={user.id} />
+        </div>
+      )}
     </StudentShell>
   );
 }

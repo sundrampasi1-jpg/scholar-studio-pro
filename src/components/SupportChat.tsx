@@ -42,7 +42,9 @@ export function SupportChat({ studentId, senderId, asStaff }: { studentId: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
-  useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [msgs.data?.length]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [msgs.data?.length]);
 
   async function send() {
     const body = text.trim();

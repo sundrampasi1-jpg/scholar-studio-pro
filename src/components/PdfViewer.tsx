@@ -7,6 +7,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [pages, setPages] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +46,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, attempt]);
 
   return (
     <div className={className}>
@@ -57,6 +58,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       {state === "error" && (
         <p className="py-10 text-center text-sm text-muted-foreground">
           Could not show this PDF here.{" "}
+          <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((a) => a + 1)}>Try again</button>{" or "}
           <a href={url} target="_blank" rel="noreferrer" className="font-medium text-primary underline">
             Open it directly
           </a>

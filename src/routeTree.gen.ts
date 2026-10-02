@@ -27,6 +27,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedResultsRouteImport } from './routes/_authenticated/results'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_authenticated/admin.announcements'
+import { Route as AuthenticatedAdminChatsRouteImport } from './routes/_authenticated/admin.chats'
 import { Route as AuthenticatedAdminCoursesRouteImport } from './routes/_authenticated/admin.courses'
 import { Route as AuthenticatedAdminDoubtsRouteImport } from './routes/_authenticated/admin.doubts'
 import { Route as AuthenticatedAdminLiveRouteImport } from './routes/_authenticated/admin.live'
@@ -132,6 +133,11 @@ const AuthenticatedAdminAnnouncementsRoute =
     path: '/announcements',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminChatsRoute = AuthenticatedAdminChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminCoursesRoute =
   AuthenticatedAdminCoursesRouteImport.update({
     id: '/courses',
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/results': typeof AuthenticatedResultsRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/chats': typeof AuthenticatedAdminChatsRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/admin/doubts': typeof AuthenticatedAdminDoubtsRoute
   '/admin/live': typeof AuthenticatedAdminLiveRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/results': typeof AuthenticatedResultsRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/chats': typeof AuthenticatedAdminChatsRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/admin/doubts': typeof AuthenticatedAdminDoubtsRoute
   '/admin/live': typeof AuthenticatedAdminLiveRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/results': typeof AuthenticatedResultsRoute
   '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/_authenticated/admin/chats': typeof AuthenticatedAdminChatsRoute
   '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/_authenticated/admin/doubts': typeof AuthenticatedAdminDoubtsRoute
   '/_authenticated/admin/live': typeof AuthenticatedAdminLiveRoute
@@ -314,6 +323,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/results'
     | '/admin/announcements'
+    | '/admin/chats'
     | '/admin/courses'
     | '/admin/doubts'
     | '/admin/live'
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/results'
     | '/admin/announcements'
+    | '/admin/chats'
     | '/admin/courses'
     | '/admin/doubts'
     | '/admin/live'
@@ -376,6 +387,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/results'
     | '/_authenticated/admin/announcements'
+    | '/_authenticated/admin/chats'
     | '/_authenticated/admin/courses'
     | '/_authenticated/admin/doubts'
     | '/_authenticated/admin/live'
@@ -527,6 +539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/chats': {
+      id: '/_authenticated/admin/chats'
+      path: '/chats'
+      fullPath: '/admin/chats'
+      preLoaderRoute: typeof AuthenticatedAdminChatsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/courses': {
       id: '/_authenticated/admin/courses'
       path: '/courses'
@@ -616,6 +635,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAnnouncementsRoute: typeof AuthenticatedAdminAnnouncementsRoute
+  AuthenticatedAdminChatsRoute: typeof AuthenticatedAdminChatsRoute
   AuthenticatedAdminCoursesRoute: typeof AuthenticatedAdminCoursesRoute
   AuthenticatedAdminDoubtsRoute: typeof AuthenticatedAdminDoubtsRoute
   AuthenticatedAdminLiveRoute: typeof AuthenticatedAdminLiveRoute
@@ -628,6 +648,7 @@ interface AuthenticatedAdminRouteChildren {
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAnnouncementsRoute: AuthenticatedAdminAnnouncementsRoute,
+  AuthenticatedAdminChatsRoute: AuthenticatedAdminChatsRoute,
   AuthenticatedAdminCoursesRoute: AuthenticatedAdminCoursesRoute,
   AuthenticatedAdminDoubtsRoute: AuthenticatedAdminDoubtsRoute,
   AuthenticatedAdminLiveRoute: AuthenticatedAdminLiveRoute,

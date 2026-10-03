@@ -41,27 +41,39 @@ function AuthPage() {
   const [signupDone, setSignupDone] = useState(false);
 
   useEffect(() => {
+    const target = () => {
+      const saved = sessionStorage.getItem("jk_after_login");
+      sessionStorage.removeItem("jk_after_login");
+      const dest = redirect ?? saved ?? "/dashboard";
+      return dest.startsWith("/") && !dest.startsWith("//") ? dest : "/dashboard";
+    };
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: redirect ?? "/dashboard", replace: true });
+      if (data.session) navigate({ to: target(), replace: true });
     });
+    // Google returns here; the session can arrive a moment after the page loads.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) navigate({ to: target(), replace: true });
+    });
+    return () => sub.subscription.unsubscribe();
   }, [navigate, redirect]);
 
   async function handleGoogle() {
     setError(null);
     setLoading(true);
+    if (redirect) sessionStorage.setItem("jk_after_login", redirect);
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin + "/auth",
       extraParams: { prompt: "select_account" },
     });
     if (result.error) {
       setLoading(false);
-      setError(result.error.message ?? "Google sign-in failed.");
+      const msg = result.error.message ?? "";
+      setError(/cancel|closed/i.test(msg) ? "Google sign-in was cancelled. Tap Continue with Google to try again." : msg || "Google sign-in failed.");
       return;
     }
     if (result.redirected) return;
     setLoading(false);
     toast.success("Welcome!");
-    navigate({ to: redirect ?? "/dashboard", replace: true });
   }
 
   async function handleLogin(e: React.FormEvent) {

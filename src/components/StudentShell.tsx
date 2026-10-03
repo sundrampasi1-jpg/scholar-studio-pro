@@ -14,6 +14,7 @@ import {
   User,
   Wallet,
   Megaphone,
+  Phone,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/Brand";

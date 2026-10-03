@@ -125,6 +125,11 @@ export function StudentShell({
                     <Wallet className="mr-2 h-4 w-4" /> Payments
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/help">
+                    <Phone className="mr-2 h-4 w-4" /> Help & chat
+                  </Link>
+                </DropdownMenuItem>
                 {isStaff && (
                   <DropdownMenuItem asChild>
                     <Link to="/admin">

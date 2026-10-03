@@ -14,6 +14,7 @@ import {
   User,
   Wallet,
   Megaphone,
+  Phone,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -123,6 +124,11 @@ export function StudentShell({
                 <DropdownMenuItem asChild>
                   <Link to="/payments">
                     <Wallet className="mr-2 h-4 w-4" /> Payments
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/help">
+                    <Phone className="mr-2 h-4 w-4" /> Help & chat
                   </Link>
                 </DropdownMenuItem>
                 {isStaff && (

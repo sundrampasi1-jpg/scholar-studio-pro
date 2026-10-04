@@ -1,4 +1,4 @@
- import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -265,4 +265,78 @@ function AuthPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => setSignup
+                onClick={() => setSignupDone(false)}
+              >
+                Back to sign in
+              </Button>
+            </div>
+          ) : (
+            <>
+            {resolvingGoogle && (
+              <p className="mb-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Signing you in with Google…
+              </p>
+            )}
+            <Button type="button" variant="outline" className="mb-4 w-full" onClick={handleGoogle} disabled={loading || resolvingGoogle}>
+              <svg viewBox="0 0 24 24" className="mr-2 h-4 w-4" aria-hidden><path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3zM12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22zM6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14zM12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z"/></svg>
+              Continue with Google
+            </Button>
+            <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
+            <Tabs value={mode} onValueChange={(v) => { setMode(v); setError(null); }}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Sign in</TabsTrigger>
+                <TabsTrigger value="signup">Sign up</TabsTrigger>
+              </TabsList>
+              <TabsContent value="login">
+                <form onSubmit={handleLogin} className="space-y-3 pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Students, teachers and admins all sign in here — you'll land in the right area automatically.
+                  </p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-password">Password</Label>
+                    <Input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                  </div>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Sign in
+                  </Button>
+                  <Link to="/forgot-password" className="block text-center text-sm text-muted-foreground hover:underline">Forgot password?</Link>
+                </form>
+              </TabsContent>
+              <TabsContent value="signup">
+                <form onSubmit={handleSignup} className="space-y-3 pt-4">
+                  <p className="text-sm text-muted-foreground">Create your student account at {instituteName}.</p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Full name</Label>
+                    <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input id="signup-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone">Mobile number (optional)</Label>
+                    <Input id="phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91…" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input id="signup-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                  </div>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Create account
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

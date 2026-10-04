@@ -36,6 +36,13 @@
       "when": 1790912681793,
       "tag": "0004_support_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791076493720,
+      "tag": "0005_reels",
+      "breakpoints": true
     }
   ]
 }

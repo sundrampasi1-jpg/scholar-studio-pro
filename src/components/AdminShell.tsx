@@ -13,6 +13,7 @@ import {
   Menu,
   Wallet,
   MessageCircle,
+  Clapperboard,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -29,6 +30,7 @@ const modules = [
   { to: "/admin/live", label: "Live classes", icon: Radio },
   { to: "/admin/doubts", label: "Doubts", icon: HelpCircle },
   { to: "/admin/chats", label: "Student chats", icon: MessageCircle },
+  { to: "/admin/reels", label: "Reels", icon: Clapperboard },
   { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { to: "/admin/students", label: "Students", icon: Users },
   { to: "/admin/payments", label: "Payments", icon: Wallet },

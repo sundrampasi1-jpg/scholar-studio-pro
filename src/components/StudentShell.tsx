@@ -15,6 +15,7 @@ import {
   Wallet,
   Megaphone,
   Phone,
+  Clapperboard,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -33,6 +34,7 @@ import {
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/courses", label: "Courses", icon: BookOpen },
+  { to: "/reels", label: "Reels", icon: Clapperboard },
   { to: "/live", label: "Live", icon: Radio },
   { to: "/tests", label: "Tests", icon: FileQuestion },
   { to: "/notes", label: "Notes", icon: FileText },
@@ -166,8 +168,8 @@ export function StudentShell({
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t bg-card md:hidden">
-        {navItems.slice(0, 5).map((item) => (
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card md:hidden">
+        {navItems.slice(0, 6).map((item) => (
           <Link
             key={item.to}
             to={item.to}

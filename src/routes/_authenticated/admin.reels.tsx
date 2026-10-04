@@ -32,9 +32,9 @@ function AdminReels() {
   };
 
   async function add() {
-    if (!url) return toast.error("Upload or record a video first");
+    if (!url) { toast.error("Upload or record a video first"); return; }
     const { error } = await supabase.from("reels").insert({ title: title.trim(), video_url: url });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     await supabase.from("notifications").insert({ user_id: null, title: "New reel", body: title.trim() || "A new short video is up", type: "reel", link: "/reels" });
     toast.success("Reel published");
     setTitle("");

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BookOpen, CheckCircle2, FileQuestion, Radio } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, ErrorState, LoadingState } from "@/components/DataStates";
+import { DailyChallenge } from "@/components/DailyChallenge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { fetchCourseProgress, fetchMyEnrollments, formatDateTime, liveStatus } from "@/lib/queries";
@@ -89,6 +90,12 @@ function Dashboard() {
           </div>
         ))}
       </div>
+
+      {uid && (
+        <div className="mt-6">
+          <DailyChallenge userId={uid} />
+        </div>
+      )}
 
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">

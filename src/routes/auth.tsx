@@ -86,7 +86,7 @@ function AuthPage() {
 
         if (data.session) {
           sessionStorage.removeItem("jk_google_pending");
-          navigate({ to: target(), replace: true });
+          navigate({ href: target(), replace: true });
           return;
         }
 
@@ -116,7 +116,7 @@ function AuthPage() {
       if (event === "SIGNED_IN" && session) {
         cancelled = true;
         sessionStorage.removeItem("jk_google_pending");
-        navigate({ to: target(), replace: true });
+        navigate({ href: target(), replace: true });
       }
     });
 
@@ -191,7 +191,7 @@ function AuthPage() {
     }
 
     toast.success("Welcome back!");
-    navigate({ to: redirect ?? "/dashboard", replace: true });
+    navigate({ href: redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/dashboard", replace: true });
   }
 
   async function handleSignup(e: React.FormEvent) {

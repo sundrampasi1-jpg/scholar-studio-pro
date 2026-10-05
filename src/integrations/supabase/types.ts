@@ -251,6 +251,44 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_challenge_answers: {
+        Row: {
+          challenge_date: string
+          created_at: string
+          id: string
+          is_correct: boolean
+          question_id: string
+          selected_option: string
+          user_id: string
+        }
+        Insert: {
+          challenge_date: string
+          created_at?: string
+          id?: string
+          is_correct: boolean
+          question_id: string
+          selected_option: string
+          user_id: string
+        }
+        Update: {
+          challenge_date?: string
+          created_at?: string
+          id?: string
+          is_correct?: boolean
+          question_id?: string
+          selected_option?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_challenge_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doubt_replies: {
         Row: {
           body: string

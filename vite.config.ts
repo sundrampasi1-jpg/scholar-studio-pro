@@ -27,6 +27,7 @@ export default defineConfig({
       globPatterns: ["icons/*.png", "manifest.json"],
       navigateFallback: null,
       navigateFallbackDenylist: [/^\/~oauth/],
+      // Runtime rule keeps the worker valid even when the precache globs match nothing at build time.
       runtimeCaching: [
         {
           urlPattern: ({ url, sameOrigin }) =>

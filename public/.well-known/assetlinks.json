@@ -1,0 +1,1 @@
+[{"relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "android_app", "package_name": "app.lovable.scholar_studio_pro.twa", "sha256_cert_fingerprints": ["63:22:4D:FE:1D:C0:D0:8C:13:D0:53:23:10:56:11:C5:0E:1F:C8:E1:BC:6B:78:C3:A1:BE:17:2C:AF:9A:FC:CF"]}}]

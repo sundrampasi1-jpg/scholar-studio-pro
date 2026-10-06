@@ -27,7 +27,14 @@ export default defineConfig({
       globPatterns: ["icons/*.png", "manifest.json"],
       navigateFallback: null,
       navigateFallbackDenylist: [/^\/~oauth/],
-      runtimeCaching: [],
+      runtimeCaching: [
+        {
+          urlPattern: ({ url, sameOrigin }) =>
+            sameOrigin && (url.pathname.startsWith("/icons/") || url.pathname === "/manifest.json"),
+          handler: "StaleWhileRevalidate",
+          options: { cacheName: "jk-identity" },
+        },
+      ],
       cleanupOutdatedCaches: true,
     },
   })],

@@ -13,7 +13,7 @@
 - Homepage social/search metadata (title, description, og tags)
 - Verify all routes/buttons, role separation, build + runtime errors clean
 - Admin: upload/record lesson videos (playable by students), upload PDFs, live class link + schedule
-- Installable app (manifest, app name, icon, standalone mode) for Android packaging
+- [x] Installable app (manifest, app name, icons, standalone mode) and preview-safe basic worker for Android packaging
 - Google sign-in ("Continue with Google") alongside email/password + forgot password
 - Only Sundrampasi1@gmail.com is admin (enforced in database); everyone else is student, read-only
 - [ ] Google login opens account chooser, direct sign-in

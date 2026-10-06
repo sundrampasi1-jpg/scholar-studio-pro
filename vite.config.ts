@@ -6,6 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   tanstackStart: {
@@ -13,5 +14,21 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  plugins: [mcpPlugin()],
+  plugins: [mcpPlugin(), VitePWA({
+    strategies: "generateSW",
+    filename: "sw.js",
+    outDir: "dist/client",
+    manifest: false,
+    injectRegister: null,
+    registerType: "autoUpdate",
+    devOptions: { enabled: false },
+    workbox: {
+      // Only app identity assets are cached; auth, pages, PDFs and APIs stay online.
+      globPatterns: ["icons/*.png", "manifest.json"],
+      navigateFallback: null,
+      navigateFallbackDenylist: [/^\/~oauth/],
+      runtimeCaching: [],
+      cleanupOutdatedCaches: true,
+    },
+  })],
 });

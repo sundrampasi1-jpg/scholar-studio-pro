@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+PWA identity lives in public/manifest.json; generate /sw.js with vite-plugin-pwa and register only through src/lib/pwa.ts, excluding dev/previews, to avoid stale editor content. Cache only identity assets so authenticated functionality stays unchanged.

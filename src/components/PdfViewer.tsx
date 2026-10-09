@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-/** Renders every page of a PDF as an image, page by page — works on phones and inside the Android app. */
+async function fetchPdfBytes(url: string) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/** Renders every page of a PDF inside the app, page by page — never opens the browser. */
 export function PdfViewer({ url, className }: { url: string; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -17,36 +24,43 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     setState("loading");
     (async () => {
       try {
-        const pdfjs = await import("pdfjs-dist");
-        const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        const worker = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
         pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
-        const doc = await pdfjs.getDocument({ url }).promise;
+        const data = await fetchPdfBytes(url);
+        if (cancelled) return;
+        const doc = await pdfjs.getDocument({ data }).promise;
         if (cancelled) return;
         setPages(doc.numPages);
         setState("ready");
-        const width = Math.min(host.clientWidth || 800, 1000);
+        const fitWidth = Math.min(host.parentElement?.clientWidth || window.innerWidth || 800, 1000) - 8;
+        const width = Math.max(200, fitWidth) * zoom;
         for (let i = 1; i <= doc.numPages; i++) {
           if (cancelled) return;
           const page = await doc.getPage(i);
           const base = page.getViewport({ scale: 1 });
-          const ratio = window.devicePixelRatio || 1;
-          const vp = page.getViewport({ scale: (width / base.width) * ratio });
+          const ratio = Math.min(window.devicePixelRatio || 1, 2);
+          const scale = width / base.width;
+          const vp = page.getViewport({ scale: scale * ratio });
           const canvas = document.createElement("canvas");
-          canvas.width = vp.width;
-          canvas.height = vp.height;
-          canvas.style.width = "100%";
-          canvas.className = "mb-3 rounded border bg-card shadow-sm";
+          canvas.width = Math.floor(vp.width);
+          canvas.height = Math.floor(vp.height);
+          canvas.style.width = `${Math.floor(width)}px`;
+          canvas.style.maxWidth = zoom > 1 ? "none" : "100%";
+          canvas.style.height = "auto";
+          canvas.className = "mx-auto mb-3 block rounded border bg-card shadow-sm";
           host.appendChild(canvas);
           await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp }).promise;
         }
-      } catch {
+      } catch (e) {
+        console.error("PDF load failed", e);
         if (!cancelled) setState("error");
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [url, attempt]);
+  }, [url, attempt, zoom]);
 
   return (
     <div className={className}>
@@ -57,11 +71,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       )}
       {state === "error" && (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          Could not show this PDF here.{" "}
-          <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((a) => a + 1)}>Try again</button>{" or "}
-          <a href={url} target="_blank" rel="noreferrer" className="font-medium text-primary underline">
-            Open it directly
-          </a>
+          Could not show this PDF.{" "}
+          <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((a) => a + 1)}>Try again</button>
         </p>
       )}
       {state === "ready" && pages > 0 && (
@@ -72,26 +83,29 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         </div>
       )}
       <div className="overflow-x-auto">
-        <div ref={ref} className="mx-auto max-w-4xl" style={{ width: `${zoom * 100}%`, maxWidth: zoom > 1 ? "none" : undefined }} />
+        <div ref={ref} className="mx-auto" />
       </div>
     </div>
   );
 }
 
-/** Saves a file to the device (works for files stored online, not just same-site links). */
+/** Saves a file to the device's downloads from inside the app (no browser tab). */
 export async function downloadFile(url: string, title: string) {
+  const id = toast.loading("Downloading…");
   try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error();
-    const blob = await res.blob();
+    const bytes = await fetchPdfBytes(url);
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const name = title.replace(/[^\w.-]+/g, "_") + (title.toLowerCase().endsWith(".pdf") ? "" : ".pdf");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = title.replace(/[^\w.-]+/g, "_") + (title.toLowerCase().endsWith(".pdf") ? "" : ".pdf");
+    a.download = name;
+    a.rel = "noopener";
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    toast.success("Saved to your downloads", { id });
   } catch {
-    window.open(url, "_blank");
+    toast.error("Download failed. Check your connection and try again.", { id });
   }
 }

@@ -39,6 +39,21 @@ function NotesPage() {
 
   const list = (notes.data ?? []).filter((n) => n.title.toLowerCase().includes(q.toLowerCase()));
 
+  async function openNote(n: { title: string; file_url: string; allow_download: boolean }) {
+    const raw = n.file_url;
+    const path = raw.includes("/object/public/media/")
+      ? raw.split("/object/public/media/")[1]
+      : raw.includes("/object/sign/media/")
+      ? raw.split("/object/sign/media/")[1].split("?")[0]
+      : raw;
+    const { data, error } = await supabase.storage.from("media").createSignedUrl(path, 3600);
+    if (error || !data) {
+      alert("Could not open this file.");
+      return;
+    }
+    setViewing({ title: n.title, url: data.signedUrl, download: n.allow_download });
+  }
+
   return (
     <StudentShell title="Notes & PDFs">
       {viewing && (
@@ -47,50 +62,4 @@ function NotesPage() {
             <p className="truncate font-medium">{viewing.title}</p>
             <div className="flex gap-2">
               {viewing.download && (
-                <Button size="sm" variant="outline" onClick={() => downloadFile(viewing.url, viewing.title)}>
-                  <Download className="mr-1.5 h-4 w-4" /> Download
-                </Button>
-              )}
-              <Button size="icon" variant="ghost" onClick={() => setViewing(null)} aria-label="Close">
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-          <PdfViewer url={viewing.url} className="flex-1 overflow-y-auto bg-surface p-3" />
-        </div>
-      )}
-      <Input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search notes…"
-        className="mb-4 max-w-sm"
-      />
-      {notes.isLoading ? (
-        <LoadingState />
-      ) : list.length === 0 ? (
-        <EmptyState title="No notes yet" />
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {list.map((n) => (
-            <div key={n.id} className="surface-card flex items-center gap-3 p-4">
-              <FileText className="h-8 w-8 shrink-0 text-primary" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{n.title}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[n.courses?.title, n.subjects?.name, n.chapters?.name].filter(Boolean).join(" › ") ||
-                    "General"}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setViewing({ title: n.title, url: n.file_url, download: n.allow_download })}
-              >
-                View
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-    </StudentShell>
-  );
-}
+                <Butto

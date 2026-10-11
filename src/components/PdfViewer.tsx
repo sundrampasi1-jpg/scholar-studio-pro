@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -8,20 +8,22 @@ async function fetchPdfBytes(url: string) {
   return new Uint8Array(await res.arrayBuffer());
 }
 
-/** Renders every page of a PDF inside the app, page by page — never opens the browser. */
+/** Renders PDF pages one at a time, lazily as the user scrolls — avoids loading huge files into memory at once. */
 export function PdfViewer({ url, className }: { url: string; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [pages, setPages] = useState(0);
+  const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [attempt, setAttempt] = useState(0);
+  const pdfDocRef = useRef<any>(null);
+  const renderedPages = useRef<Set<number>>(new Set());
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
-    const host = ref.current;
-    if (!host) return;
-    host.innerHTML = "";
     setState("loading");
+    renderedPages.current.clear();
+    pageRefs.current.clear();
     (async () => {
       try {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -31,27 +33,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         if (cancelled) return;
         const doc = await pdfjs.getDocument({ data }).promise;
         if (cancelled) return;
-        setPages(doc.numPages);
+        pdfDocRef.current = doc;
+        setNumPages(doc.numPages);
         setState("ready");
-        const fitWidth = Math.min(host.parentElement?.clientWidth || window.innerWidth || 800, 1000) - 8;
-        const width = Math.max(200, fitWidth) * zoom;
-        for (let i = 1; i <= doc.numPages; i++) {
-          if (cancelled) return;
-          const page = await doc.getPage(i);
-          const base = page.getViewport({ scale: 1 });
-          const ratio = Math.min(window.devicePixelRatio || 1, 2);
-          const scale = width / base.width;
-          const vp = page.getViewport({ scale: scale * ratio });
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.floor(vp.width);
-          canvas.height = Math.floor(vp.height);
-          canvas.style.width = `${Math.floor(width)}px`;
-          canvas.style.maxWidth = zoom > 1 ? "none" : "100%";
-          canvas.style.height = "auto";
-          canvas.className = "mx-auto mb-3 block rounded border bg-card shadow-sm";
-          host.appendChild(canvas);
-          await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp }).promise;
-        }
       } catch (e) {
         console.error("PDF load failed", e);
         if (!cancelled) setState("error");
@@ -59,8 +43,63 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     })();
     return () => {
       cancelled = true;
+      pdfDocRef.current = null;
     };
-  }, [url, attempt, zoom]);
+  }, [url, attempt]);
+
+  async function renderPage(pageNum: number) {
+    if (renderedPages.current.has(pageNum)) return;
+    const doc = pdfDocRef.current;
+    const host = pageRefs.current.get(pageNum);
+    if (!doc || !host) return;
+    renderedPages.current.add(pageNum);
+    try {
+      const page = await doc.getPage(pageNum);
+      const base = page.getViewport({ scale: 1 });
+      const fitWidth = Math.min(host.parentElement?.clientWidth || window.innerWidth || 800, 1000) - 8;
+      const width = Math.max(200, fitWidth) * zoom;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const scale = width / base.width;
+      const vp = page.getViewport({ scale: scale * ratio });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      canvas.style.width = `${Math.floor(width)}px`;
+      canvas.style.maxWidth = zoom > 1 ? "none" : "100%";
+      canvas.style.height = "auto";
+      canvas.className = "mx-auto block rounded border bg-card shadow-sm";
+      host.innerHTML = "";
+      host.appendChild(canvas);
+      await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp }).promise;
+    } catch (e) {
+      console.error("Page render failed", pageNum, e);
+      renderedPages.current.delete(pageNum);
+    }
+  }
+
+  useEffect(() => {
+    if (state !== "ready" || !containerRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const pageNum = Number((entry.target as HTMLElement).dataset.page);
+            if (pageNum) renderPage(pageNum);
+          }
+        }
+      },
+      { root: null, rootMargin: "600px 0px", threshold: 0.01 }
+    );
+    pageRefs.current.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [state, numPages, zoom]);
+
+  useEffect(() => {
+    renderedPages.current.clear();
+    pageRefs.current.forEach((host) => {
+      host.innerHTML = "";
+    });
+  }, [zoom]);
 
   return (
     <div className={className}>
@@ -75,15 +114,29 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
           <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((a) => a + 1)}>Try again</button>
         </p>
       )}
-      {state === "ready" && pages > 0 && (
+      {state === "ready" && numPages > 0 && (
         <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Zoom out">−</button>
-          <span>{Math.round(zoom * 100)}% · {pages} pages</span>
+          <span>{Math.round(zoom * 100)}% · {numPages} pages</span>
           <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.min(3, z + 0.25))} aria-label="Zoom in">+</button>
         </div>
       )}
       <div className="overflow-x-auto">
-        <div ref={ref} className="mx-auto" />
+        <div ref={containerRef} className="mx-auto">
+          {state === "ready" &&
+            Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
+              <div
+                key={pageNum}
+                data-page={pageNum}
+                ref={(el) => {
+                  if (el) pageRefs.current.set(pageNum, el);
+                }}
+                className="mb-3 flex min-h-[300px] items-center justify-center"
+              >
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   );

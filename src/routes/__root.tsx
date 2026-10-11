@@ -116,6 +116,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     registerAppWorker().catch((error: unknown) => console.warn("App worker registration failed", error));
+    const preventContextMenu = (e: Event) => e.preventDefault();
+    document.addEventListener("contextmenu", preventContextMenu);
+    return () => document.removeEventListener("contextmenu", preventContextMenu);
   }, []);
 
   return (
@@ -127,4 +130,4 @@ function RootComponent() {
       </AuthProvider>
     </QueryClientProvider>
   );
-      }
+       }

@@ -80,8 +80,8 @@ export function StudentShell({
   }
 
   return (
-    <div className="min-h-screen bg-surface pb-24 md:pb-0">
-      <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur">
+    <div className="min-h-screen bg-surface pb-20 md:pb-0">
+      <header className="sticky top-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <Link to="/dashboard">
             <Brand compact />
@@ -168,21 +168,19 @@ export function StudentShell({
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card/95 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card shadow-[0_-2px_12px_rgba(0,0,0,0.06)] md:hidden">
         {navItems.slice(0, 6).map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            activeProps={{ className: "text-primary" }}
-            className="flex flex-col items-center gap-1 py-3 text-[11px] font-semibold text-foreground/70 transition-all active:scale-95"
+            activeProps={{ className: "text-primary [&_svg]:drop-shadow-sm" }}
+            className="flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold text-foreground/70"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl transition-all [&.active]:bg-primary/10">
-              <item.icon className="h-6 w-6" strokeWidth={2.4} />
-            </span>
+            <item.icon className="h-5 w-5" strokeWidth={2.2} />
             {item.label}
           </Link>
         ))}
       </nav>
     </div>
   );
-    }
+ }

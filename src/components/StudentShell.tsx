@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+ import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -80,7 +80,7 @@ export function StudentShell({
   }
 
   return (
-    <div className="min-h-screen bg-surface pb-20 md:pb-0">
+    <div className="min-h-screen bg-surface pb-24 md:pb-0">
       <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <Link to="/dashboard">
@@ -168,19 +168,21 @@ export function StudentShell({
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card/95 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
         {navItems.slice(0, 6).map((item) => (
           <Link
             key={item.to}
             to={item.to}
             activeProps={{ className: "text-primary" }}
-            className="flex flex-col items-center gap-1 py-2.5 text-[11px] text-muted-foreground"
+            className="flex flex-col items-center gap-1 py-3 text-[11px] font-semibold text-foreground/70 transition-all active:scale-95"
           >
-            <item.icon className="h-5 w-5" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl transition-all [&.active]:bg-primary/10">
+              <item.icon className="h-6 w-6" strokeWidth={2.4} />
+            </span>
             {item.label}
           </Link>
         ))}
       </nav>
     </div>
   );
-}
+    }

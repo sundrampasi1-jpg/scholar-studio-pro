@@ -168,19 +168,21 @@ export function StudentShell({
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card shadow-[0_-2px_12px_rgba(0,0,0,0.06)] md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden">
         {navItems.slice(0, 6).map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            activeProps={{ className: "text-primary [&_svg]:drop-shadow-sm" }}
-            className="flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold text-foreground/70"
+            activeProps={{ className: "text-primary" }}
+            className="group flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold text-foreground/60 active:scale-90 transition-transform"
           >
-            <item.icon className="h-5 w-5" strokeWidth={2.2} />
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-transparent transition-all duration-200 group-[.active]:bg-primary group-[.active]:shadow-lg group-[.active]:shadow-primary/40 group-active:scale-90">
+              <item.icon className="h-5 w-5 transition-colors group-[.active]:text-primary-foreground" strokeWidth={2.2} />
+            </span>
             {item.label}
           </Link>
         ))}
       </nav>
     </div>
   );
- }
+   }

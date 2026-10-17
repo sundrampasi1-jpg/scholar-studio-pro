@@ -4,11 +4,10 @@ import { toast } from "sonner";
 
 async function fetchPdfBytes(url: string) {
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error("HTTP " + res.status);
   return new Uint8Array(await res.arrayBuffer());
 }
 
-/** Renders PDF pages one at a time, lazily as the user scrolls — avoids loading huge files into memory at once. */
 export function PdfViewer({ url, className }: { url: string; className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -64,7 +63,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       const canvas = document.createElement("canvas");
       canvas.width = Math.floor(vp.width);
       canvas.height = Math.floor(vp.height);
-      canvas.style.width = `${Math.floor(width)}px`;
+      canvas.style.width = Math.floor(width) + "px";
       canvas.style.maxWidth = zoom > 1 ? "none" : "100%";
       canvas.style.height = "auto";
       canvas.className = "mx-auto block rounded border bg-card shadow-sm";
@@ -111,14 +110,22 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       {state === "error" && (
         <p className="py-10 text-center text-sm text-muted-foreground">
           Could not show this PDF.{" "}
-          <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((a) => a + 1)}>Try again</button>
+          <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((a) => a + 1)}>
+            Try again
+          </button>
         </p>
       )}
       {state === "ready" && numPages > 0 && (
         <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Zoom out">−</button>
-          <span>{Math.round(zoom * 100)}% · {numPages} pages</span>
-          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.min(3, z + 0.25))} aria-label="Zoom in">+</button>
+          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Zoom out">
+            −
+          </button>
+          <span>
+            {Math.round(zoom * 100)}% · {numPages} pages
+          </span>
+          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.min(3, z + 0.25))} aria-label="Zoom in">
+            +
+          </button>
         </div>
       )}
       <div className="overflow-x-auto">
@@ -142,7 +149,6 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   );
 }
 
-/** Saves a file to the device's downloads from inside the app (no browser tab). */
 export async function downloadFile(url: string, title: string) {
   const id = toast.loading("Downloading…");
   try {
@@ -157,8 +163,14 @@ export async function downloadFile(url: string, title: string) {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    try {
+      const raw = localStorage.getItem("jk_downloads");
+      const list = raw ? JSON.parse(raw) : [];
+      list.unshift({ title, downloadedAt: new Date().toISOString() });
+      localStorage.setItem("jk_downloads", JSON.stringify(list.slice(0, 100)));
+    } catch {}
     toast.success("Saved to your downloads", { id });
   } catch {
     toast.error("Download failed. Check your connection and try again.", { id });
   }
-}
+    }

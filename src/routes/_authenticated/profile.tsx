@@ -16,6 +16,7 @@ import {
   Phone,
   Shield,
   LogOut,
+  Download,
 } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { LoadingState } from "@/components/DataStates";
@@ -42,6 +43,8 @@ const statusClass: Record<string, string> = {
   failed: "bg-destructive/10 text-destructive",
 };
 
+type DownloadRecord = { title: string; downloadedAt: string };
+
 function ProfilePage() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -50,6 +53,8 @@ function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [downloads, setDownloads] = useState<DownloadRecord[]>([]);
 
   const profile = useQuery({
     queryKey: ["profile", user?.id],
@@ -84,6 +89,36 @@ function ProfilePage() {
     }
   }, [profile.data]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAvatar() {
+      const path = profile.data?.avatar_url;
+      if (!path) {
+        setAvatarUrl(null);
+        return;
+      }
+      if (path.startsWith("http")) {
+        setAvatarUrl(path);
+        return;
+      }
+      const result = await supabase.storage.from("media").createSignedUrl(path, 3600);
+      if (!cancelled && result.data) setAvatarUrl(result.data.signedUrl);
+    }
+    loadAvatar();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.data?.avatar_url]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("jk_downloads");
+      setDownloads(raw ? JSON.parse(raw) : []);
+    } catch {
+      setDownloads([]);
+    }
+  }, []);
+
   const save = useMutation({
     mutationFn: async () => {
       if (fullName.trim().length < 2) {
@@ -112,11 +147,7 @@ function ProfilePage() {
       const path = "avatars/" + user.id + "." + ext;
       const upResult = await supabase.storage.from("media").upload(path, file, { upsert: true });
       if (upResult.error) throw upResult.error;
-      const pub = supabase.storage.from("media").getPublicUrl(path);
-      const dbResult = await supabase
-        .from("profiles")
-        .update({ avatar_url: pub.data.publicUrl })
-        .eq("id", user.id);
+      const dbResult = await supabase.from("profiles").update({ avatar_url: path }).eq("id", user.id);
       if (dbResult.error) throw dbResult.error;
       toast.success("Photo updated");
       qc.invalidateQueries({ queryKey: ["profile"] });
@@ -158,8 +189,8 @@ function ProfilePage() {
         <div className="surface-card flex flex-wrap items-center gap-4 p-5">
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary/10">
-              {profile.data?.avatar_url ? (
-                <img src={profile.data.avatar_url} alt="Profile" className="h-full w-full object-cover" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
               ) : (
                 <User className="h-9 w-9 text-primary" />
               )}
@@ -255,6 +286,25 @@ function ProfilePage() {
           )}
         </section>
 
+        <section className="surface-card p-5">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold">
+            <Download className="h-4 w-4 text-primary" />
+            My downloads
+          </h2>
+          {downloads.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No downloads yet on this device.</p>
+          ) : (
+            <ul className="divide-y">
+              {downloads.map((d, i) => (
+                <li key={i} className="flex items-center justify-between py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{d.title}</span>
+                  <span className="text-xs text-muted-foreground">{formatDateTime(d.downloadedAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Link to="/notes" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
             <FileText className="h-5 w-5 text-primary" />
@@ -307,4 +357,4 @@ function ProfilePage() {
       </div>
     </StudentShell>
   );
-               }
+    }

@@ -15,7 +15,6 @@ import {
   KeyRound,
   Phone,
   Shield,
-  FileCheck,
   LogOut,
 } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
@@ -32,8 +31,6 @@ export const Route = createFileRoute("/_authenticated/profile")({
     meta: [
       { title: "My profile — JK Academy" },
       { name: "description", content: "Manage your JK Academy student profile, courses, payments and more." },
-      { property: "og:title", content: "My profile — JK Academy" },
-      { property: "og:description", content: "Manage your JK Academy student profile, courses, payments and more." },
     ],
   }),
   component: ProfilePage,
@@ -58,9 +55,9 @@ function ProfilePage() {
     queryKey: ["profile", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", user!.id).maybeSingle();
-      if (error) throw error;
-      return data as any;
+      const result = await supabase.from("profiles").select("*").eq("id", user!.id).maybeSingle();
+      if (result.error) throw result.error;
+      return result.data as any;
     },
   });
 
@@ -68,13 +65,13 @@ function ProfilePage() {
     queryKey: ["my-payments", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const result = await supabase
         .from("payments")
         .select("id, amount, status, provider_ref, created_at, course_id, courses(title)")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (result.error) throw result.error;
+      return result.data;
     },
   });
 
@@ -89,12 +86,14 @@ function ProfilePage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (fullName.trim().length < 2) throw new Error("Enter your full name.");
-      const { error } = await supabase
+      if (fullName.trim().length < 2) {
+        throw new Error("Enter your full name.");
+      }
+      const result = await supabase
         .from("profiles")
         .update({ full_name: fullName.trim(), phone: phone.trim() || null })
         .eq("id", user!.id);
-      if (error) throw error;
+      if (result.error) throw result.error;
     },
     onSuccess: () => {
       toast.success("Profile saved");
@@ -110,15 +109,15 @@ function ProfilePage() {
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
-      const path = `avatars/${user.id}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("media").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("media").getPublicUrl(path);
-      const { error: dbErr } = await supabase
+      const path = "avatars/" + user.id + "." + ext;
+      const upResult = await supabase.storage.from("media").upload(path, file, { upsert: true });
+      if (upResult.error) throw upResult.error;
+      const pub = supabase.storage.from("media").getPublicUrl(path);
+      const dbResult = await supabase
         .from("profiles")
-        .update({ avatar_url: pub.publicUrl })
+        .update({ avatar_url: pub.data.publicUrl })
         .eq("id", user.id);
-      if (dbErr) throw dbErr;
+      if (dbResult.error) throw dbResult.error;
       toast.success("Photo updated");
       qc.invalidateQueries({ queryKey: ["profile"] });
     } catch (err: any) {
@@ -130,9 +129,12 @@ function ProfilePage() {
 
   async function resetPassword() {
     if (!user?.email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email);
-    if (error) toast.error(error.message);
-    else toast.success("Password reset link sent to your email");
+    const result = await supabase.auth.resetPasswordForEmail(user.email);
+    if (result.error) {
+      toast.error(result.error.message);
+    } else {
+      toast.success("Password reset link sent to your email");
+    }
   }
 
   async function signOut() {
@@ -153,7 +155,6 @@ function ProfilePage() {
   return (
     <StudentShell title="My profile">
       <div className="space-y-5">
-        {/* Header card */}
         <div className="surface-card flex flex-wrap items-center gap-4 p-5">
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary/10">
@@ -179,12 +180,11 @@ function ProfilePage() {
             <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
             <p className="text-xs text-muted-foreground">Student ID: {studentId}</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
+          <Button variant="outline" size="sm" onClick={() => setEditing(!editing)}>
             {editing ? "Cancel" : "Edit profile"}
           </Button>
         </div>
 
-        {/* Edit form */}
         {editing && (
           <form
             className="surface-card space-y-3 p-5"
@@ -205,13 +205,17 @@ function ProfilePage() {
               <Label htmlFor="pp">Mobile number</Label>
               <Input id="pp" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
-            <Button type="submit" disabled={save.isPending}>Save changes</Button>
+            <Button type="submit" disabled={save.isPending}>
+              Save changes
+            </Button>
           </form>
         )}
 
-        {/* My Courses */}
         <section className="surface-card p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-semibold"><BookOpen className="h-4 w-4 text-primary" /> My courses</h2>
+          <h2 className="mb-3 flex items-center gap-2 font-semibold">
+            <BookOpen className="h-4 w-4 text-primary" />
+            My courses
+          </h2>
           {myCourses.length === 0 ? (
             <p className="text-sm text-muted-foreground">No purchased batches yet.</p>
           ) : (
@@ -228,18 +232,22 @@ function ProfilePage() {
           )}
         </section>
 
-        {/* My Payments */}
         <section className="surface-card p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-semibold"><Wallet className="h-4 w-4 text-primary" /> My payments</h2>
+          <h2 className="mb-3 flex items-center gap-2 font-semibold">
+            <Wallet className="h-4 w-4 text-primary" />
+            My payments
+          </h2>
           {!payments.data?.length ? (
             <p className="text-sm text-muted-foreground">No payments yet.</p>
           ) : (
             <ul className="divide-y">
               {payments.data.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
-                  <span className="flex-1 min-w-0 truncate">{p.courses?.title ?? "Course"}</span>
+                  <span className="min-w-0 flex-1 truncate">{p.courses?.title ?? "Course"}</span>
                   <span className="font-semibold">₹{Number(p.amount).toFixed(0)}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusClass[p.status] ?? "bg-muted"}`}>{p.status}</span>
+                  <span className={"rounded-full px-2 py-0.5 text-xs font-medium capitalize " + (statusClass[p.status] ?? "bg-muted")}>
+                    {p.status}
+                  </span>
                   {p.provider_ref && <span className="w-full text-[10px] text-muted-foreground">Txn: {p.provider_ref}</span>}
                 </li>
               ))}
@@ -247,22 +255,56 @@ function ProfilePage() {
           )}
         </section>
 
-        {/* Quick links grid */}
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Link to="/notes" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
-            <FileText className="h-5 w-5 text-primary" /> My PDFs & Notes
+            <FileText className="h-5 w-5 text-primary" />
+            My PDFs and Notes
           </Link>
           <Link to="/tests" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
-            <FileQuestion className="h-5 w-5 text-primary" /> My tests
+            <FileQuestion className="h-5 w-5 text-primary" />
+            My tests
           </Link>
           <Link to="/live" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
-            <Radio className="h-5 w-5 text-primary" /> Live classes
+            <Radio className="h-5 w-5 text-primary" />
+            Live classes
           </Link>
           <Link to="/notifications" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
-            <Bell className="h-5 w-5 text-primary" /> Notifications
+            <Bell className="h-5 w-5 text-primary" />
+            Notifications
           </Link>
           <Link to="/help" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
-            <Phone className="h-5 w-5 text-primary" /> Help & support
+            <Phone className="h-5 w-5 text-primary" />
+            Help and support
           </Link>
-          <button onClick={resetPassword} className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
-            <KeyRound className="h-5 w-5 text-primary" /> Reset passw
+          <button type="button" onClick={resetPassword} className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
+            <KeyRound className="h-5 w-5 text-primary" />
+            Reset password
+          </button>
+        </section>
+
+        <section className="surface-card p-5">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold">
+            <Settings className="h-4 w-4 text-primary" />
+            Account
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={resetPassword}>
+              <KeyRound className="mr-1.5 h-4 w-4" />
+              Change password
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/help">
+                <Shield className="mr-1.5 h-4 w-4" />
+                Privacy and terms
+              </Link>
+            </Button>
+            <Button variant="destructive" size="sm" onClick={signOut}>
+              <LogOut className="mr-1.5 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
+        </section>
+      </div>
+    </StudentShell>
+  );
+               }

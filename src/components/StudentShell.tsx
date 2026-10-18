@@ -1,5 +1,4 @@
- 
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+ import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -34,13 +33,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Home", icon: LayoutDashboard },
   { to: "/courses", label: "Courses", icon: BookOpen },
   { to: "/reels", label: "Reels", icon: Clapperboard },
   { to: "/live", label: "Live", icon: Radio },
   { to: "/tests", label: "Tests", icon: FileQuestion },
   { to: "/notes", label: "Notes", icon: FileText },
-  { to: "/daily-challenge", label: "Daily Challenge", icon: CalendarCheck },
+  { to: "/daily-challenge", label: "Daily", icon: CalendarCheck },
   { to: "/doubts", label: "Doubts", icon: HelpCircle },
   { to: "/announcements", label: "News", icon: Megaphone },
 ] as const;
@@ -65,13 +64,11 @@ export function StudentShell({
     queryKey: ["unread-notifications", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { count } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user!.id)
         .eq("is_read", false);
-
-      if (error) throw error;
       return count ?? 0;
     },
   });
@@ -86,32 +83,25 @@ export function StudentShell({
 
   return (
     <div className="min-h-screen bg-surface pb-20 md:pb-0">
-      <header className="sticky top-0 z-30 border-b bg-card">
+      <header className="fixed top-0 left-0 right-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <Link to="/dashboard">
             <Brand compact />
           </Link>
-
           <nav className="ml-4 hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                activeProps={{
-                  className: "bg-accent text-accent-foreground",
-                }}
+                activeProps={{ className: "bg-accent text-accent-foreground" }}
                 className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 {item.label}
               </Link>
             ))}
           </nav>
-
           <div className="ml-auto flex items-center gap-1">
-            <Link
-              to="/notifications"
-              className="relative rounded-md p-2 hover:bg-accent"
-            >
+            <Link to="/notifications" className="relative rounded-md p-2 hover:bg-accent">
               <Bell className="h-5 w-5" />
               {unread > 0 && (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
@@ -119,38 +109,32 @@ export function StudentShell({
                 </span>
               )}
             </Link>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="Account">
                   <User className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
                   {user?.email}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-
                 <DropdownMenuItem asChild>
                   <Link to="/profile">
                     <User className="mr-2 h-4 w-4" /> Profile
                   </Link>
                 </DropdownMenuItem>
-
                 <DropdownMenuItem asChild>
                   <Link to="/payments">
                     <Wallet className="mr-2 h-4 w-4" /> Payments
                   </Link>
                 </DropdownMenuItem>
-
                 <DropdownMenuItem asChild>
                   <Link to="/help">
                     <Phone className="mr-2 h-4 w-4" /> Help & chat
                   </Link>
                 </DropdownMenuItem>
-
                 {isStaff && (
                   <DropdownMenuItem asChild>
                     <Link to="/admin">
@@ -163,7 +147,6 @@ export function StudentShell({
                     </Link>
                   </DropdownMenuItem>
                 )}
-
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut}>
                   <LogOut className="mr-2 h-4 w-4" /> Log out
@@ -174,14 +157,12 @@ export function StudentShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-6 pt-20">
         {(title || actions) && (
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
               {title && <h1 className="text-2xl font-semibold">{title}</h1>}
-              {subtitle && (
-                <p className="text-sm text-muted-foreground">{subtitle}</p>
-              )}
+              {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
             </div>
             {actions}
           </div>
@@ -195,15 +176,12 @@ export function StudentShell({
             key={item.to}
             to={item.to}
             activeProps={{ className: "text-primary" }}
-            className="group flex flex-col items-center gap-1 py-2.5 text-[9px] font-semibold text-foreground/60 transition-transform active:scale-90"
+            className="group flex flex-col items-center justify-center gap-0.5 py-2 text-[9px] font-semibold leading-tight text-foreground/60 active:scale-90 transition-transform"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-transparent transition-all duration-200 group-[.active]:bg-primary group-[.active]:shadow-lg group-[.active]:shadow-primary/40 group-active:scale-90">
-              <item.icon
-                className="h-5 w-5 transition-colors group-[.active]:text-primary-foreground"
-                strokeWidth={2.2}
-              />
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-transparent transition-all duration-200 group-[.active]:bg-primary group-[.active]:shadow-md group-[.active]:shadow-primary/40">
+              <item.icon className="h-[18px] w-[18px] transition-colors group-[.active]:text-primary-foreground" strokeWidth={2.4} />
             </span>
-            {item.label}
+            <span className="whitespace-nowrap">{item.label}</span>
           </Link>
         ))}
       </nav>

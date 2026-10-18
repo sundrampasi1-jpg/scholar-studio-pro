@@ -1,4 +1,4 @@
- 
+  
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { CheckCircle2, Flame, XCircle } from "lucide-react";
@@ -332,4 +332,4 @@ export function DailyChallenge({ userId }: { userId: string }) {
       </div>
     </section>
   );
-}
+                                       }

@@ -2,21 +2,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
-  BookOpen,
-  FileQuestion,
-  FileText,
-  HelpCircle,
-  LayoutDashboard,
   LogOut,
-  Radio,
   Settings,
   ShieldCheck,
   User,
   Wallet,
-  Megaphone,
   Phone,
-  Clapperboard,
-  CalendarCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -33,15 +24,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { to: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { to: "/courses", label: "Courses", icon: BookOpen },
-  { to: "/reels", label: "Reels", icon: Clapperboard },
-  { to: "/live", label: "Live", icon: Radio },
-  { to: "/tests", label: "Tests", icon: FileQuestion },
-  { to: "/notes", label: "Notes", icon: FileText },
-  { to: "/daily-challenge", label: "Daily", icon: CalendarCheck },
-  { to: "/doubts", label: "Doubts", icon: HelpCircle },
-  { to: "/announcements", label: "News", icon: Megaphone },
+  { to: "/dashboard", label: "Home", emoji: "📊" },
+  { to: "/courses", label: "Courses", emoji: "📚" },
+  { to: "/reels", label: "Reels", emoji: "🎬" },
+  { to: "/live", label: "Live", emoji: "🔴" },
+  { to: "/tests", label: "Tests", emoji: "📝" },
+  { to: "/notes", label: "Notes", emoji: "📄" },
+  { to: "/daily-challenge", label: "Daily", emoji: "🔥" },
 ] as const;
 
 export function StudentShell({
@@ -96,7 +85,7 @@ export function StudentShell({
                 activeProps={{ className: "bg-accent text-accent-foreground" }}
                 className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
-                {item.label}
+                {item.emoji} {item.label}
               </Link>
             ))}
           </nav>
@@ -171,20 +160,18 @@ export function StudentShell({
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-7 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden">
-        {navItems.slice(0, 7).map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            activeProps={{ className: "text-primary" }}
-            className="group flex flex-col items-center justify-center gap-0.5 py-2 text-[9px] font-semibold leading-tight text-foreground/60 active:scale-90 transition-transform"
+            activeProps={{ className: "text-primary bg-primary/10" }}
+            className="flex flex-col items-center justify-center gap-0.5 py-2 text-[9px] font-semibold leading-tight text-foreground/60 active:scale-90 transition-transform"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-transparent transition-all duration-200 group-[.active]:bg-primary group-[.active]:shadow-md group-[.active]:shadow-primary/40">
-              <item.icon className="h-[18px] w-[18px] transition-colors group-[.active]:text-primary-foreground" strokeWidth={2.4} />
-            </span>
+            <span className="text-lg leading-none">{item.emoji}</span>
             <span className="whitespace-nowrap">{item.label}</span>
           </Link>
         ))}
       </nav>
     </div>
   );
-}
+   }

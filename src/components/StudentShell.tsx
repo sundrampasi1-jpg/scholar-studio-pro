@@ -1,14 +1,6 @@
  import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Bell,
-  LogOut,
-  Settings,
-  ShieldCheck,
-  User,
-  Wallet,
-  Phone,
-} from "lucide-react";
+import { Bell, LogOut, Settings, ShieldCheck, User, Wallet, Phone } from "lucide-react";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/Brand";
 import { useAuth } from "@/lib/auth";
@@ -165,7 +157,7 @@ export function StudentShell({
             key={item.to}
             to={item.to}
             activeProps={{ className: "text-primary bg-primary/10" }}
-            className="flex flex-col items-center justify-center gap-0.5 py-2 text-[9px] font-semibold leading-tight text-foreground/60 active:scale-90 transition-transform"
+            className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold leading-tight text-foreground/70 active:scale-90 transition-transform"
           >
             <span className="text-lg leading-none">{item.emoji}</span>
             <span className="whitespace-nowrap">{item.label}</span>

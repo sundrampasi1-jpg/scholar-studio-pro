@@ -1,6 +1,15 @@
- import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+ 
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, LogOut, Settings, ShieldCheck, User, Wallet, Phone } from "lucide-react";
+import {
+  Bell,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  User,
+  Wallet,
+  Phone,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/Brand";
 import { useAuth } from "@/lib/auth";
@@ -50,6 +59,7 @@ export function StudentShell({
         .select("id", { count: "exact", head: true })
         .eq("user_id", user!.id)
         .eq("is_read", false);
+
       return count ?? 0;
     },
   });
@@ -69,20 +79,40 @@ export function StudentShell({
           <Link to="/dashboard">
             <Brand compact />
           </Link>
+
           <nav className="ml-4 hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                activeProps={{ className: "bg-accent text-accent-foreground" }}
+                activeProps={{
+                  className: "bg-accent text-accent-foreground",
+                }}
                 className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 {item.emoji} {item.label}
               </Link>
             ))}
           </nav>
+
           <div className="ml-auto flex items-center gap-1">
-            <Link to="/notifications" className="relative rounded-md p-2 hover:bg-accent">
+            <Link
+              to="/settings"
+              aria-label="Settings"
+              title="Settings"
+              activeProps={{
+                className: "bg-primary/10 text-primary",
+              }}
+              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <Settings className="h-5 w-5" />
+            </Link>
+
+            <Link
+              to="/notifications"
+              aria-label="Notifications"
+              className="relative rounded-md p-2 hover:bg-accent"
+            >
               <Bell className="h-5 w-5" />
               {unread > 0 && (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
@@ -90,32 +120,49 @@ export function StudentShell({
                 </span>
               )}
             </Link>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="Account">
                   <User className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
+
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
                   {user?.email}
                 </DropdownMenuLabel>
+
                 <DropdownMenuSeparator />
+
                 <DropdownMenuItem asChild>
                   <Link to="/profile">
-                    <User className="mr-2 h-4 w-4" /> Profile
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
                   </Link>
                 </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+
                 <DropdownMenuItem asChild>
                   <Link to="/payments">
-                    <Wallet className="mr-2 h-4 w-4" /> Payments
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Payments
                   </Link>
                 </DropdownMenuItem>
+
                 <DropdownMenuItem asChild>
                   <Link to="/help">
-                    <Phone className="mr-2 h-4 w-4" /> Help & chat
+                    <Phone className="mr-2 h-4 w-4" />
+                    Help &amp; chat
                   </Link>
                 </DropdownMenuItem>
+
                 {isStaff && (
                   <DropdownMenuItem asChild>
                     <Link to="/admin">
@@ -128,9 +175,12 @@ export function StudentShell({
                     </Link>
                   </DropdownMenuItem>
                 )}
+
                 <DropdownMenuSeparator />
+
                 <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" /> Log out
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -142,28 +192,46 @@ export function StudentShell({
         {(title || actions) && (
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-              {title && <h1 className="text-2xl font-semibold">{title}</h1>}
-              {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+              {title && (
+                <h1 className="text-2xl font-semibold">{title}</h1>
+              )}
+              {subtitle && (
+                <p className="text-sm text-muted-foreground">{subtitle}</p>
+              )}
             </div>
             {actions}
           </div>
         )}
+
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-7 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-8 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden">
         {navItems.map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            activeProps={{ className: "text-primary bg-primary/10" }}
-            className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold leading-tight text-foreground/70 active:scale-90 transition-transform"
+            activeProps={{
+              className: "text-primary bg-primary/10",
+            }}
+            className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold leading-tight text-foreground/70 transition-transform active:scale-90"
           >
             <span className="text-lg leading-none">{item.emoji}</span>
             <span className="whitespace-nowrap">{item.label}</span>
           </Link>
         ))}
+
+        <Link
+          to="/settings"
+          activeProps={{
+            className: "text-primary bg-primary/10",
+          }}
+          className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold leading-tight text-foreground/70 transition-transform active:scale-90"
+        >
+          <Settings className="h-5 w-5" />
+          <span>Settings</span>
+        </Link>
       </nav>
     </div>
   );
-   }
+}

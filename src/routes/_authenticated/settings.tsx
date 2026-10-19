@@ -1,9 +1,21 @@
- import { createFileRoute, Link } from "@tanstack/react-router";
+ 
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { StudentShell } from "@/components/StudentShell";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { User, Shield, FileText, Info, LogOut, HelpCircle, Bookmark, Moon } from "lucide-react";
+import {
+  User,
+  Shield,
+  FileText,
+  Info,
+  LogOut,
+  HelpCircle,
+  Bookmark,
+  Moon,
+  ChevronRight,
+  GraduationCap,
+} from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -14,43 +26,105 @@ export const Route = createFileRoute("/_authenticated/settings")({
 function SettingsPage() {
   const { user } = useAuth();
   const [textSize, setTextSize] = useState("medium");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   async function signOut() {
-    await supabase.auth.signOut();
-    window.location.href = "/auth";
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      window.location.href = "/auth";
+    }
   }
 
   const items = [
-    { icon: User, title: "Account", desc: user?.email ?? "", to: "/profile" },
-    { icon: Bookmark, title: "My Bookmarks", desc: "Saved notes and lessons", to: "/notes" },
-    { icon: HelpCircle, title: "Help & Support", desc: "FAQs, report a problem, contact us", to: "/help" },
-    { icon: Shield, title: "Privacy Policy", desc: "How we handle your data", to: "/help" },
-    { icon: FileText, title: "Terms & Conditions", desc: "App usage terms", to: "/help" },
-    { icon: Info, title: "About JK Academy", desc: "App version 1.0", to: "/" },
+    {
+      icon: User,
+      title: "Account",
+      desc: user?.email ?? "Manage your account",
+      to: "/profile",
+    },
+    {
+      icon: Bookmark,
+      title: "My Bookmarks",
+      desc: "Saved notes and lessons",
+      to: "/notes",
+    },
+    {
+      icon: HelpCircle,
+      title: "Help & Support",
+      desc: "FAQs, report a problem, contact us",
+      to: "/help",
+    },
+    {
+      icon: Shield,
+      title: "Privacy Policy",
+      desc: "How we handle your data",
+      to: "/help",
+    },
+    {
+      icon: FileText,
+      title: "Terms & Conditions",
+      desc: "App usage terms",
+      to: "/help",
+    },
+    {
+      icon: Info,
+      title: "About JK Academy",
+      desc: "App version 1.0",
+      to: "/",
+    },
   ];
 
   return (
     <StudentShell title="Settings">
-      <div className="space-y-5">
+      <div
+        className="mx-auto w-full max-w-3xl space-y-5 pb-8"
+        style={{
+          fontSize:
+            textSize === "small"
+              ? "14px"
+              : textSize === "large"
+                ? "18px"
+                : "16px",
+        }}
+      >
         <section className="rounded-2xl bg-primary p-5 text-primary-foreground shadow-md">
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-80">Your learning space</p>
-          <h2 className="mt-1 text-lg font-bold">Make JK Academy yours</h2>
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">
+              <GraduationCap className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                YOUR LEARNING SPACE
+              </p>
+              <h2 className="mt-1 text-xl font-bold">
+                Make JK Academy yours
+              </h2>
+              <p className="mt-1 text-sm opacity-80">
+                Personalize your learning experience.
+              </p>
+            </div>
+          </div>
         </section>
 
-        <section className="surface-card p-5">
+        <section className="surface-card rounded-2xl p-5">
           <div className="flex items-center gap-3">
             <Moon className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Reading text size</h3>
+            <div>
+              <h3 className="font-semibold">Reading Text Size</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Choose a comfortable reading size.
+              </p>
+            </div>
           </div>
-          <div className="mt-3 flex gap-2">
-            {["small", "medium", "large
-              
-            "large"].map((size) => (
+
+          <div className="mt-4 flex gap-2">
+            {["small", "medium", "large"].map((size) => (
               <button
                 key={size}
                 type="button"
+                aria-pressed={textSize === size}
                 onClick={() => setTextSize(size)}
-                className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                className={`flex-1 rounded-xl border px-3 py-3 text-sm font-medium capitalize transition-colors ${
                   textSize === size
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border hover:bg-muted"
@@ -60,16 +134,17 @@ function SettingsPage() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Choose a comfortable reading size.
-          </p>
         </section>
 
         <section className="surface-card overflow-hidden rounded-2xl">
-          <h3 className="px-5 pt-5 font-semibold">Account & Preferences</h3>
+          <h3 className="px-5 pt-5 font-semibold">
+            Account & Preferences
+          </h3>
+
           <div className="mt-3 divide-y divide-border">
             {items.map((item) => {
               const Icon = item.icon;
+
               return (
                 <Link
                   key={item.title}
@@ -79,6 +154,7 @@ function SettingsPage() {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
                   </span>
+
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium">
                       {item.title}
@@ -87,7 +163,8 @@ function SettingsPage() {
                       {item.desc}
                     </span>
                   </span>
-                  <span className="text-muted-foreground">›</span>
+
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
               );
             })}
@@ -104,6 +181,7 @@ function SettingsPage() {
               </p>
             </div>
           </div>
+
           <Link to="/help" className="mt-4 block">
             <Button variant="outline" className="w-full">
               Visit Help Center
@@ -136,14 +214,35 @@ function SettingsPage() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            className="mt-4 w-full"
-            onClick={signOut}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+
+          {!showLogoutConfirm ? (
+            <Button
+              variant="outline"
+              className="mt-4 w-full"
+              onClick={() => setShowLogoutConfirm(true)}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <p className="text-sm">
+                Are you sure you want to sign out?
+              </p>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={signOut}>
+                  Confirm
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowLogoutConfirm(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </section>
 
         <p className="pb-3 text-center text-xs text-muted-foreground">

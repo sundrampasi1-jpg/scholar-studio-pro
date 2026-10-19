@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-const SAGE = "#244C40";
+const SAGE = "#bb8428";
 const IVORY = "#F5F3EE";
 const GOLD = "#E7D6A9";
 const LIGHT_SAGE = "#D9E5D8";

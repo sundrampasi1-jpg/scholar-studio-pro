@@ -48,8 +48,7 @@ function Dashboard() {
       return result.data;
     },
   });
-
-  const attempts = useQuery({
+ const attempts = useQuery({
     queryKey: ["recent-attempts", uid],
     enabled: !!uid,
     queryFn: async () => {
@@ -74,37 +73,46 @@ function Dashboard() {
   const nextLive = live.data ? live.data[0] : undefined;
 
   const stats = [
-    { label: "My batches", value: enrollments.data ? enrollments.data.length : 0, emoji: "📚", grad: "from-amber-400 to-orange-500" },
-    { label: "Lessons completed", value: doneLessons + "/" + totalLessons, emoji: "✅", grad: "from-emerald-400 to-teal-500" },
-    { label: "Tests taken", value: attempts.data ? attempts.data.length : 0, emoji: "📝", grad: "from-sky-400 to-blue-500" },
-    { label: "Upcoming live classes", value: live.data ? live.data.length : 0, emoji: "🔴", grad: "from-rose-400 to-pink-500" },
+    { label: "My batches", value: enrollments.data ? enrollments.data.length : 0, emoji: "📚" },
+    { label: "Lessons completed", value: doneLessons + "/" + totalLessons, emoji: "✅" },
+    { label: "Tests taken", value: attempts.data ? attempts.data.length : 0, emoji: "📝" },
+    { label: "Upcoming live classes", value: live.data ? live.data.length : 0, emoji: "🔴" },
   ];
 
   return (
     <StudentShell>
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-[oklch(0.5_0.14_55)] p-6 text-primary-foreground shadow-lg">
-        <p className="text-xs font-semibold tracking-wide opacity-80">JK ACADEMY STUDENT OVERVIEW</p>
-        <h2 className="mt-1 text-2xl font-bold">Your study dashboard</h2>
-        <p className="mt-1 text-sm opacity-90">See your batches, next live class and study progress here.</p>
+      <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,#1c1510_0%,#3a2817_45%,#7a4a1f_100%)] p-6 text-white shadow-xl">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/20 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
 
-        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {stats.map(function (stat) {
-            return (
-              <div key={stat.label} className={"rounded-2xl bg-gradient-to-br " + stat.grad + " p-4 text-white shadow-md transition-transform active:scale-95"}>
-                <span className="text-2xl">{stat.emoji}</span>
-                <p className="mt-2 text-xl font-bold">{stat.value}</p>
-                <p className="text-xs font-medium opacity-90">{stat.label}</p>
-              </div>
-            );
-          })}
+        <div className="relative">
+          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-300/80">
+            JK Academy · Student Overview
+          </p>
+          <h2 className="mt-2 text-2xl font-extrabold tracking-tight">Your study dashboard</h2>
+          <p className="mt-1.5 text-sm text-white/70">See your batches, next live class and study progress here.</p>
+
+          <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {stats.map(function (stat) {
+              return (
+                <div
+                  key={stat.label}
+                  className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm transition-transform active:scale-95"
+                >
+                  <span className="text-2xl">{stat.emoji}</span>
+                  <p className="mt-2 text-2xl font-extrabold">{stat.value}</p>
+                  <p className="text-[11px] font-medium text-white/60">{stat.label}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
-
-      <section className="mt-6 grid gap-4 md:grid-cols-2">
+     <section className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="surface-card overflow-hidden p-5 shadow-md">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">⏰</span>
-            <h2 className="font-semibold">Next live class</h2>
+            <h2 className="font-bold">Next live class</h2>
           </div>
           {live.isLoading ? (
             <p className="mt-3 text-sm text-muted-foreground">Loading live class info...</p>
@@ -126,7 +134,7 @@ function Dashboard() {
         <div className="surface-card p-5 shadow-md">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">📈</span>
-            <h2 className="font-semibold">My study progress</h2>
+            <h2 className="font-bold">My study progress</h2>
           </div>
           {progress.isLoading ? (
             <p className="mt-3 text-sm text-muted-foreground">Loading your progress...</p>
@@ -134,7 +142,7 @@ function Dashboard() {
             <div>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Overall progress</span>
-                <span className="font-semibold">{overallProgress}%</span>
+                <span className="font-bold">{overallProgress}%</span>
               </div>
               <Progress value={overallProgress} className="mt-2" />
               <p className="mt-2 text-sm text-muted-foreground">{doneLessons} of {totalLessons} lessons completed.</p>
@@ -145,7 +153,7 @@ function Dashboard() {
         <div className="surface-card p-5 shadow-md">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">📄</span>
-            <h2 className="font-semibold">New notes</h2>
+            <h2 className="font-bold">New notes</h2>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">Open a course to read the available notes and PDFs for your batch.</p>
           <Button asChild className="mt-4" size="sm" variant="outline">
@@ -156,7 +164,7 @@ function Dashboard() {
         <div className="surface-card p-5 shadow-md">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">📝</span>
-            <h2 className="font-semibold">Tests and practice</h2>
+            <h2 className="font-bold">Tests and practice</h2>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">Open the tests available in your batch and keep practicing.</p>
           <Button asChild className="mt-4" size="sm" variant="outline">
@@ -166,7 +174,7 @@ function Dashboard() {
       </section>
      <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">My batches and courses</h2>
+          <h2 className="text-lg font-bold">My batches and courses</h2>
           <Button asChild variant="ghost" size="sm">
             <Link to="/courses">All courses</Link>
           </Button>
@@ -192,13 +200,13 @@ function Dashboard() {
               const itemProgress = progress.data ? progress.data[index] : undefined;
               return (
                 <div key={enrollment.id} className="surface-card p-4 shadow-md">
-                  <h3 className="font-semibold">{enrollment.courses?.title}</h3>
+                  <h3 className="font-bold">{enrollment.courses?.title}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {itemProgress ? itemProgress.completed + " of " + itemProgress.total + " lessons" : "Loading progress..."}
                   </p>
                   <Progress value={itemProgress ? itemProgress.percent : 0} className="mt-3" />
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-primary">{itemProgress ? itemProgress.percent : 0}%</span>
+                    <span className="text-sm font-bold text-primary">{itemProgress ? itemProgress.percent : 0}%</span>
                     <div className="flex gap-2">
                       <Button asChild size="sm" variant="outline">
                         <Link to="/courses/$courseId" params={{ courseId: enrollment.course_id }}>
@@ -220,10 +228,9 @@ function Dashboard() {
           </div>
         )}
       </section>
-
-      <div className="mt-8 grid gap-6 md:grid-cols-2">
+     <div className="mt-8 grid gap-6 md:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Live classes</h2>
+          <h2 className="mb-3 text-lg font-bold">Live classes</h2>
           {live.isLoading ? (
             <LoadingState />
           ) : live.error ? (
@@ -261,7 +268,7 @@ function Dashboard() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-lg font-semibold">My recent tests</h2>
+          <h2 className="mb-3 text-lg font-bold">My recent tests</h2>
           {attempts.isLoading ? (
             <LoadingState />
           ) : attempts.error ? (
@@ -277,7 +284,7 @@ function Dashboard() {
                       <p className="font-medium">{attempt.tests?.title ?? "Test"}</p>
                       <p className="text-xs text-muted-foreground">{formatDateTime(attempt.submitted_at)}</p>
                     </div>
-                    <span className="text-sm font-semibold text-primary">{attempt.score}/{attempt.total}</span>
+                    <span className="text-sm font-bold text-primary">{attempt.score}/{attempt.total}</span>
                   </Link>
                 );
               })}
@@ -287,4 +294,6 @@ function Dashboard() {
       </div>
     </StudentShell>
   );
-                 }
+     }
+     
+     

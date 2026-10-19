@@ -10,14 +10,17 @@ import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
-    meta: [
-      { title: "Personalized Dashboard — JK Academy" },
-      { name: "description", content: "Your batches, live classes, notes, tests and study progress." },
-    ],
+    meta: [{ title: "Personalized Dashboard — JK Academy" }],
   }),
   component: Dashboard,
 });
 
+const SAGE = "#244C40";
+const IVORY = "#F5F3EE";
+const GOLD = "#E7D6A9";
+const LIGHT_SAGE = "#D9E5D8";
+const TEXT_PRIMARY = "#263D33";
+const TEXT_SECONDARY = "#73776E";
 function Dashboard() {
   const { user } = useAuth();
   const uid = user?.id;
@@ -48,7 +51,8 @@ function Dashboard() {
       return result.data;
     },
   });
- const attempts = useQuery({
+
+  const attempts = useQuery({
     queryKey: ["recent-attempts", uid],
     enabled: !!uid,
     queryFn: async () => {
@@ -62,8 +66,7 @@ function Dashboard() {
       return result.data;
     },
   });
-
-  const totalLessons = (progress.data ?? []).reduce(function (sum, item) {
+ const totalLessons = (progress.data ?? []).reduce(function (sum, item) {
     return sum + item.total;
   }, 0);
   const doneLessons = (progress.data ?? []).reduce(function (sum, item) {
@@ -72,111 +75,107 @@ function Dashboard() {
   const overallProgress = totalLessons > 0 ? Math.round((doneLessons / totalLessons) * 100) : 0;
   const nextLive = live.data ? live.data[0] : undefined;
 
+  const avgScore =
+    attempts.data && attempts.data.length > 0
+      ? Math.round(
+          (attempts.data.reduce(function (s, a) {
+            return s + (a.total ? (a.score / a.total) * 100 : 0);
+          }, 0) /
+            attempts.data.length)
+        )
+      : 0;
+
   const stats = [
-    { label: "My batches", value: enrollments.data ? enrollments.data.length : 0, emoji: "📚" },
-    { label: "Lessons completed", value: doneLessons + "/" + totalLessons, emoji: "✅" },
-    { label: "Tests taken", value: attempts.data ? attempts.data.length : 0, emoji: "📝" },
-    { label: "Upcoming live classes", value: live.data ? live.data.length : 0, emoji: "🔴" },
+    { label: "Lessons completed", value: doneLessons + "/" + totalLessons, sub: overallProgress + "% done", icon: "📘" },
+    { label: "Test performance", value: avgScore + "%", sub: "Average score", icon: "🎯" },
+    { label: "My batches", value: enrollments.data ? enrollments.data.length : 0, sub: "Enrolled", icon: "🎓" },
+    { label: "Upcoming live", value: live.data ? live.data.length : 0, sub: "Classes", icon: "📅" },
   ];
 
-  return (
+  const studentName = user?.email ? user.email.split("@")[0] : "Student";
+ return (
     <StudentShell>
-      <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,#1c1510_0%,#3a2817_45%,#7a4a1f_100%)] p-6 text-white shadow-xl">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/20 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
+      <div style={{ backgroundColor: IVORY }} className="-mx-4 -mt-20 px-4 pt-24 pb-2 md:-mt-6 md:pt-8">
+        <p style={{ color: TEXT_PRIMARY }} className="text-lg font-semibold">
+          Good morning, {studentName} 👋
+        </p>
+        <p style={{ color: TEXT_SECONDARY }} className="mt-0.5 text-sm">
+          आज अपनी तैयारी को एक कदम आगे बढ़ाएँ।
+        </p>
 
-        <div className="relative">
-          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-300/80">
-            JK Academy · Student Overview
+        <section
+          style={{ backgroundColor: SAGE }}
+          className="mt-4 rounded-2xl p-5 text-white shadow-sm"
+        >
+          <p className="text-xs font-medium uppercase tracking-wide text-white/70">Today's goal</p>
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-sm text-white/90">Overall progress</span>
+            <span className="text-lg font-bold">{overallProgress}%</span>
+          </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/20">
+            <div className="h-full rounded-full bg-white" style={{ width: overallProgress + "%" }} />
+          </div>
+          <p className="mt-3 text-sm text-white/80">
+            {doneLessons} of {totalLessons} lessons completed
           </p>
-          <h2 className="mt-2 text-2xl font-extrabold tracking-tight">Your study dashboard</h2>
-          <p className="mt-1.5 text-sm text-white/70">See your batches, next live class and study progress here.</p>
-
-          <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {stats.map(function (stat) {
-              return (
-                <div
-                  key={stat.label}
-                  className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm transition-transform active:scale-95"
-                >
-                  <span className="text-2xl">{stat.emoji}</span>
-                  <p className="mt-2 text-2xl font-extrabold">{stat.value}</p>
-                  <p className="text-[11px] font-medium text-white/60">{stat.label}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+          <Button asChild size="sm" className="mt-4 bg-white text-[#244C40] hover:bg-white/90">
+            <Link to="/courses">Continue learning</Link>
+          </Button>
+        </section>
+      </div>
+     <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map(function (stat) {
+          return (
+            <div
+              key={stat.label}
+              style={{ backgroundColor: "#FFFFFF", borderColor: LIGHT_SAGE }}
+              className="rounded-2xl border p-4 shadow-sm"
+            >
+              <span
+                style={{ backgroundColor: LIGHT_SAGE }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-lg"
+              >
+                {stat.icon}
+              </span>
+              <p style={{ color: TEXT_PRIMARY }} className="mt-3 text-xl font-bold">
+                {stat.value}
+              </p>
+              <p style={{ color: TEXT_SECONDARY }} className="text-xs">
+                {stat.label} · {stat.sub}
+              </p>
+            </div>
+          );
+        })}
       </section>
-     <section className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="surface-card overflow-hidden p-5 shadow-md">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">⏰</span>
-            <h2 className="font-bold">Next live class</h2>
-          </div>
-          {live.isLoading ? (
-            <p className="mt-3 text-sm text-muted-foreground">Loading live class info...</p>
-          ) : live.error ? (
-            <p className="mt-3 text-sm text-muted-foreground">Live class info isn't available right now.</p>
-          ) : nextLive ? (
-            <div>
-              <p className="mt-3 font-medium">{nextLive.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(nextLive.scheduled_at)}</p>
-              <Button asChild className="mt-4" size="sm" variant="outline">
-                <Link to="/live">View class</Link>
-              </Button>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-muted-foreground">No upcoming live classes right now.</p>
-          )}
-        </div>
 
-        <div className="surface-card p-5 shadow-md">
+      <section className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="surface-card p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">📈</span>
-            <h2 className="font-bold">My study progress</h2>
+            <span style={{ backgroundColor: GOLD }} className="flex h-9 w-9 items-center justify-center rounded-xl text-lg">📄</span>
+            <h2 style={{ color: TEXT_PRIMARY }} className="font-semibold">Notes & PDFs</h2>
           </div>
-          {progress.isLoading ? (
-            <p className="mt-3 text-sm text-muted-foreground">Loading your progress...</p>
-          ) : (
-            <div>
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Overall progress</span>
-                <span className="font-bold">{overallProgress}%</span>
-              </div>
-              <Progress value={overallProgress} className="mt-2" />
-              <p className="mt-2 text-sm text-muted-foreground">{doneLessons} of {totalLessons} lessons completed.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="surface-card p-5 shadow-md">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">📄</span>
-            <h2 className="font-bold">New notes</h2>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">Open a course to read the available notes and PDFs for your batch.</p>
+          <p style={{ color: TEXT_SECONDARY }} className="mt-2 text-sm">Open your batch notes and PDFs.</p>
           <Button asChild className="mt-4" size="sm" variant="outline">
-            <Link to="/courses">Open my batches</Link>
+            <Link to="/notes">Open notes</Link>
           </Button>
         </div>
 
-        <div className="surface-card p-5 shadow-md">
+        <div className="surface-card p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xl">📝</span>
-            <h2 className="font-bold">Tests and practice</h2>
+            <span style={{ backgroundColor: GOLD }} className="flex h-9 w-9 items-center justify-center rounded-xl text-lg">📝</span>
+            <h2 style={{ color: TEXT_PRIMARY }} className="font-semibold">Tests</h2>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">Open the tests available in your batch and keep practicing.</p>
+          <p style={{ color: TEXT_SECONDARY }} className="mt-2 text-sm">Practice with available tests.</p>
           <Button asChild className="mt-4" size="sm" variant="outline">
-            <Link to="/courses">Open batch for tests</Link>
+            <Link to="/tests">Open tests</Link>
           </Button>
         </div>
       </section>
      <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">My batches and courses</h2>
+          <h2 style={{ color: TEXT_PRIMARY }} className="text-lg font-semibold">My courses</h2>
           <Button asChild variant="ghost" size="sm">
-            <Link to="/courses">All courses</Link>
+            <Link to="/courses">View all</Link>
           </Button>
         </div>
 
@@ -199,28 +198,17 @@ function Dashboard() {
             {(enrollments.data ?? []).map(function (enrollment, index) {
               const itemProgress = progress.data ? progress.data[index] : undefined;
               return (
-                <div key={enrollment.id} className="surface-card p-4 shadow-md">
-                  <h3 className="font-bold">{enrollment.courses?.title}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {itemProgress ? itemProgress.completed + " of " + itemProgress.total + " lessons" : "Loading progress..."}
+                <div key={enrollment.id} className="surface-card p-4 shadow-sm">
+                  <h3 style={{ color: TEXT_PRIMARY }} className="font-semibold">{enrollment.courses?.title}</h3>
+                  <p style={{ color: TEXT_SECONDARY }} className="mt-1 text-xs">
+                    {itemProgress ? itemProgress.completed + " of " + itemProgress.total + " lessons" : "Loading..."}
                   </p>
                   <Progress value={itemProgress ? itemProgress.percent : 0} className="mt-3" />
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm font-bold text-primary">{itemProgress ? itemProgress.percent : 0}%</span>
-                    <div className="flex gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link to="/courses/$courseId" params={{ courseId: enrollment.course_id }}>
-                          Open course
-                        </Link>
-                      </Button>
-                      {itemProgress?.lastLessonId && (
-                        <Button asChild size="sm">
-                          <Link to="/lesson/$lessonId" params={{ lessonId: itemProgress.lastLessonId }}>
-                            Continue
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
+                    <span style={{ color: SAGE }} className="text-sm font-semibold">{itemProgress ? itemProgress.percent : 0}%</span>
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/courses/$courseId" params={{ courseId: enrollment.course_id }}>Open</Link>
+                    </Button>
                   </div>
                 </div>
               );
@@ -230,11 +218,9 @@ function Dashboard() {
       </section>
      <div className="mt-8 grid gap-6 md:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-lg font-bold">Live classes</h2>
+          <h2 style={{ color: TEXT_PRIMARY }} className="mb-3 text-lg font-semibold">Live classes</h2>
           {live.isLoading ? (
             <LoadingState />
-          ) : live.error ? (
-            <ErrorState error={live.error} onRetry={function () { live.refetch(); }} />
           ) : (live.data ?? []).length === 0 ? (
             <EmptyState title="No live classes right now" />
           ) : (
@@ -242,23 +228,15 @@ function Dashboard() {
               {(live.data ?? []).map(function (item) {
                 const status = liveStatus(item.scheduled_at, item.duration_minutes);
                 return (
-                  <div key={item.id} className="surface-card flex items-center justify-between gap-3 p-4 shadow-md">
+                  <div key={item.id} className="surface-card flex items-center justify-between gap-3 p-4 shadow-sm">
                     <div className="min-w-0">
                       <p className="truncate font-medium">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDateTime(item.scheduled_at)} · {item.teacher_name ?? "Faculty"}
-                      </p>
+                      <p style={{ color: TEXT_SECONDARY }} className="text-xs">{formatDateTime(item.scheduled_at)}</p>
                     </div>
                     {status === "live" ? (
-                      <Button asChild size="sm">
-                        <a href={item.join_url ?? "#"} target="_blank" rel="noreferrer">
-                          LIVE NOW
-                        </a>
-                      </Button>
+                      <Button asChild size="sm"><a href={item.join_url ?? "#"} target="_blank" rel="noreferrer">LIVE NOW</a></Button>
                     ) : (
-                      <Button asChild size="sm" variant="outline">
-                        <Link to="/live">Details</Link>
-                      </Button>
+                      <Button asChild size="sm" variant="outline"><Link to="/live">Details</Link></Button>
                     )}
                   </div>
                 );
@@ -268,23 +246,21 @@ function Dashboard() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-lg font-bold">My recent tests</h2>
+          <h2 style={{ color: TEXT_PRIMARY }} className="mb-3 text-lg font-semibold">My recent tests</h2>
           {attempts.isLoading ? (
             <LoadingState />
-          ) : attempts.error ? (
-            <ErrorState error={attempts.error} onRetry={function () { attempts.refetch(); }} />
           ) : (attempts.data ?? []).length === 0 ? (
-            <EmptyState title="No tests taken yet" description="Start practicing with the tests available in your batch." />
+            <EmptyState title="No tests taken yet" />
           ) : (
             <div className="space-y-3">
               {(attempts.data ?? []).map(function (attempt) {
                 return (
-                  <Link key={attempt.id} to="/results" className="surface-card flex items-center justify-between p-4 shadow-md hover:shadow-lg">
+                  <Link key={attempt.id} to="/results" className="surface-card flex items-center justify-between p-4 shadow-sm">
                     <div>
                       <p className="font-medium">{attempt.tests?.title ?? "Test"}</p>
-                      <p className="text-xs text-muted-foreground">{formatDateTime(attempt.submitted_at)}</p>
+                      <p style={{ color: TEXT_SECONDARY }} className="text-xs">{formatDateTime(attempt.submitted_at)}</p>
                     </div>
-                    <span className="text-sm font-bold text-primary">{attempt.score}/{attempt.total}</span>
+                    <span style={{ color: SAGE }} className="text-sm font-semibold">{attempt.score}/{attempt.total}</span>
                   </Link>
                 );
               })}
@@ -294,6 +270,7 @@ function Dashboard() {
       </div>
     </StudentShell>
   );
-     }
+}
      
      
+ 

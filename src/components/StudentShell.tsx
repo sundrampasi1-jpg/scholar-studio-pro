@@ -9,6 +9,12 @@ import {
   User,
   Wallet,
   Phone,
+  LayoutDashboard,
+  BookOpen,
+  Clapperboard,
+  RadioTower,
+  ClipboardCheck,
+  FileText,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -25,13 +31,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { to: "/dashboard", label: "Home", emoji: "📊" },
-  { to: "/courses", label: "Courses", emoji: "📚" },
-  { to: "/reels", label: "Reels", emoji: "🎬" },
-  { to: "/live", label: "Live", emoji: "🔴" },
-  { to: "/tests", label: "Tests", emoji: "📝" },
-  { to: "/notes", label: "Notes", emoji: "📄" },
-  { to: "/daily-challenge", label: "Daily", emoji: "🔥" },
+  { to: "/dashboard", label: "Home", Icon: LayoutDashboard },
+  { to: "/courses", label: "Courses", Icon: BookOpen },
+  { to: "/reels", label: "Reels", Icon: Clapperboard },
+  { to: "/live", label: "Live", Icon: RadioTower },
+  { to: "/tests", label: "Tests", Icon: ClipboardCheck },
+  { to: "/notes", label: "Notes", Icon: FileText },
 ] as const;
 
 export function StudentShell({
@@ -81,16 +86,19 @@ export function StudentShell({
           </Link>
 
           <nav className="ml-4 hidden items-center gap-1 md:flex">
-            {navItems.map((item) => (
+            {navItems.map(({ to, label, Icon }) => (
               <Link
-                key={item.to}
-                to={item.to}
+                key={to}
+                to={to}
                 activeProps={{
                   className: "bg-accent text-accent-foreground",
                 }}
                 className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
-                {item.emoji} {item.label}
+                <span className="inline-flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </span>
               </Link>
             ))}
           </nav>
@@ -100,9 +108,6 @@ export function StudentShell({
               to="/settings"
               aria-label="Settings"
               title="Settings"
-              activeProps={{
-                className: "bg-primary/10 text-primary",
-              }}
               className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               <Settings className="h-5 w-5" />
@@ -132,34 +137,29 @@ export function StudentShell({
                 <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
                   {user?.email}
                 </DropdownMenuLabel>
-
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
                   <Link to="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
+                    <User className="mr-2 h-4 w-4" /> Profile
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    <Settings className="mr-2 h-4 w-4" /> Settings
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/payments">
-                    <Wallet className="mr-2 h-4 w-4" />
-                    Payments
+                    <Wallet className="mr-2 h-4 w-4" /> Payments
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/help">
-                    <Phone className="mr-2 h-4 w-4" />
-                    Help &amp; chat
+                    <Phone className="mr-2 h-4 w-4" /> Help &amp; chat
                   </Link>
                 </DropdownMenuItem>
 
@@ -179,8 +179,7 @@ export function StudentShell({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
+                  <LogOut className="mr-2 h-4 w-4" /> Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -202,35 +201,23 @@ export function StudentShell({
             {actions}
           </div>
         )}
-
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-8 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden">
-        {navItems.map((item) => (
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden">
+        {navItems.map(({ to, label, Icon }) => (
           <Link
-            key={item.to}
-            to={item.to}
+            key={to}
+            to={to}
             activeProps={{
               className: "text-primary bg-primary/10",
             }}
-            className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold leading-tight text-foreground/70 transition-transform active:scale-90"
+            className="flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-bold leading-tight text-foreground/70 transition-colors"
           >
-            <span className="text-lg leading-none">{item.emoji}</span>
-            <span className="whitespace-nowrap">{item.label}</span>
+            <Icon className="h-5 w-5" />
+            <span className="whitespace-nowrap">{label}</span>
           </Link>
         ))}
-
-        <Link
-          to="/settings"
-          activeProps={{
-            className: "text-primary bg-primary/10",
-          }}
-          className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold leading-tight text-foreground/70 transition-transform active:scale-90"
-        >
-          <Settings className="h-5 w-5" />
-          <span>Settings</span>
-        </Link>
       </nav>
     </div>
   );

@@ -71,5 +71,6 @@ export function useBranding() {
     instituteName: data?.institute_name || defaultSettings.institute_name,
     tagline: data?.tagline || defaultSettings.tagline,
     logoUrl: data?.logo_url || null,
+    upiId: data?.upi_id || null,
   };
 }

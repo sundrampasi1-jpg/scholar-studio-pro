@@ -1,15 +1,8 @@
-[
-{
-"relation": [
-"delegate_permission/common.handle_all_urls"
-],
-"target": {
-"namespace": "android_app",
-"package_name": "app.lovable.scholar_studio_pro.twa",
-"sha256_cert_fingerprints": [
-"63:22:4D:FE:1D:C0:D0:8C:13:D0:53:23:10:56:11:C5:0E:1F:C8:E1:BC:6B:78:C3:A1:BE:17:2C:AF:9A:FC:CF",
-"F7:7B:33:59:E9:15:89:97:76:1D:FB:A9:CA:42:9B:A8:B3:ED:8F:0A:0C:2C:41:0F:16:4D:42:CA:48:29:21:9E"
-]
-}
-}
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.lovable.scholar_studio_pro.twa",
+        "sha256_cert_fingerprints": ["2B:92:07:57:4A:90:1C:10:DA:38:2B:62:5D:67:84:C4:78:65:8E:3F:CE:AC:37:BB:99:33:BF:65:E7:55:28:A3"]
+      }
+    }]

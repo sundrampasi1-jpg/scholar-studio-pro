@@ -52,7 +52,71 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-async function assertAdmin(userId: string, supabase: NonNullable<Parameters<typeof String>[0]> extends never ? never : { rpc: Function }) {
-  void userId;
-  void supabase;
+async function assertAdmin(userId: string, supabase: {
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+}) {
+  const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (!isAdmin) throw new Error("Only the institute admin can do this.");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
 }
+
+/** Admin approves a manual UPI payment: marks it paid and unlocks the course for that student only. */
+export const approveManualPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ paymentId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const supabaseAdmin = await assertAdmin(context.userId, context.supabase);
+    const { data: pay } = await supabaseAdmin
+      .from("payments")
+      .select("id, user_id, course_id, amount, status")
+      .eq("id", data.paymentId)
+      .maybeSingle();
+    if (!pay) throw new Error("Payment not found.");
+    if (pay.status !== "pending") throw new Error("This payment is not waiting for approval.");
+    if (!pay.course_id || !pay.user_id) throw new Error("Payment is missing the course or student.");
+    await supabaseAdmin.from("payments").update({ status: "paid" }).eq("id", pay.id);
+    const { data: existing } = await supabaseAdmin
+      .from("enrollments")
+      .select("id")
+      .eq("user_id", pay.user_id)
+      .eq("course_id", pay.course_id)
+      .maybeSingle();
+    if (!existing)
+      await supabaseAdmin.from("enrollments").insert({ user_id: pay.user_id, course_id: pay.course_id });
+    const { data: course } = await supabaseAdmin
+      .from("courses")
+      .select("title")
+      .eq("id", pay.course_id)
+      .maybeSingle();
+    await supabaseAdmin.from("notifications").insert({
+      user_id: pay.user_id,
+      title: "Payment approved",
+      body: `Your payment of ₹${Number(pay.amount)} was approved. "${course?.title ?? "Your course"}" is now unlocked.`,
+      type: "payment",
+    });
+    return { ok: true as const };
+  });
+
+/** Admin rejects a manual UPI payment: marks it rejected so the student can submit again. */
+export const rejectManualPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ paymentId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const supabaseAdmin = await assertAdmin(context.userId, context.supabase);
+    const { data: pay } = await supabaseAdmin
+      .from("payments")
+      .select("id, user_id, status")
+      .eq("id", data.paymentId)
+      .maybeSingle();
+    if (!pay) throw new Error("Payment not found.");
+    if (pay.status !== "pending") throw new Error("This payment is not waiting for approval.");
+    await supabaseAdmin.from("payments").update({ status: "rejected" }).eq("id", pay.id);
+    await supabaseAdmin.from("notifications").insert({
+      user_id: pay.user_id,
+      title: "Payment not approved",
+      body: "We could not verify your payment screenshot. Please submit your payment again from the course page.",
+      type: "payment",
+    });
+    return { ok: true as const };
+  });

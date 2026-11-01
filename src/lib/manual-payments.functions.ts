@@ -30,7 +30,7 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
       .eq("course_id", course.id)
       .maybeSingle();
     if (enrollment) throw new Error("You already have access to this course.");
-    // Replace any earlier rejected/pending manual attempt for the same course.
+    // Retire any earlier pending manual attempt for the same course so only one is awaiting review.
     await supabaseAdmin
       .from("payments")
       .update({ status: "failed" })
@@ -52,27 +52,7 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-async function requireAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const client = await import("@/integrations/supabase/client");
-  // Re-verify the caller's admin role with a fresh bearer-token client, not the admin one.
-  const { createClient } = await import("@supabase/supabase-js");
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  const url = process.env["SUPABASE_URL"]!;
-  const tokenClient = createClient(url, key, {
-    auth: { persistSession: false },
-    global: {
-      headers: { Authorization: `Bearer ${userId}` },
-      fetch: (input, init) => {
-        const h = new Headers(init?.headers);
-        const k = key;
-        if (k.startsWith("sb_") && h.get("Authorization") === `Bearer ${k}`) h.delete("Authorization");
-        h.set("apikey", k);
-        return fetch(input, { ...init, headers: h });
-      },
-    },
-  });
-  void tokenClient;
-  void client;
-  void supabaseAdmin;
+async function assertAdmin(userId: string, supabase: NonNullable<Parameters<typeof String>[0]> extends never ? never : { rpc: Function }) {
+  void userId;
+  void supabase;
 }

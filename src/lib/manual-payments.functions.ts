@@ -54,7 +54,7 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
 
 async function getAdminClientOrThrow(
   userId: string,
-  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> },
+  supabase: { rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown }> },
 ) {
   const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (!isAdmin) throw new Error("Only the institute admin can do this.");

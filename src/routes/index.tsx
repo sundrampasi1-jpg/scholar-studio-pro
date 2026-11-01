@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, CheckCircle2, Radio, FileQuestion, Phone, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,16 +11,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "JK Academy — Online coaching for competitive exams" },
-      {
-        name: "description",
-        content:
-          "Structured courses, live classes, tests, notes and doubt support for competitive exam preparation.",
-      },
-      { property: "og:title", content: "JK Academy — Online coaching for competitive exams" },
-      {
-        property: "og:description",
-        content: "Courses, live classes, tests and doubt support in one app.",
-      },
+      { name: "description", content: "Structured courses, live classes, tests, notes and doubt support for competitive exam preparation." },
     ],
   }),
   component: Landing,
@@ -45,15 +36,15 @@ function Landing() {
   });
 
   const features = [
-    { icon: BookOpen, title: "Structured courses", text: "Course → batch → subject → chapter → lesson." },
+    { icon: BookOpen, title: "Structured courses", text: "Course to batch to subject to chapter to lesson." },
     { icon: Radio, title: "Live classes", text: "Join live, or watch the recording later." },
-    { icon: FileQuestion, title: "Tests & results", text: "Timed MCQ tests with instant scoring." },
+    { icon: FileQuestion, title: "Tests and results", text: "Timed MCQ tests with instant scoring." },
     { icon: CheckCircle2, title: "Progress tracking", text: "Pick up exactly where you left off." },
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
+    <div className="min-h-screen bg-background pt-16">
+      <header className="fixed top-0 left-0 right-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <Brand />
           <div className="flex items-center gap-2">
@@ -84,8 +75,7 @@ function Landing() {
             {settings?.hero_title || "Learn smarter. Score higher."}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground md:text-lg">
-            {settings?.hero_subtitle ||
-              "Live classes, structured courses, tests and doubt support in one app."}
+            {settings?.hero_subtitle || "Live classes, structured courses, tests and doubt support in one app."}
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <Button asChild size="lg">
@@ -100,13 +90,15 @@ function Landing() {
 
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((f) => (
-            <div key={f.title} className="surface-card p-5">
-              <f.icon className="mb-3 h-6 w-6 text-primary" />
-              <h3 className="font-semibold">{f.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{f.text}</p>
-            </div>
-          ))}
+          {features.map(function (f) {
+            return (
+              <div key={f.title} className="surface-card p-5">
+                <f.icon className="mb-3 h-6 w-6 text-primary" />
+                <h3 className="font-semibold">{f.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{f.text}</p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -114,20 +106,20 @@ function Landing() {
         <section className="mx-auto max-w-6xl px-4 pb-12">
           <h2 className="mb-4 text-xl font-semibold">Popular courses</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {courses.map((c) => (
-              <Link key={c.id} to="/auth" className="surface-card overflow-hidden transition hover:shadow-lg">
-                {c.thumbnail_url && (
-                  <img src={c.thumbnail_url} alt={c.title} className="h-36 w-full object-cover" />
-                )}
-                <div className="p-4">
-                  <h3 className="font-semibold">{c.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
-                  <p className="mt-3 text-sm font-semibold text-primary">
-                    {c.is_free || Number(c.price) === 0 ? "Free" : `₹${Number(c.price).toFixed(0)}`}
-                  </p>
-                </div>
-              </Link>
-            ))}
+            {courses.map(function (c) {
+              return (
+                <Link key={c.id} to="/auth" className="surface-card overflow-hidden transition hover:shadow-lg">
+                  {c.thumbnail_url && <img src={c.thumbnail_url} alt={c.title} className="h-36 w-full object-cover" />}
+                  <div className="p-4">
+                    <h3 className="font-semibold">{c.title}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
+                    <p className="mt-3 text-sm font-semibold text-primary">
+                      {c.is_free || Number(c.price) === 0 ? "Free" : "₹" + Number(c.price).toFixed(0)}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
@@ -157,24 +149,12 @@ function Landing() {
             © {new Date().getFullYear()} {appName}. {settings?.support_info}
           </span>
           <span className="flex gap-4">
-            {settings?.social_youtube && (
-              <a href={settings.social_youtube} className="hover:underline">
-                YouTube
-              </a>
-            )}
-            {settings?.social_instagram && (
-              <a href={settings.social_instagram} className="hover:underline">
-                Instagram
-              </a>
-            )}
-            {settings?.social_telegram && (
-              <a href={settings.social_telegram} className="hover:underline">
-                Telegram
-              </a>
-            )}
+            {settings?.social_youtube && <a href={settings.social_youtube} className="hover:underline">YouTube</a>}
+            {settings?.social_instagram && <a href={settings.social_instagram} className="hover:underline">Instagram</a>}
+            {settings?.social_telegram && <a href={settings.social_telegram} className="hover:underline">Telegram</a>}
           </span>
         </div>
       </footer>
     </div>
   );
-}
+                }

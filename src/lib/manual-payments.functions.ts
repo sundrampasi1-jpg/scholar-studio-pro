@@ -52,9 +52,10 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-async function assertAdmin(userId: string, supabase: {
-  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
-}) {
+async function getAdminClientOrThrow(
+  userId: string,
+  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> },
+) {
   const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (!isAdmin) throw new Error("Only the institute admin can do this.");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -66,7 +67,7 @@ export const approveManualPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ paymentId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const supabaseAdmin = await assertAdmin(context.userId, context.supabase);
+    const supabaseAdmin = await getAdminClientOrThrow(context.userId, context.supabase);
     const { data: pay } = await supabaseAdmin
       .from("payments")
       .select("id, user_id, course_id, amount, status")
@@ -103,7 +104,7 @@ export const rejectManualPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ paymentId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const supabaseAdmin = await assertAdmin(context.userId, context.supabase);
+    const supabaseAdmin = await getAdminClientOrThrow(context.userId, context.supabase);
     const { data: pay } = await supabaseAdmin
       .from("payments")
       .select("id, user_id, status")

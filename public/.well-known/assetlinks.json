@@ -1,1 +1,14 @@
-[{"relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "android_app", "package_name": "app.lovable.scholar_studio_pro.twa", "sha256_cert_fingerprints": ["F7:7B:33:59:E9:15:89:97:76:1D:FB:A9:CA:42:9B:A8:B3:ED:8F:0A:0C:2C:41:0F:16:4D:42:CA:48:29:21:9E"]}}]
+[
+{
+"relation": [
+"delegate_permission/common.handle_all_urls"
+],
+"target": {
+"namespace": "android_app",
+"package_name": "app.lovable.scholar_studio_pro.twa",
+"sha256_cert_fingerprints": [
+"F7:7B:33:59:E9:15:89:97:76:1D:FB:A9:CA:42:9B:A8:B3:ED:8F:0A:0C:2C:41:0F:16:4D:42:CA:48:29:21:9E"
+]
+}
+}
+]

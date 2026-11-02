@@ -74,7 +74,7 @@ export function StudentShell({
   const [swipeDrag, setSwipeDrag] = useState(0);
 
   // Instagram-style: horizontal swipe on a main tab page moves to the previous/next bottom tab.
-  const activeTabIndex = tabPaths.indexOf(location.pathname);
+  const activeTabIndex = navItems.findIndex((item) => item.to === location.pathname);
   useEffect(() => {
     if (activeTabIndex < 0) return;
     const el = mainRef.current;
@@ -99,6 +99,7 @@ export function StudentShell({
     const onTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       const touch = event.touches[0];
+      if (!touch) return;
       startX = touch.clientX;
       startY = touch.clientY;
       startTime = Date.now();
@@ -111,6 +112,7 @@ export function StudentShell({
     const onTouchMove = (event: TouchEvent) => {
       if (!tracking || event.touches.length !== 1) return;
       const touch = event.touches[0];
+      if (!touch) return;
       dx = touch.clientX - startX;
       dy = touch.clientY - startY;
       if (!horizontal) {
@@ -133,9 +135,10 @@ export function StudentShell({
       const elapsed = Date.now() - startTime;
       if (horizontal && Math.abs(dx) > 70 && elapsed < 800) {
         const nextIndex = dx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
-        if (nextIndex >= 0 && nextIndex < navItems.length) {
+        const nextItem = navItems[nextIndex];
+        if (nextItem) {
           reset();
-          navigate({ to: navItems[nextIndex].to });
+          navigate({ to: nextItem.to });
           return;
         }
       }

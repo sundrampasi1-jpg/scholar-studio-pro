@@ -42,9 +42,9 @@ function NotesPage() {
   async function openNote(n: { title: string; file_url: string; allow_download: boolean }) {
     const raw = n.file_url;
     const path = raw.includes("/object/public/media/")
-      ? raw.split("/object/public/media/")[1]
+      ? (raw.split("/object/public/media/")[1] ?? raw)
       : raw.includes("/object/sign/media/")
-      ? raw.split("/object/sign/media/")[1].split("?")[0]
+      ? (raw.split("/object/sign/media/")[1]?.split("?")[0] ?? raw)
       : raw;
     const { data, error } = await supabase.storage.from("media").createSignedUrl(path, 3600);
     if (error || !data) {

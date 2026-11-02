@@ -82,7 +82,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            const pageNum = Number((entry.target as HTMLElement).dataset.page);
+            const pageNum = Number((entry.target as HTMLElement).dataset["page"]);
             if (pageNum) renderPage(pageNum);
           }
         }

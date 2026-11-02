@@ -1,5 +1,5 @@
  
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -16,7 +16,7 @@ import {
   ClipboardCheck,
   FileText,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Brand } from "@/components/Brand";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,21 @@ const navItems = [
   { to: "/tests", label: "Tests", Icon: ClipboardCheck },
   { to: "/notes", label: "Notes", Icon: FileText },
 ] as const;
+
+const tabPaths = navItems.map((item) => item.to);
+
+/** True when the touch started inside a horizontally scrollable element (carousel, tabs, table). */
+function insideHorizontalScroller(node: HTMLElement | null, stop: HTMLElement) {
+  let current: HTMLElement | null = node;
+  while (current && current !== stop) {
+    const style = window.getComputedStyle(current);
+    if ((style.overflowX === "auto" || style.overflowX === "scroll") && current.scrollWidth > current.clientWidth + 1) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
 
 export function StudentShell({
   children,

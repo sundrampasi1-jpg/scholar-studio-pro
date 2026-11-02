@@ -1,4 +1,4 @@
- 
+
 import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -33,10 +33,10 @@ import {
 const navItems = [
   { to: "/dashboard", label: "Home", Icon: LayoutDashboard },
   { to: "/courses", label: "Courses", Icon: BookOpen },
-  { to: "/reels", label: "Reels", Icon: Clapperboard },
   { to: "/live", label: "Live", Icon: RadioTower },
   { to: "/tests", label: "Tests", Icon: ClipboardCheck },
   { to: "/notes", label: "Notes", Icon: FileText },
+  { to: "/reels", label: "Reels", Icon: Clapperboard },
 ] as const;
 
 const tabPaths = navItems.map((item) => item.to);

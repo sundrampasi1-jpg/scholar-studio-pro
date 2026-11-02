@@ -1,4 +1,4 @@
- import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,8 +26,12 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     (async () => {
       try {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        const worker = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
-        pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+        // Load the worker from a CDN that always matches the exact pdfjs
+        // version in use, instead of bundling it ourselves — the bundled
+        // worker file can fail to load (wrong MIME type / path) once the
+        // app is published, which silently breaks page rendering even
+        // though the PDF metadata (page count) still loads fine.
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
         const data = await fetchPdfBytes(url);
         if (cancelled) return;
         const doc = await pdfjs.getDocument({ data }).promise;
@@ -173,4 +177,4 @@ export async function downloadFile(url: string, title: string) {
   } catch {
     toast.error("Download failed. Check your connection and try again.", { id });
   }
-    }
+            }

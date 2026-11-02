@@ -127,7 +127,16 @@ export function StudentShell({
       dx = touch.clientX - startX;
       dy = touch.clientY - startY;
       if (!horizontal) {
-        if (Math.abs(dx) < 12 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+        // Decide direction as early as possible (small threshold) so a
+        // horizontal swipe doesn't get swallowed by a vertical scroller
+        // underneath it — e.g. the Reels video feed, which has its own
+        // vertical swipe-between-videos gesture.
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dx) <= Math.abs(dy) * 1.2) {
+          // Looks vertical — let it scroll/swipe normally (e.g. Reels feed).
+          tracking = false;
+          return;
+        }
         if (insideHorizontalScroller(event.target as HTMLElement | null, el)) {
           tracking = false;
           return;
@@ -354,4 +363,4 @@ export function StudentShell({
       </nav>
     </div>
   );
-        }
+  }

@@ -1,4 +1,3 @@
-
 import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -72,6 +71,17 @@ export function StudentShell({
   const location = useLocation();
   const mainRef = useRef<HTMLElement | null>(null);
   const [swipeDrag, setSwipeDrag] = useState(0);
+
+  // Preload all bottom-tab routes as soon as the shell mounts, so swiping
+  // between tabs feels instant instead of waiting for the route's code to
+  // download on first visit.
+  useEffect(() => {
+    navItems.forEach((item) => {
+      router.preloadRoute({ to: item.to }).catch(() => {
+        // ignore preload errors (e.g. offline) — normal navigation still works
+      });
+    });
+  }, [router]);
 
   // Instagram-style: horizontal swipe on a main tab page moves to the previous/next bottom tab.
   const activeTabIndex = navItems.findIndex((item) => item.to === location.pathname);
@@ -330,4 +340,4 @@ export function StudentShell({
       </nav>
     </div>
   );
-}
+                          }

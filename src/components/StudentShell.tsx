@@ -69,6 +69,90 @@ export function StudentShell({
   const navigate = useNavigate();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement | null>(null);
+  const [swipeDrag, setSwipeDrag] = useState(0);
+
+  // Instagram-style: horizontal swipe on a main tab page moves to the previous/next bottom tab.
+  const activeTabIndex = tabPaths.indexOf(location.pathname);
+  useEffect(() => {
+    if (activeTabIndex < 0) return;
+    const el = mainRef.current;
+    if (!el) return;
+
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let dx = 0;
+    let dy = 0;
+    let tracking = false;
+    let horizontal = false;
+
+    const reset = () => {
+      setSwipeDrag(0);
+      tracking = false;
+      horizontal = false;
+      dx = 0;
+      dy = 0;
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startTime = Date.now();
+      dx = 0;
+      dy = 0;
+      tracking = true;
+      horizontal = false;
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (!tracking || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      dx = touch.clientX - startX;
+      dy = touch.clientY - startY;
+      if (!horizontal) {
+        if (Math.abs(dx) < 12 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+        if (insideHorizontalScroller(event.target as HTMLElement | null, el)) {
+          tracking = false;
+          return;
+        }
+        horizontal = true;
+      }
+      const atEdge =
+        (activeTabIndex === 0 && dx > 0) || (activeTabIndex === tabPaths.length - 1 && dx < 0);
+      const resisted = atEdge ? dx * 0.2 : dx;
+      setSwipeDrag(Math.max(-160, Math.min(160, resisted)));
+      event.preventDefault();
+    };
+
+    const onTouchEnd = () => {
+      if (!tracking) return;
+      const elapsed = Date.now() - startTime;
+      if (horizontal && Math.abs(dx) > 70 && elapsed < 800) {
+        const nextIndex = dx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
+        if (nextIndex >= 0 && nextIndex < navItems.length) {
+          reset();
+          navigate({ to: navItems[nextIndex].to });
+          return;
+        }
+      }
+      reset();
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [activeTabIndex, navigate]);
 
   const { data: unread = 0 } = useQuery({
     queryKey: ["unread-notifications", user?.id],
@@ -202,7 +286,14 @@ export function StudentShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 pt-20">
+      <main
+        ref={mainRef}
+        className="mx-auto max-w-6xl px-4 py-6 pt-20"
+        style={{
+          transform: `translateX(${swipeDrag}px)`,
+          transition: swipeDrag === 0 ? "transform 180ms ease-out" : "none",
+        }}
+      >
         {(title || actions) && (
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>

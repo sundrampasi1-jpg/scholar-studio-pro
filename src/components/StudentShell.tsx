@@ -38,8 +38,6 @@ const navItems = [
   { to: "/reels", label: "Reels", Icon: Clapperboard },
 ] as const;
 
-const tabPaths = navItems.map((item) => item.to);
-
 /** True when the touch started inside a horizontally scrollable element (carousel, tabs, table). */
 function insideHorizontalScroller(node: HTMLElement | null, stop: HTMLElement) {
   let current: HTMLElement | null = node;
@@ -72,9 +70,9 @@ export function StudentShell({
   const mainRef = useRef<HTMLElement | null>(null);
   const [swipeDrag, setSwipeDrag] = useState(0);
 
-  // Preload all bottom-tab routes as soon as the shell mounts, so swiping
-  // between tabs feels instant instead of waiting for the route's code to
-  // download on first visit.
+  // Preload all bottom-tab routes as soon as the shell mounts, so switching
+  // tabs (tap or swipe) feels instant instead of waiting for the route's
+  // code to download on first visit.
   useEffect(() => {
     navItems.forEach((item) => {
       router.preloadRoute({ to: item.to }).catch(() => {
@@ -83,7 +81,10 @@ export function StudentShell({
     });
   }, [router]);
 
-  // Instagram-style: horizontal swipe on a main tab page moves to the previous/next bottom tab.
+  // Swipe anywhere on a main tab page to move between bottom tabs:
+  // Home -> Courses -> Live -> Tests -> Notes -> Reels, and swiping forward
+  // from Reels wraps back to Home. Swiping backward from Home does NOT
+  // wrap to Reels — it just stays locked on Home.
   const activeTabIndex = navItems.findIndex((item) => item.to === location.pathname);
   useEffect(() => {
     if (activeTabIndex < 0) return;
@@ -133,9 +134,10 @@ export function StudentShell({
         }
         horizontal = true;
       }
-      const atEdge =
-        (activeTabIndex === 0 && dx > 0) || (activeTabIndex === tabPaths.length - 1 && dx < 0);
-      const resisted = atEdge ? dx * 0.2 : dx;
+      // Only Home (index 0) is a locked edge when swiping backward (dx > 0).
+      // Reels (last tab) is NOT a locked edge forward — it wraps to Home instead.
+      const lockedEdge = activeTabIndex === 0 && dx > 0;
+      const resisted = lockedEdge ? dx * 0.2 : dx;
       setSwipeDrag(Math.max(-160, Math.min(160, resisted)));
       event.preventDefault();
     };
@@ -144,12 +146,24 @@ export function StudentShell({
       if (!tracking) return;
       const elapsed = Date.now() - startTime;
       if (horizontal && Math.abs(dx) > 70 && elapsed < 800) {
-        const nextIndex = dx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
-        const nextItem = navItems[nextIndex];
-        if (nextItem) {
-          reset();
-          navigate({ to: nextItem.to });
-          return;
+        if (dx < 0) {
+          // Forward swipe: go to next tab, wrapping from Reels back to Home.
+          const rawNext = activeTabIndex + 1;
+          const nextIndex = rawNext >= navItems.length ? 0 : rawNext;
+          const nextItem = navItems[nextIndex];
+          if (nextItem) {
+            reset();
+            navigate({ to: nextItem.to });
+            return;
+          }
+        } else if (dx > 0 && activeTabIndex > 0) {
+          // Backward swipe: go to previous tab. No wrap past Home.
+          const nextItem = navItems[activeTabIndex - 1];
+          if (nextItem) {
+            reset();
+            navigate({ to: nextItem.to });
+            return;
+          }
         }
       }
       reset();
@@ -190,7 +204,7 @@ export function StudentShell({
   }
 
   return (
-    <div className="min-h-screen bg-surface pb-20 md:pb-0">
+    <div className="flex min-h-screen flex-col bg-surface pb-20 md:pb-0">
       <header className="fixed top-0 left-0 right-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <Link to="/dashboard">
@@ -301,7 +315,7 @@ export function StudentShell({
 
       <main
         ref={mainRef}
-        className="mx-auto max-w-6xl px-4 py-6 pt-20"
+        className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pt-20"
         style={{
           transform: `translateX(${swipeDrag}px)`,
           transition: swipeDrag === 0 ? "transform 180ms ease-out" : "none",
@@ -340,4 +354,4 @@ export function StudentShell({
       </nav>
     </div>
   );
-    }
+        }

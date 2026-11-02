@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 /** Student submits a manual UPI payment: creates a pending payment linked to their screenshot. */
 export const submitManualUpiPayment = createServerFn({ method: "POST" })
@@ -54,7 +56,7 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
 
 async function getAdminClientOrThrow(
   userId: string,
-  supabase: { rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown }> },
+  supabase: SupabaseClient<Database>,
 ) {
   const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (!isAdmin) throw new Error("Only the institute admin can do this.");

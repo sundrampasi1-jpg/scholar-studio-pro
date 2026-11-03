@@ -43,8 +43,8 @@ function AuthPage() {
 
   useEffect(() => {
     const target = () => {
-      const saved = sessionStorage.getItem("jk_after_login");
-      sessionStorage.removeItem("jk_after_login");
+      const saved = localStorage.getItem("jk_after_login");
+      localStorage.removeItem("jk_after_login");
       const dest = redirect ?? saved ?? "/dashboard";
       return dest.startsWith("/") && !dest.startsWith("//") ? dest : "/dashboard";
     };
@@ -60,7 +60,7 @@ function AuthPage() {
     }
 
     const oauthError = readOAuthError();
-    const cameFromGoogle = sessionStorage.getItem("jk_google_pending") === "1";
+    const cameFromGoogle = localStorage.getItem("jk_google_pending") === "1";
 
     if (oauthError) {
       console.error("[JK Academy] Google OAuth returned an error:", oauthError, {
@@ -72,31 +72,33 @@ function AuthPage() {
 
     async function resolve() {
       if (oauthError) {
-        sessionStorage.removeItem("jk_google_pending");
+        localStorage.removeItem("jk_google_pending");
         setError(`Google sign-in failed: ${oauthError}`);
         return;
       }
 
       if (cameFromGoogle) setResolvingGoogle(true);
-      const attempts = cameFromGoogle ? 20 : 1;
+
+      const attempts = 25;
+      const intervalMs = 150;
 
       for (let i = 0; i < attempts; i++) {
         const { data } = await supabase.auth.getSession();
         if (cancelled) return;
 
         if (data.session) {
-          sessionStorage.removeItem("jk_google_pending");
+          localStorage.removeItem("jk_google_pending");
           navigate({ href: target(), replace: true });
           return;
         }
 
         if (i < attempts - 1) {
-          await new Promise((r) => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, intervalMs));
         }
       }
 
       if (cameFromGoogle && !cancelled) {
-        sessionStorage.removeItem("jk_google_pending");
+        localStorage.removeItem("jk_google_pending");
         setResolvingGoogle(false);
 
         console.error(
@@ -115,7 +117,7 @@ function AuthPage() {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
         cancelled = true;
-        sessionStorage.removeItem("jk_google_pending");
+        localStorage.removeItem("jk_google_pending");
         navigate({ href: target(), replace: true });
       }
     });
@@ -131,10 +133,10 @@ function AuthPage() {
     setLoading(true);
 
     if (redirect) {
-      sessionStorage.setItem("jk_after_login", redirect);
+      localStorage.setItem("jk_after_login", redirect);
     }
 
-    sessionStorage.setItem("jk_google_pending", "1");
+    localStorage.setItem("jk_google_pending", "1");
 
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin + "/auth",
@@ -142,7 +144,7 @@ function AuthPage() {
     });
 
     if (result.error) {
-      sessionStorage.removeItem("jk_google_pending");
+      localStorage.removeItem("jk_google_pending");
       setLoading(false);
 
       const msg = result.error.message ?? "";
@@ -158,7 +160,7 @@ function AuthPage() {
 
     if (result.redirected) return;
 
-    sessionStorage.removeItem("jk_google_pending");
+    localStorage.removeItem("jk_google_pending");
     setLoading(false);
     toast.success("Welcome!");
   }
@@ -339,4 +341,4 @@ function AuthPage() {
       </div>
     </div>
   );
-}
+        }

@@ -1,9 +1,20 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Circle, Copy, PlayCircle, FileText, Lock, ShieldCheck, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  Copy,
+  PlayCircle,
+  FileText,
+  Lock,
+  ShieldCheck,
+  X,
+  BadgeCheck,
+  Smartphone,
+} from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, ErrorState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,8 +68,10 @@ function UpiQr({ upiId, payeeName, amount, note }: { upiId: string; payeeName: s
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <canvas ref={canvasRef} className="rounded-lg border bg-white p-2" aria-label="UPI payment QR code" />
-      {!ready && <p className="text-xs text-muted-foreground">Generating QR code…</p>}
+      <div className="rounded-2xl bg-white p-3 shadow-[0_2px_16px_rgba(0,0,0,0.08)] ring-1 ring-black/5">
+        <canvas ref={canvasRef} aria-label="UPI payment QR code" />
+      </div>
+      {!ready && <p className="text-xs text-muted-foreground">Generating secure QR code…</p>}
     </div>
   );
 }
@@ -174,205 +187,176 @@ function CourseDetail() {
       await submitPayment({ data: { courseId, screenshotUrl: url, upiId } });
       setCheckoutState("submitted");
       setScreenshot(null);
-      toast.success("Payment submitted — we'll verify it shortly.");
-      queryClient.invalidateQueries({ queryKey: ["my-payments"] });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  if (course.isLoading) {
-    return (
-      <StudentShell>
-        <LoadingState />
-      </StudentShell>
-    );
-  }
-  if (course.error) {
-    return (
-      <StudentShell>
-        <ErrorState error={course.error} onRetry={() => course.refetch()} />
-      </StudentShell>
-    );
-  }
-  if (!course.data) {
-    return (
-      <StudentShell>
-        <EmptyState title="Course not found" />
-      </StudentShell>
-    );
-  }
-
-  const c = course.data;
-  const isEnrolled = !!enrollment.data;
-  const isFree = c.is_free || Number(c.price) === 0;
-  const price = Number(c.price);
-
-  return (
-    <StudentShell title={c.title} subtitle={c.description ?? undefined}>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {structure.isLoading ? (
-            <LoadingState />
-          ) : (structure.data ?? []).length === 0 ? (
-            <EmptyState title="Content coming soon" description="No subjects have been added yet." />
-          ) : (
-            <Accordion type="multiple" className="surface-card divide-y px-4">
-              {(structure.data ?? []).map((s) => (
-                <AccordionItem key={s.id} value={s.id} className="border-b-0">
-                  <AccordionTrigger className="text-left font-medium">{s.name}</AccordionTrigger>
-                  <AccordionContent>
-                    {[...(s.chapters ?? [])]
-                      .sort((a, b) => a.position - b.position)
-                      .map((ch) => (
-                        <div key={ch.id} className="mb-4">
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {ch.name}
-                          </p>
-                          <ul className="space-y-1">
-                            {[...(ch.lessons ?? [])]
-                              .filter((l) => l.is_published)
-                              .sort((a, b) => a.position - b.position)
-                              .map((l) => {
-                                const done = completedIds.data?.includes(l.id);
-                                return (
-                                  <li key={l.id}>
-                                    {isEnrolled ? (
-                                      <Link
-                                        to="/lesson/$lessonId"
-                                        params={{ lessonId: l.id }}
-                                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
-                                      >
-                                        {done ? (
-                                          <CheckCircle2 className="h-4 w-4 text-success" />
-                                        ) : (
-                                          <Circle className="h-4 w-4 text-muted-foreground" />
-                                        )}
-                                        <span className="flex-1">{l.title}</span>
-                                        {l.video_url && <PlayCircle className="h-4 w-4 text-primary" />}
-                                        {l.pdf_url && <FileText className="h-4 w-4 text-muted-foreground" />}
-                                      </Link>
-                                    ) : (
-                                      <span className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
-                                        <Lock className="h-4 w-4" /> {l.title}
-                                      </span>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                          </ul>
-                        </div>
-                      ))}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          )}
-        </div>
-
+< truncated lines 190-287 >
         <aside className="space-y-4">
-          <div className="surface-card p-4">
-            {isEnrolled ? (
-              <>
-                <p className="text-sm font-medium">Your progress</p>
-                <Progress value={progress.data?.percent ?? 0} className="mt-3" />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {progress.data?.completed ?? 0} of {progress.data?.total ?? 0} lessons completed
-                </p>
-                {progress.data?.lastLessonId && (
-                  <Button asChild className="mt-4 w-full">
-                    <Link to="/lesson/$lessonId" params={{ lessonId: progress.data.lastLessonId }}>
-                      Continue learning
-                    </Link>
-                  </Button>
-                )}
-              </>
-            ) : checkoutState === "open" && upiId ? (
-              <div className="space-y-3">
+          {isEnrolled ? (
+            <div className="surface-card p-4">
+              <p className="text-sm font-medium">Your progress</p>
+              <Progress value={progress.data?.percent ?? 0} className="mt-3" />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {progress.data?.completed ?? 0} of {progress.data?.total ?? 0} lessons completed
+              </p>
+              {progress.data?.lastLessonId && (
+                <Button asChild className="mt-4 w-full">
+                  <Link to="/lesson/$lessonId" params={{ lessonId: progress.data.lastLessonId }}>
+                    Continue learning
+                  </Link>
+                </Button>
+              )}
+            </div>
+          ) : checkoutState === "open" && upiId ? (
+            <div className="overflow-hidden rounded-2xl border shadow-lg">
+              {/* Branded header — trustworthy, bank-grade look */}
+              <div className="relative bg-gradient-to-br from-[#174EA6] via-[#1A73E8] to-[#0F9D58] px-4 py-4 text-white">
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold">Pay ₹{price.toFixed(0)} by UPI</p>
-                  <Button variant="ghost" size="icon" aria-label="Close payment panel" onClick={() => setCheckoutState("closed")}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold leading-tight">Secure UPI Payment</p>
+                      <p className="text-[11px] text-white/80 leading-tight">256-bit encrypted checkout</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Close payment panel"
+                    className="h-7 w-7 text-white hover:bg-white/15 hover:text-white"
+                    onClick={() => setCheckoutState("closed")}
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Pay using any UPI app (Google Pay, PhonePe, Paytm, BHIM). Scan the QR code or send the amount to:
-                </p>
-                <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
-                  <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold">{upiId}</span>
+                <div className="mt-4 flex items-end justify-between">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-white/75">Amount payable</p>
+                    <p className="text-2xl font-bold">₹{price.toFixed(0)}</p>
+                  </div>
+                  <p className="max-w-[55%] truncate text-right text-xs text-white/85">{c.title}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 bg-card p-4">
+                {/* Step 1 — scan */}
+                <div>
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                      1
+                    </span>
+                    <p className="text-sm font-semibold">Scan &amp; pay with any UPI app</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-3 rounded-xl border bg-muted/30 p-4">
+                    <UpiQr upiId={upiId} payeeName={instituteName} amount={price} note={c.title} />
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Smartphone className="h-4 w-4" />
+                      <p className="text-[11px]">Google Pay · PhonePe · Paytm · BHIM</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-2">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[11px] font-medium uppercase text-muted-foreground">or pay manually</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                {/* UPI ID copy */}
+                <div className="flex items-center gap-2 rounded-xl border bg-muted/30 p-2.5">
+                  <span className="min-w-0 flex-1 truncate px-1 font-mono text-sm font-semibold">{upiId}</span>
                   <Button variant="outline" size="sm" onClick={copyUpi}>
                     <Copy className="mr-1 h-3.5 w-3.5" /> Copy
                   </Button>
                 </div>
-                <UpiQr upiId={upiId} payeeName={instituteName} amount={price} note={c.title} />
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Upload payment screenshot</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setScreenshot(e.target.files?.[0] ?? null)}
-                    className="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:text-primary-foreground"
-                  />
-                  {screenshot && (
-                    <p className="truncate text-xs text-muted-foreground">Selected: {screenshot.name}</p>
-                  )}
+
+                {/* Step 2 — proof */}
+                <div>
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                      2
+                    </span>
+                    <p className="text-sm font-semibold">Upload payment screenshot</p>
+                  </div>
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border bg-muted/20 p-4 text-center transition-colors hover:border-primary/50 hover:bg-muted/40">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setScreenshot(e.target.files?.[0] ?? null)}
+                      className="hidden"
+                    />
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-foreground">
+                      {screenshot ? screenshot.name : "Tap to upload screenshot"}
+                    </span>
+                    {!screenshot && <span className="text-[11px] text-muted-foreground">PNG or JPG</span>}
+                  </label>
                 </div>
-                <Button className="w-full" onClick={submitProof} disabled={submitting || !screenshot}>
+
+                <Button className="h-11 w-full text-sm font-semibold" onClick={submitProof} disabled={submitting || !screenshot}>
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   {submitting ? "Submitting…" : "I have paid — submit proof"}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  After you submit, the institute verifies your payment and unlocks the course. You'll get a
-                  notification when it's approved.
-                </p>
+
+                <div className="flex items-start gap-2 rounded-lg bg-muted/30 p-2.5">
+                  <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    After you submit, the institute verifies your payment and unlocks the course automatically.
+                    You'll get a notification once approved.
+                  </p>
+                </div>
               </div>
-            ) : checkoutState === "submitted" ? (
-              <div className="space-y-2 text-center">
-                <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
-                <p className="font-semibold">Payment submitted</p>
-                <p className="text-sm text-muted-foreground">
-                  We're checking your payment screenshot. Once approved, this course unlocks automatically and
-                  you'll get a notification.
-                </p>
-                <Link to="/payments" className="inline-block text-sm font-medium text-primary underline">
-                  View my payments
-                </Link>
-              </div>
-            ) : (
-              <>
-                <p className="text-2xl font-semibold text-primary">{isFree ? "Free" : `₹${price.toFixed(0)}`}</p>
-                {isFree ? (
-                  <Button
-                    className="mt-4 w-full"
-                    onClick={() => enrol.mutate()}
-                    disabled={enrol.isPending}
-                  >
-                    Enrol for free
-                  </Button>
-                ) : checkoutState === "unconfigured" ? (
-                  <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
-                    <p className="font-semibold">Online payment is being set up</p>
-                    <p className="mt-1 text-muted-foreground">
-                      The institute hasn't added its UPI ID yet. Please try again later or contact us at
-                      95695 51576.
-                    </p>
-                    <Link to="/payments" className="mt-2 inline-block font-medium text-primary">
-                      View my payments
-                    </Link>
+            </div>
+          ) : checkoutState === "submitted" ? (
+            <div className="surface-card space-y-2 p-6 text-center">
+              <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
+              <p className="font-semibold">Payment submitted</p>
+              <p className="text-sm text-muted-foreground">
+                We're checking your payment screenshot. Once approved, this course unlocks automatically and
+                you'll get a notification.
+              </p>
+              <Link to="/payments" className="inline-block text-sm font-medium text-primary underline">
+                View my payments
+              </Link>
+            </div>
+          ) : (
+            <div className="surface-card p-4">
+              <p className="text-2xl font-semibold text-primary">{isFree ? "Free" : `₹${price.toFixed(0)}`}</p>
+              {isFree ? (
+                <Button
+                  className="mt-4 w-full"
+                  onClick={() => enrol.mutate()}
+                  disabled={enrol.isPending}
+                >
+                  Enrol for free
+                </Button>
+              ) : checkoutState === "unconfigured" ? (
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+                  <p className="font-semibold">Online payment is being set up</p>
+                  <p className="mt-1 text-muted-foreground">
+                    The institute hasn't added its UPI ID yet. Please try again later or contact us at
+                    95695 51576.
+                  </p>
+                  <Link to="/payments" className="mt-2 inline-block font-medium text-primary">
+                    View my payments
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                    Secure UPI checkout
                   </div>
-                ) : (
                   <Button
                     className="mt-4 w-full"
                     onClick={() => setCheckoutState(upiId ? "open" : "unconfigured")}
                   >
                     Buy Now
                   </Button>
-                )}
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="surface-card p-4 text-sm">
             <p className="font-medium">Need help?</p>

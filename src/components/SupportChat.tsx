@@ -62,7 +62,7 @@ function VoiceNoteBubble({ src, mine }: { src: string; mine: boolean }) {
         type="button"
         onClick={toggle}
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-          mine ? "bg-white/20" : "bg-[#C18A45]/15"
+          mine ? "bg-[#D2E7FA]" : "bg-[#DCEEFF]"
         }`}
       >
         {playing ? <Pause size={15} /> : <Play size={15} />}
@@ -158,13 +158,16 @@ export function SupportChat({
     };
   }, []);
 
-  // Outside click closes the message menu.
-  // Do not use touchstart here: it can close the menu before its buttons receive a tap.
+  // Close the menu only when clicking outside it and outside its message.
   useEffect(() => {
     if (!menuFor) return;
 
     function close(e: MouseEvent) {
-      if (!(e.target as HTMLElement)?.closest?.("[data-message-menu]")) {
+      const target = e.target as HTMLElement;
+      if (
+        !target.closest("[data-message-menu]") &&
+        !target.closest("[data-message-bubble]")
+      ) {
         setMenuFor(null);
       }
     }
@@ -494,6 +497,7 @@ export function SupportChat({
           </div>
         )}
 
+        {/* Welcome message intentionally unchanged */}
         {msgs.data?.length === 0 && !msgs.isLoading && (
           <div className="flex min-h-48 flex-col items-center justify-center text-center">
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#F8EBDD]">
@@ -522,11 +526,12 @@ export function SupportChat({
               }`}
             >
               <div
-                className={`relative max-w-[85%] min-w-[100px] ${
+                className={`relative flex w-fit max-w-[82%] flex-col ${
                   mine ? "ml-auto" : "mr-auto"
                 }`}
               >
                 <div
+                  data-message-bubble
                   onTouchStart={() => pressStart(mine, m.id)}
                   onTouchEnd={pressEnd}
                   onTouchCancel={pressEnd}
@@ -539,10 +544,8 @@ export function SupportChat({
                   onMouseDown={() => pressStart(mine, m.id)}
                   onMouseUp={pressEnd}
                   onMouseLeave={pressEnd}
-                  className={`rounded-[19px] px-4 py-3 text-sm leading-relaxed shadow-sm ${
-                    mine
-                      ? "bg-gradient-to-br from-[#D8A45C] to-[#AD651C] text-white"
-                      : "border border-[#F0E4D6] bg-white text-[#382B20]"
+                  className={`w-fit max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm text-[#202A35] ${
+                    mine ? "bg-[#E3F1FF]" : "bg-[#F0F7FF]"
                   } ${isImage ? "p-1.5" : ""} ${
                     isDeleting ? "opacity-50" : ""
                   }`}
@@ -594,31 +597,26 @@ export function SupportChat({
                   ) : (
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
                   )}
-
-                  <p
-                    className={`mt-1 text-[10px] ${
-                      mine ? "text-white/75" : "text-[#9B8876]"
-                    }`}
-                  >
-                    {m.from_staff ? "JK Academy" : "You"} ·{" "}
-                    {formatDateTime(m.created_at)}
-                  </p>
                 </div>
+
+                {/* Timestamp outside the message bubble */}
+                <p className="mt-0.5 px-1 text-[10px] leading-tight text-[#968D83]">
+                  {m.from_staff ? "JK Academy" : "You"} · {formatDateTime(m.created_at)}
+                </p>
               </div>
 
-              {/* IMPORTANT: menu is in normal document flow BELOW the message.
-                  It is not positioned above the bubble or inside the support header. */}
               {menuOpen && mine && !isEditing && (
                 <div
                   data-message-menu
-                  className="relative z-30 mt-2 flex items-center gap-1 self-end rounded-xl border border-[#EADCCB] bg-white p-1.5 shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                  className="relative z-30 mt-2 flex items-center gap-1 self-end rounded-xl border border-[#D8E8F6] bg-white p-1.5 shadow-lg"
                 >
                   {!isImage && !isAudio && (
                     <button
                       type="button"
-                      data-message-menu
                       onClick={() => startEdit(m)}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-[#76502D] hover:bg-[#FFF3E4]"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-[#315B7D] hover:bg-[#EDF6FF]"
                     >
                       <Pencil size={15} /> Edit
                     </button>
@@ -626,7 +624,6 @@ export function SupportChat({
 
                   <button
                     type="button"
-                    data-message-menu
                     onClick={() => void deleteMessage(m)}
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
                   >
@@ -635,7 +632,6 @@ export function SupportChat({
 
                   <button
                     type="button"
-                    data-message-menu
                     onClick={() => setMenuFor(null)}
                     aria-label="Close menu"
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"

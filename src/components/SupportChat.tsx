@@ -1,4 +1,3 @@
- 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send, Pencil, Trash2, Check, X } from "lucide-react";
@@ -12,12 +11,14 @@ type SupportChatProps = {
   studentId: string;
   senderId: string;
   asStaff?: boolean;
+  fullHeight?: boolean;
 };
 
 export function SupportChat({
   studentId,
   senderId,
   asStaff,
+  fullHeight,
 }: SupportChatProps) {
   const qc = useQueryClient();
   const key = ["support-chat", studentId];
@@ -229,8 +230,8 @@ export function SupportChat({
   }
 
   return (
-    <div className="flex flex-col rounded-lg border bg-card">
-      <div className="h-80 space-y-3 overflow-y-auto p-3">
+    <div className={fullHeight ? "flex h-full flex-col rounded-lg border bg-card" : "flex flex-col rounded-lg border bg-card"}>
+      <div className={fullHeight ? "flex-1 min-h-0 space-y-3 overflow-y-auto p-3" : "h-80 space-y-3 overflow-y-auto p-3"}>
         {msgs.isLoading && (
           <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
         )}

@@ -92,7 +92,7 @@ export const askChatAi = createServerFn({ method: "POST" })
     }
     if (contents[0]?.role === "model") contents.shift();
 
-    const out = await geminiAny(["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"], { systemInstruction: { parts: [{ text: SYSTEM }] }, contents }, key);
+    const out = await geminiAny(["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"], { systemInstruction: { parts: [{ text: SYSTEM }] }, contents }, key);
     const reply = out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
     if (!reply) return { ok: false as const, error: "AI reply khaali aaya." };
 

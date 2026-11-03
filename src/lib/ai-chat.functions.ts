@@ -28,6 +28,14 @@ function pcmToWav(pcm: Uint8Array, rate = 24000) {
   return out;
 }
 
+async function geminiAny(models: string[], body: unknown, key: string) {
+  let lastErr: unknown;
+  for (const m of models) {
+    try { return await gemini(m, body, key); } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
 async function gemini(model: string, body: unknown, key: string) {
   const res = await fetch(`${GEMINI}/${model}:generateContent`, {
     method: "POST",
@@ -38,7 +46,7 @@ async function gemini(model: string, body: unknown, key: string) {
     console.error("Gemini error", res.status, await res.text());
     throw new Error(res.status === 429 ? "AI abhi busy hai, thodi der baad try karein." : "AI reply nahi de paya.");
   }
-  return (await res.json()) as { candidates?: { content?: { parts?: { text?: string; inlineData?: { data: string } }[] } }[] };
+  return (await res.json()) as { candidates?: { content?: { parts?: { text?: string; inlineData?: { data: string; mimeType?: string } }[] } }[] };
 }
 
 export const askChatAi = createServerFn({ method: "POST" })
@@ -84,7 +92,7 @@ export const askChatAi = createServerFn({ method: "POST" })
     }
     if (contents[0]?.role === "model") contents.shift();
 
-    const out = await gemini("gemini-2.5-flash", { systemInstruction: { parts: [{ text: SYSTEM }] }, contents }, key);
+    const out = await geminiAny(["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"], { systemInstruction: { parts: [{ text: SYSTEM }] }, contents }, key);
     const reply = out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
     if (!reply) return { ok: false as const, error: "AI reply khaali aaya." };
 
@@ -94,15 +102,17 @@ export const askChatAi = createServerFn({ method: "POST" })
     // Voice reply for voice input — free TTS tier; falls back to text only.
     if (AUDIO_RE.test(last.body)) {
       try {
-        const tts = await gemini("gemini-2.5-flash-preview-tts", {
+        const tts = await geminiAny(["gemini-3.8-flash-lite-tts", "gemini-2.5-flash-preview-tts"], {
           contents: [{ parts: [{ text: reply.slice(0, 1500) }] }],
           generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } },
         }, key);
-        const b64 = tts.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData?.data;
+        const inline = tts.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
+        const b64 = inline?.data;
         if (b64) {
-          const pcm = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          const isWav = /wav/i.test(inline?.mimeType ?? "");
           const path = `chat-attachments/${userId}/ai-voice-${Date.now()}.wav`;
-          const up = await supabaseAdmin.storage.from("media").upload(path, pcmToWav(pcm), { contentType: "audio/wav" });
+          const up = await supabaseAdmin.storage.from("media").upload(path, isWav ? raw : pcmToWav(raw), { contentType: "audio/wav" });
           if (!up.error) {
             const { data: signed } = await supabaseAdmin.storage.from("media").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
             if (signed) rows.push({ student_id: userId, sender_id: userId, body: signed.signedUrl, from_staff: true, is_ai: true });

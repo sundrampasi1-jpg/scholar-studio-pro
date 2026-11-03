@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/help")({
       { title: "Contact & help — JK Academy" },
       {
         name: "description",
-        content: "Contact JK Academy or chat with our support team.",
+        content: "Contact JK Academy for courses, payments and study support.",
       },
     ],
   }),
@@ -38,15 +38,13 @@ function HelpPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  // Prevent the Help Page from scrolling behind the chat.
   useEffect(() => {
     if (!chatOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
+    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previous;
     };
   }, [chatOpen]);
 
@@ -55,35 +53,32 @@ function HelpPage() {
       <Link
         to="/courses"
         onClick={() => setChatOpen(false)}
-        className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#EADCCB] bg-[#FFFAF3] px-3.5 py-2 text-xs font-semibold text-[#75502A]"
+        className="flex shrink-0 items-center gap-2 rounded-full border border-[#EADCCB] bg-white px-3.5 py-2 text-xs font-semibold text-[#75502A]"
       >
-        <BookOpen size={15} />
-        Courses
+        <BookOpen size={15} /> Courses
       </Link>
 
       <button
         type="button"
         onClick={() => toast.info("FAQs are coming soon.")}
-        className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#EADCCB] bg-[#FFFAF3] px-3.5 py-2 text-xs font-semibold text-[#75502A]"
+        className="flex shrink-0 items-center gap-2 rounded-full border border-[#EADCCB] bg-white px-3.5 py-2 text-xs font-semibold text-[#75502A]"
       >
-        <HelpCircle size={15} />
-        FAQs
+        <HelpCircle size={15} /> FAQs
       </button>
 
       <button
         type="button"
-        onClick={() => toast.info("You're already connected with JK Academy Support.")}
-        className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#EADCCB] bg-[#FFFAF3] px-3.5 py-2 text-xs font-semibold text-[#75502A]"
+        onClick={() => toast.info("You're connected with JK Academy Support.")}
+        className="flex shrink-0 items-center gap-2 rounded-full border border-[#EADCCB] bg-white px-3.5 py-2 text-xs font-semibold text-[#75502A]"
       >
-        <Headset size={15} />
-        Talk to Agent
+        <Headset size={15} /> Talk to Agent
       </button>
 
       <div className="relative shrink-0">
         <button
           type="button"
           onClick={() => setMoreOpen((s) => !s)}
-          className="flex items-center gap-1 rounded-full border border-[#EADCCB] bg-[#FFFAF3] px-3.5 py-2 text-xs font-semibold text-[#75502A]"
+          className="flex items-center gap-2 rounded-full border border-[#EADCCB] bg-white px-3.5 py-2 text-xs font-semibold text-[#75502A]"
         >
           More <MoreHorizontal size={15} />
         </button>
@@ -96,10 +91,9 @@ function HelpPage() {
                 setMoreOpen(false);
                 setChatOpen(false);
               }}
-              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium hover:bg-[#FFF3E2]"
+              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-[#FFF3E2]"
             >
-              <HelpCircle size={15} />
-              Ask a doubt
+              <HelpCircle size={15} /> Ask a doubt
             </Link>
 
             <a
@@ -107,10 +101,9 @@ function HelpPage() {
               target="_blank"
               rel="noreferrer"
               onClick={() => setMoreOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium hover:bg-[#FFF3E2]"
+              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-[#FFF3E2]"
             >
-              <MessageCircle size={15} />
-              WhatsApp
+              <MessageCircle size={15} /> WhatsApp
             </a>
           </div>
         )}
@@ -123,16 +116,13 @@ function HelpPage() {
       title="Contact & help"
       subtitle="We're here to help with courses, payments and studies."
     >
-      {/* Help Page Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="surface-card p-5">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F9E8D8]">
             <Phone className="h-5 w-5 text-[#A96720]" />
           </div>
-
           <p className="mt-3 font-medium">Call us</p>
           <p className="text-lg font-semibold">95695 51576</p>
-
           <Button asChild className="mt-3 w-full">
             <a href="tel:+919569551576">Call now</a>
           </Button>
@@ -142,18 +132,10 @@ function HelpPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F9E8D8]">
             <MessageCircle className="h-5 w-5 text-[#A96720]" />
           </div>
-
           <p className="mt-3 font-medium">WhatsApp</p>
-          <p className="text-sm text-muted-foreground">
-            Message us any time.
-          </p>
-
+          <p className="text-sm text-muted-foreground">Message us any time.</p>
           <Button asChild variant="outline" className="mt-3 w-full">
-            <a
-              href="https://wa.me/919569551576"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a href="https://wa.me/919569551576" target="_blank" rel="noreferrer">
               Open WhatsApp
             </a>
           </Button>
@@ -163,34 +145,27 @@ function HelpPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F9E8D8]">
             <HelpCircle className="h-5 w-5 text-[#A96720]" />
           </div>
-
           <p className="mt-3 font-medium">Study doubts</p>
           <p className="text-sm text-muted-foreground">
             Ask a question and get a reply from your teacher.
           </p>
-
           <Button asChild variant="outline" className="mt-3 w-full">
             <Link to="/doubts">Ask a doubt</Link>
           </Button>
         </div>
       </div>
 
-      {/* Chat Preview */}
       {user && (
         <div className="mt-6">
-          <h2 className="mb-3 text-lg font-semibold">
-            Chat with JK Academy
-          </h2>
-
+          <h2 className="mb-3 text-lg font-semibold">Chat with JK Academy</h2>
           <button
             type="button"
             onClick={() => setChatOpen(true)}
-            className="surface-card flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-accent"
+            className="surface-card flex w-full items-center gap-3 p-4 text-left hover:bg-accent"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F9E8D8]">
-              <MessageCircle className="h-6 w-6 text-[#A96720]" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F9E8D8]">
+              <Headset size={24} className="text-[#A96720]" />
             </div>
-
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold">JK Academy Support</p>
@@ -200,130 +175,106 @@ function HelpPage() {
                 Tap to chat with JK Academy support
               </p>
             </div>
-
-            <span className="text-sm font-semibold text-[#A96720]">
-              Open Chat
-            </span>
+            <span className="text-sm font-semibold text-[#A96720]">Open Chat</span>
           </button>
         </div>
       )}
 
-      {/* Full-screen Support Chat */}
-      {user && chatOpen && createPortal(
-        <div
-          className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-[#FFF8EE] text-[#24180F]"
-          style={{
-            height: "100dvh",
-            width: "100%",
-            overscrollBehavior: "none",
-          }}
-        >
-          {/* Header */}
-          <header className="flex shrink-0 items-center gap-3 border-b border-[#EADCCB] bg-white px-3 py-3 shadow-sm">
-            <button
-              type="button"
-              onClick={() => {
-                setChatOpen(false);
-                setMoreOpen(false);
-              }}
-              aria-label="Close chat"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#FFF3E2]"
-            >
-              <X size={23} />
-            </button>
+      {user && chatOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-[#FFF9F1] text-[#302319]"
+            style={{ height: "100dvh", width: "100%", overscrollBehavior: "none" }}
+          >
+            {/* Clean header */}
+            <header className="flex shrink-0 items-center gap-3 border-b border-[#EADCCB] bg-white px-4 py-3">
+              <button
+                type="button"
+                aria-label="Close chat"
+                onClick={() => {
+                  setChatOpen(false);
+                  setMoreOpen(false);
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#FFF3E2]"
+              >
+                <X size={24} />
+              </button>
 
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#DCA85E] to-[#AD651C] text-white shadow-sm">
-              <GraduationCap size={25} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-bold text-[#302319]">
-                JK Academy
-              </p>
-              <p className="text-xs text-[#927D69]">
-                Help & Support
-              </p>
-            </div>
-
-            <ShieldCheck size={21} className="text-[#B8792E]" />
-          </header>
-
-          {/* Support Information */}
-          <section className="shrink-0 bg-gradient-to-b from-[#F9E8D0] to-[#FFF8EE] px-3 pb-3 pt-3">
-            <div className="rounded-2xl border border-[#EED9BD] bg-white p-3 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F9E8D8]">
-                  <Headset size={30} className="text-[#A96720]" />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="text-sm font-bold text-[#302319]">
-                      JK Academy Support
-                    </p>
-                    <ShieldCheck size={17} className="text-green-600" />
-                  </div>
-
-                  <p className="mt-1 text-xs text-[#897663]">
-                    We're here to help you
-                  </p>
-                </div>
-
-                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1.5 text-[11px] font-semibold text-green-700">
-                  <span className="h-2 w-2 rounded-full bg-green-500" />
-                  Online
-                </span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#D8A45C] to-[#AD651C] text-white shadow-md">
+                <GraduationCap size={26} />
               </div>
 
-              {/* Contact Actions */}
-              <div className="mt-3 grid grid-cols-3 divide-x divide-[#EADCCB] rounded-xl bg-[#FFFAF4]">
+              <div className="flex-1">
+                <p className="text-base font-bold">JK Academy</p>
+                <p className="text-xs text-[#927D69]">Help & Support</p>
+              </div>
+
+              <ShieldCheck size={22} className="text-[#B8792E]" />
+            </header>
+
+            {/* Premium support area */}
+            <section className="shrink-0 border-b border-[#EADCCB] bg-[#FFF9F1] px-3 py-3">
+              <div className="rounded-[22px] border border-[#F0E2D1] bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F9E8EB]">
+                    <Headset size={29} className="text-[#B33B4C]" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="text-sm font-bold">JK Academy Support</p>
+                      <span className="h-2 w-2 rounded-full bg-green-500" />
+                      <span className="text-xs font-semibold text-green-700">Online</span>
+                    </div>
+                    <p className="mt-1 text-xs text-[#897663]">
+                      We're here to help you
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 divide-x divide-[#EADCCB] overflow-hidden rounded-[20px] border border-[#F0E2D1] bg-white shadow-sm">
                 <a
                   href="tel:+919569551576"
-                  className="flex flex-col items-center gap-1.5 py-3 text-center transition-colors hover:bg-[#FFF0DC]"
+                  className="flex flex-col items-center gap-2 py-3.5 hover:bg-[#FFF3E2]"
                 >
-                  <Phone size={21} className="text-[#B8792E]" />
-                  <span className="text-xs font-semibold">Call Us</span>
-                  <span className="text-[10px] text-[#927D69]">95695 51576</span>
+                  <Phone size={22} className="text-[#B33B4C]" />
+                  <span className="text-xs font-semibold">Call us</span>
                 </a>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    toast.info("Voice message bhejne ke liye neeche mic button dabayein.")
-                  }
-                  className="flex flex-col items-center gap-1.5 py-3 text-center transition-colors hover:bg-[#FFF0DC]"
+                  onClick={() => toast.info("Voice message bhejne ke liye neeche mic button dabayein.")}
+                  className="flex flex-col items-center gap-2 py-3.5 hover:bg-[#FFF3E2]"
                 >
-                  <Mic size={21} className="text-[#B8792E]" />
+                  <Mic size={22} className="text-[#B33B4C]" />
                   <span className="text-xs font-semibold">Voice Help</span>
-                  <span className="text-[10px] text-[#927D69]">Tap to speak</span>
                 </button>
 
                 <a
                   href="https://wa.me/919569551576"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex flex-col items-center gap-1.5 py-3 text-center transition-colors hover:bg-[#FFF0DC]"
+                  className="flex flex-col items-center gap-2 py-3.5 hover:bg-[#FFF3E2]"
                 >
-                  <MessageCircle size={21} className="text-[#B8792E]" />
+                  <MessageCircle size={22} className="text-[#B33B4C]" />
                   <span className="text-xs font-semibold">WhatsApp</span>
-                  <span className="text-[10px] text-[#927D69]">Chat with us</span>
                 </a>
               </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Actual Chat */}
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-2">
-            <SupportChat
-              studentId={user.id}
-              senderId={user.id}
-              fullHeight
-              quickActions={quickActions}
-            />
-          </main>
-        </div>,
-        document.body,
-      )}
+            {/* Chat and composer */}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#FFF9F1] px-3 pb-2 pt-2">
+              <SupportChat
+                studentId={user.id}
+                senderId={user.id}
+                fullHeight
+                quickActions={quickActions}
+              />
+            </main>
+          </div>,
+          document.body
+        )}
     </StudentShell>
   );
-      }
+            }

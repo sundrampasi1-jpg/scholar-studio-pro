@@ -50,6 +50,7 @@ export type Database = {
         Row: {
           about: string | null
           address: string | null
+          ai_chat_enabled: boolean
           app_name: string
           contact_email: string | null
           contact_phone: string | null
@@ -74,6 +75,7 @@ export type Database = {
         Insert: {
           about?: string | null
           address?: string | null
+          ai_chat_enabled?: boolean
           app_name?: string
           contact_email?: string | null
           contact_phone?: string | null
@@ -98,6 +100,7 @@ export type Database = {
         Update: {
           about?: string | null
           address?: string | null
+          ai_chat_enabled?: boolean
           app_name?: string
           contact_email?: string | null
           contact_phone?: string | null
@@ -904,6 +907,7 @@ export type Database = {
           created_at: string
           from_staff: boolean
           id: string
+          is_ai: boolean
           sender_id: string
           student_id: string
         }
@@ -912,6 +916,7 @@ export type Database = {
           created_at?: string
           from_staff?: boolean
           id?: string
+          is_ai?: boolean
           sender_id: string
           student_id: string
         }
@@ -920,6 +925,7 @@ export type Database = {
           created_at?: string
           from_staff?: boolean
           id?: string
+          is_ai?: boolean
           sender_id?: string
           student_id?: string
         }

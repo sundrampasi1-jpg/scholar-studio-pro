@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { HelpCircle, MessageCircle, Phone } from "lucide-react";
+import { useState } from "react";
+import { HelpCircle, MessageCircle, Phone, X } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { Button } from "@/components/ui/button";
 import { SupportChat } from "@/components/SupportChat";
@@ -19,6 +20,8 @@ export const Route = createFileRoute("/_authenticated/help")({
 
 function HelpPage() {
   const { user } = useAuth();
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
     <StudentShell title="Contact & help" subtitle="We're here to help with courses, payments and studies.">
       <div className="grid gap-4 md:grid-cols-3">
@@ -47,12 +50,47 @@ function HelpPage() {
           </Button>
         </div>
       </div>
+
       {user && (
         <div className="mt-6">
           <h2 className="mb-2 text-lg font-semibold">Chat with JK Academy</h2>
-          <SupportChat studentId={user.id} senderId={user.id} />
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="surface-card flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-accent"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <MessageCircle className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Open chat</p>
+              <p className="text-xs text-muted-foreground">Tap to chat with JK Academy support</p>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {user && chatOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+          <div className="flex items-center justify-between border-b bg-card px-4 py-3">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              <p className="font-semibold">Chat with JK Academy</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              aria-label="Close chat"
+              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 p-3">
+            <SupportChat studentId={user.id} senderId={user.id} fullHeight />
+          </div>
         </div>
       )}
     </StudentShell>
   );
-}
+          }

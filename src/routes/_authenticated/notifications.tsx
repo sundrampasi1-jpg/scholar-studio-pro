@@ -109,6 +109,7 @@ function NotificationsPage() {
 
   function handleTouchStart(e: React.TouchEvent, id: string) {
     const touch = e.touches[0];
+    if (!touch) return;
     touchStart.current = { x: touch.clientX, y: touch.clientY };
   }
 
@@ -116,6 +117,7 @@ function NotificationsPage() {
     if (!touchStart.current || deleteNotification.isPending) return;
 
     const touch = e.touches[0];
+    if (!touch) return;
     const dx = touch.clientX - touchStart.current.x;
     const dy = touch.clientY - touchStart.current.y;
 

@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/queries";
 import { uploadMedia } from "@/lib/upload";
+import { useServerFn } from "@tanstack/react-start";
+import { askChatAi } from "@/lib/ai-chat.functions";
 
 type SupportChatProps = {
   studentId: string;
@@ -91,6 +93,8 @@ export function SupportChat({
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
+  const askAi = useServerFn(askChatAi);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
 
@@ -212,6 +216,19 @@ export function SupportChat({
     }
 
     await qc.invalidateQueries({ queryKey: key });
+
+    if (!asStaff) {
+      setAiThinking(true);
+      try {
+        const r = await askAi();
+        if (!r.ok && "error" in r && r.error) toast.error(r.error);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "AI reply nahi aaya");
+      } finally {
+        setAiThinking(false);
+        await qc.invalidateQueries({ queryKey: key });
+      }
+    }
   }
 
   async function send() {
@@ -601,7 +618,7 @@ export function SupportChat({
 
                 {/* Timestamp outside the message bubble */}
                 <p className="mt-0.5 px-1 text-[10px] leading-tight text-[#968D83]">
-                  {m.from_staff ? "JK Academy" : "You"} · {formatDateTime(m.created_at)}
+                  {m.from_staff ? (m.is_ai ? "JK Academy AI" : "JK Academy") : asStaff ? "Student" : "You"} · {formatDateTime(m.created_at)}
                 </p>
               </div>
 
@@ -644,6 +661,11 @@ export function SupportChat({
           );
         })}
 
+        {aiThinking && (
+          <div className="flex items-center gap-2 text-xs text-[#98836D]">
+            <Loader2 size={14} className="animate-spin" /> JK Academy AI typing...
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 

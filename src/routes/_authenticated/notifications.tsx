@@ -1,7 +1,17 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  Bell,
+  BookOpen,
+  Radio,
+  Megaphone,
+  GraduationCap,
+  Sparkles,
+  Trash2,
+  CheckCheck,
+} from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +35,8 @@ export const Route = createFileRoute("/_authenticated/notifications")({
 function NotificationsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [swipeOffsets, setSwipeOffsets] = useState<Record<string, number>>({});
 
   const list = useQuery({
     queryKey: ["notifications", user?.id],
@@ -85,6 +97,52 @@ function NotificationsPage() {
     .filter((n) => !n.is_read)
     .map((n) => n.id);
 
+  function getIcon(type: string) {
+    const value = type.toLowerCase();
+
+    if (value.includes("announcement")) return Megaphone;
+    if (value.includes("course")) return BookOpen;
+    if (value.includes("lesson")) return GraduationCap;
+    if (value.includes("live")) return Radio;
+    return Bell;
+  }
+
+  function handleTouchStart(e: React.TouchEvent, id: string) {
+    const touch = e.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchMove(e: React.TouchEvent, id: string) {
+    if (!touchStart.current || deleteNotification.isPending) return;
+
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStart.current.x;
+    const dy = touch.clientY - touchStart.current.y;
+
+    if (Math.abs(dx) > Math.abs(dy) && dx < 0) {
+      setSwipeOffsets((old) => ({
+        ...old,
+        [id]: Math.max(dx, -120),
+      }));
+    }
+  }
+
+  function handleTouchEnd(id: string) {
+    const offset = swipeOffsets[id] ?? 0;
+    touchStart.current = null;
+
+    if (offset <= -85) {
+      deleteNotification.mutate(id);
+      setSwipeOffsets((old) => {
+        const next = { ...old };
+        delete next[id];
+        return next;
+      });
+    } else {
+      setSwipeOffsets((old) => ({ ...old, [id]: 0 }));
+    }
+  }
+
   return (
     <StudentShell
       title="Notifications"
@@ -92,9 +150,11 @@ function NotificationsPage() {
         <Button
           size="sm"
           variant="outline"
+          className="rounded-full gap-1.5"
           disabled={!unreadMine.length || markRead.isPending}
           onClick={() => markRead.mutate(unreadMine)}
         >
+          <CheckCheck className="h-4 w-4" />
           Mark all as read
         </Button>
       }
@@ -106,65 +166,102 @@ function NotificationsPage() {
       ) : (list.data ?? []).length === 0 ? (
         <EmptyState title="You're all caught up" />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {(list.data ?? []).map((n) => {
             const unread = !n.is_read;
+            const Icon = getIcon(n.type);
+            const offset = swipeOffsets[n.id] ?? 0;
 
             return (
               <div
                 key={n.id}
-                className={cn(
-                  "surface-card flex items-start gap-3 p-4",
-                  unread && "border-l-4 border-l-primary",
-                )}
+                className="relative overflow-hidden rounded-2xl"
+                onTouchStart={(e) => handleTouchStart(e, n.id)}
+                onTouchMove={(e) => handleTouchMove(e, n.id)}
+                onTouchEnd={() => handleTouchEnd(n.id)}
+                onTouchCancel={() => {
+                  touchStart.current = null;
+                  setSwipeOffsets((old) => ({ ...old, [n.id]: 0 }));
+                }}
+                style={{ touchAction: "pan-y" }}
               >
-                <button
-                  type="button"
-                  onClick={() => unread && markRead.mutate([n.id])}
-                  className="min-w-0 flex-1 text-left"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={cn("text-sm", unread && "font-semibold")}>
-                      {n.title}
-                    </p>
-                    <span className="text-[11px] uppercase text-muted-foreground">
-                      {n.type}
-                    </span>
+                <div className="absolute inset-0 flex items-center justify-end bg-red-600 pr-6 text-white">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Trash2 className="h-5 w-5" />
+                    Delete
                   </div>
+                </div>
 
-                  {n.body && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {n.body}
-                    </p>
+                <div
+                  className={cn(
+                    "relative flex items-start gap-3 rounded-2xl border p-4 shadow-sm transition-transform duration-200",
+                    unread
+                      ? "border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card"
+                      : "border-border/70 bg-card",
                   )}
-
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {formatDateTime(n.created_at)}
-                  </p>
-                </button>
-
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Delete notification"
-                  title="Delete notification"
-                  disabled={deleteNotification.isPending}
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "क्या आप इस notification को delete करना चाहते हैं?",
-                      )
-                    ) {
-                      deleteNotification.mutate(n.id);
-                    }
-                  }}
+                  style={{ transform: `translateX(${offset}px)` }}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                  <button
+                    type="button"
+                    onClick={() => unread && markRead.mutate([n.id])}
+                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                    aria-label={`Open notification: ${n.title}`}
+                  >
+                    <div
+                      className={cn(
+                        "mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
+                        unread
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p
+                          className={cn(
+                            "min-w-0 flex-1 text-sm leading-5",
+                            unread ? "font-bold text-foreground" : "font-medium",
+                          )}
+                        >
+                          {n.title}
+                        </p>
+
+                        {unread && (
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-primary shadow-[0_0_8px_currentColor]" />
+                        )}
+                      </div>
+
+                      {n.body && (
+                        <p className="mt-1.5 text-sm leading-5 text-muted-foreground">
+                          {n.body}
+                        </p>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {n.type}
+                        </span>
+
+                        <span className="text-[11px] text-muted-foreground">
+                          {formatDateTime(n.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {(list.data ?? []).length > 0 && (
+        <div className="flex items-center justify-center gap-2 pt-3 text-[11px] text-muted-foreground">
+          <Sparkles className="h-3.5 w-3.5" />
+          Swipe left on a notification to delete it
         </div>
       )}
     </StudentShell>

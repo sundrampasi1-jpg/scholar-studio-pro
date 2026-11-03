@@ -30,7 +30,7 @@ function AdminChats() {
   async function toggleAi(v: boolean) {
     if (!ai.data) return;
     const { error } = await supabase.from("app_settings").update({ ai_chat_enabled: v }).eq("id", ai.data.id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(v ? "AI replies ON" : "AI replies OFF");
     await qc.invalidateQueries({ queryKey: ["ai-chat-enabled"] });
   }

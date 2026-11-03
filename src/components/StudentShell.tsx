@@ -1,3 +1,4 @@
+
 import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,6 +15,7 @@ import {
   RadioTower,
   ClipboardCheck,
   FileText,
+  Menu,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -38,12 +40,15 @@ const navItems = [
   { to: "/reels", label: "Reels", Icon: Clapperboard },
 ] as const;
 
-/** True when the touch started inside a horizontally scrollable element (carousel, tabs, table). */
+/** True when the touch started inside a horizontally scrollable element. */
 function insideHorizontalScroller(node: HTMLElement | null, stop: HTMLElement) {
   let current: HTMLElement | null = node;
   while (current && current !== stop) {
     const style = window.getComputedStyle(current);
-    if ((style.overflowX === "auto" || style.overflowX === "scroll") && current.scrollWidth > current.clientWidth + 1) {
+    if (
+      (style.overflowX === "auto" || style.overflowX === "scroll") &&
+      current.scrollWidth > current.clientWidth + 1
+    ) {
       return true;
     }
     current = current.parentElement;
@@ -70,22 +75,16 @@ export function StudentShell({
   const mainRef = useRef<HTMLElement | null>(null);
   const [swipeDrag, setSwipeDrag] = useState(0);
 
-  // Preload all bottom-tab routes as soon as the shell mounts, so switching
-  // tabs (tap or swipe) feels instant instead of waiting for the route's
-  // code to download on first visit.
   useEffect(() => {
     navItems.forEach((item) => {
-      router.preloadRoute({ to: item.to }).catch(() => {
-        // ignore preload errors (e.g. offline) — normal navigation still works
-      });
+      router.preloadRoute({ to: item.to }).catch(() => {});
     });
   }, [router]);
 
-  // Swipe anywhere on a main tab page to move between bottom tabs:
-  // Home -> Courses -> Live -> Tests -> Notes -> Reels, and swiping forward
-  // from Reels wraps back to Home. Swiping backward from Home does NOT
-  // wrap to Reels — it just stays locked on Home.
-  const activeTabIndex = navItems.findIndex((item) => item.to === location.pathname);
+  const activeTabIndex = navItems.findIndex(
+    (item) => item.to === location.pathname,
+  );
+
   useEffect(() => {
     if (activeTabIndex < 0) return;
     const el = mainRef.current;
@@ -126,14 +125,10 @@ export function StudentShell({
       if (!touch) return;
       dx = touch.clientX - startX;
       dy = touch.clientY - startY;
+
       if (!horizontal) {
-        // Decide direction as early as possible (small threshold) so a
-        // horizontal swipe doesn't get swallowed by a vertical scroller
-        // underneath it — e.g. the Reels video feed, which has its own
-        // vertical swipe-between-videos gesture.
         if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
         if (Math.abs(dx) <= Math.abs(dy) * 1.2) {
-          // Looks vertical — let it scroll/swipe normally (e.g. Reels feed).
           tracking = false;
           return;
         }
@@ -143,8 +138,7 @@ export function StudentShell({
         }
         horizontal = true;
       }
-      // Only Home (index 0) is a locked edge when swiping backward (dx > 0).
-      // Reels (last tab) is NOT a locked edge forward — it wraps to Home instead.
+
       const lockedEdge = activeTabIndex === 0 && dx > 0;
       const resisted = lockedEdge ? dx * 0.2 : dx;
       setSwipeDrag(Math.max(-160, Math.min(160, resisted)));
@@ -154,9 +148,9 @@ export function StudentShell({
     const onTouchEnd = () => {
       if (!tracking) return;
       const elapsed = Date.now() - startTime;
+
       if (horizontal && Math.abs(dx) > 70 && elapsed < 800) {
         if (dx < 0) {
-          // Forward swipe: go to next tab, wrapping from Reels back to Home.
           const rawNext = activeTabIndex + 1;
           const nextIndex = rawNext >= navItems.length ? 0 : rawNext;
           const nextItem = navItems[nextIndex];
@@ -166,7 +160,6 @@ export function StudentShell({
             return;
           }
         } else if (dx > 0 && activeTabIndex > 0) {
-          // Backward swipe: go to previous tab. No wrap past Home.
           const nextItem = navItems[activeTabIndex - 1];
           if (nextItem) {
             reset();
@@ -182,6 +175,7 @@ export function StudentShell({
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
@@ -238,20 +232,12 @@ export function StudentShell({
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-1">
-            <Link
-              to="/settings"
-              aria-label="Settings"
-              title="Settings"
-              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              <Settings className="h-5 w-5" />
-            </Link>
-
+          <div className="ml-auto flex items-center gap-2">
             <Link
               to="/notifications"
               aria-label="Notifications"
-              className="relative rounded-md p-2 hover:bg-accent"
+              title="Notifications"
+              className="relative rounded-xl p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               <Bell className="h-5 w-5" />
               {unread > 0 && (
@@ -263,58 +249,72 @@ export function StudentShell({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Account">
-                  <User className="h-5 w-5" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Open menu"
+                  className="h-10 w-10 rounded-xl"
+                >
+                  <Menu className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-60">
                 <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
                   {user?.email}
                 </DropdownMenuLabel>
+
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
                   <Link to="/profile">
-                    <User className="mr-2 h-4 w-4" /> Profile
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/settings">
-                    <Settings className="mr-2 h-4 w-4" /> Settings
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/payments">
-                    <Wallet className="mr-2 h-4 w-4" /> Payments
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Payments
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/help">
-                    <Phone className="mr-2 h-4 w-4" /> Help &amp; chat
+                    <Phone className="mr-2 h-4 w-4" />
+                    Help &amp; chat
                   </Link>
                 </DropdownMenuItem>
 
                 {isStaff && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin">
-                      {isAdmin ? (
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Settings className="mr-2 h-4 w-4" />
-                      )}
-                      {isAdmin ? "Admin panel" : "Teacher panel"}
-                    </Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin">
+                        {isAdmin ? (
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                        ) : (
+                          <Settings className="mr-2 h-4 w-4" />
+                        )}
+                        {isAdmin ? "Admin panel" : "Teacher panel"}
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
 
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" /> Log out
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -333,9 +333,7 @@ export function StudentShell({
         {(title || actions) && (
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-              {title && (
-                <h1 className="text-2xl font-semibold">{title}</h1>
-              )}
+              {title && <h1 className="text-2xl font-semibold">{title}</h1>}
               {subtitle && (
                 <p className="text-sm text-muted-foreground">{subtitle}</p>
               )}
@@ -363,4 +361,4 @@ export function StudentShell({
       </nav>
     </div>
   );
-  }
+}

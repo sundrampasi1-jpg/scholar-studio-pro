@@ -1,4 +1,4 @@
- import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
@@ -187,7 +187,104 @@ function CourseDetail() {
       await submitPayment({ data: { courseId, screenshotUrl: url, upiId } });
       setCheckoutState("submitted");
       setScreenshot(null);
-< truncated lines 190-287 >
+      toast.success("Payment submitted — we'll verify it shortly.");
+      queryClient.invalidateQueries({ queryKey: ["my-payments"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (course.isLoading) {
+    return (
+      <StudentShell>
+        <LoadingState />
+      </StudentShell>
+    );
+  }
+  if (course.error) {
+    return (
+      <StudentShell>
+        <ErrorState error={course.error} onRetry={() => course.refetch()} />
+      </StudentShell>
+    );
+  }
+  if (!course.data) {
+    return (
+      <StudentShell>
+        <EmptyState title="Course not found" />
+      </StudentShell>
+    );
+  }
+
+  const c = course.data;
+  const isEnrolled = !!enrollment.data;
+  const isFree = c.is_free || Number(c.price) === 0;
+  const price = Number(c.price);
+
+  return (
+    <StudentShell title={c.title} subtitle={c.description ?? undefined}>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          {structure.isLoading ? (
+            <LoadingState />
+          ) : (structure.data ?? []).length === 0 ? (
+            <EmptyState title="Content coming soon" description="No subjects have been added yet." />
+          ) : (
+            <Accordion type="multiple" className="surface-card divide-y px-4">
+              {(structure.data ?? []).map((s) => (
+                <AccordionItem key={s.id} value={s.id} className="border-b-0">
+                  <AccordionTrigger className="text-left font-medium">{s.name}</AccordionTrigger>
+                  <AccordionContent>
+                    {[...(s.chapters ?? [])]
+                      .sort((a, b) => a.position - b.position)
+                      .map((ch) => (
+                        <div key={ch.id} className="mb-4">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {ch.name}
+                          </p>
+                          <ul className="space-y-1">
+                            {[...(ch.lessons ?? [])]
+                              .filter((l) => l.is_published)
+                              .sort((a, b) => a.position - b.position)
+                              .map((l) => {
+                                const done = completedIds.data?.includes(l.id);
+                                return (
+                                  <li key={l.id}>
+                                    {isEnrolled ? (
+                                      <Link
+                                        to="/lesson/$lessonId"
+                                        params={{ lessonId: l.id }}
+                                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
+                                      >
+                                        {done ? (
+                                          <CheckCircle2 className="h-4 w-4 text-success" />
+                                        ) : (
+                                          <Circle className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <span className="flex-1">{l.title}</span>
+                                        {l.video_url && <PlayCircle className="h-4 w-4 text-primary" />}
+                                        {l.pdf_url && <FileText className="h-4 w-4 text-muted-foreground" />}
+                                      </Link>
+                                    ) : (
+                                      <span className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
+                                        <Lock className="h-4 w-4" /> {l.title}
+                                      </span>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                          </ul>
+                        </div>
+                      ))}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
+        </div>
+
         <aside className="space-y-4">
           {isEnrolled ? (
             <div className="surface-card p-4">
@@ -376,4 +473,4 @@ function CourseDetail() {
       </div>
     </StudentShell>
   );
-}
+         }

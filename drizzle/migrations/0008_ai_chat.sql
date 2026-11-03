@@ -1,0 +1,2 @@
+ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS ai_chat_enabled boolean NOT NULL DEFAULT true;
+ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS is_ai boolean NOT NULL DEFAULT false;

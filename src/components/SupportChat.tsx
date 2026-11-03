@@ -45,24 +45,19 @@ function VoiceNoteBubble({ src, mine }: { src: string; mine: boolean }) {
   function toggle() {
     const el = audioRef.current;
     if (!el) return;
-    if (playing) {
-      el.pause();
-    } else {
-      void el.play();
-    }
+    if (playing) el.pause();
+    else void el.play();
   }
 
   function fmt(s: number) {
     if (!isFinite(s) || s < 0) return "0:00";
     const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60)
-      .toString()
-      .padStart(2, "0");
+    const sec = Math.floor(s % 60).toString().padStart(2, "0");
     return `${m}:${sec}`;
   }
 
   return (
-    <div className="flex min-w-[180px] items-center gap-2">
+    <div className="flex min-w-[150px] items-center gap-2 py-0.5">
       <audio
         ref={audioRef}
         src={src}
@@ -78,11 +73,11 @@ function VoiceNoteBubble({ src, mine }: { src: string; mine: boolean }) {
         type="button"
         onClick={toggle}
         aria-label={playing ? "Pause" : "Play"}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
           mine ? "bg-primary-foreground/20" : "bg-primary/15"
         }`}
       >
-        {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
       </button>
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-current/20">
         <div
@@ -90,7 +85,7 @@ function VoiceNoteBubble({ src, mine }: { src: string; mine: boolean }) {
           style={{ width: duration ? `${(current / duration) * 100}%` : "0%" }}
         />
       </div>
-      <span className="shrink-0 text-[11px] opacity-80">{fmt(playing || current ? current : duration)}</span>
+      <span className="shrink-0 text-[10px] opacity-80">{fmt(playing || current ? current : duration)}</span>
     </div>
   );
 }
@@ -112,6 +107,7 @@ export function SupportChat({
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
@@ -120,6 +116,7 @@ export function SupportChat({
   const recordedChunks = useRef<Blob[]>([]);
   const recordStreamRef = useRef<MediaStream | null>(null);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,7 +129,6 @@ export function SupportChat({
         .select("*")
         .eq("student_id", studentId)
         .order("created_at", { ascending: true });
-
       if (error) throw error;
       return data ?? [];
     },
@@ -144,21 +140,11 @@ export function SupportChat({
       .channel(`support-${studentId}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "support_messages",
-          filter: `student_id=eq.${studentId}`,
-        },
-        () => {
-          void qc.invalidateQueries({ queryKey: key });
-        },
+        { event: "*", schema: "public", table: "support_messages", filter: `student_id=eq.${studentId}` },
+        () => void qc.invalidateQueries({ queryKey: key }),
       )
       .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    return () => void supabase.removeChannel(channel);
   }, [studentId, qc]);
 
   useEffect(() => {
@@ -171,6 +157,20 @@ export function SupportChat({
       if (recordTimerRef.current) clearInterval(recordTimerRef.current);
     };
   }, []);
+
+  // Close the long-press action menu on any outside tap.
+  useEffect(() => {
+    if (!menuFor) return;
+    function close() {
+      setMenuFor(null);
+    }
+    window.addEventListener("click", close);
+    window.addEventListener("touchstart", close);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("touchstart", close);
+    };
+  }, [menuFor]);
 
   async function sendBody(body: string) {
     if (!body || sending) return;
@@ -191,16 +191,13 @@ export function SupportChat({
     }
 
     if (asStaff) {
-      const { error: notificationError } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: studentId,
-          title: "New reply from JK Academy",
-          body: body.slice(0, 120),
-          type: "chat",
-          link: "/help",
-        });
-
+      const { error: notificationError } = await supabase.from("notifications").insert({
+        user_id: studentId,
+        title: "New reply from JK Academy",
+        body: body.slice(0, 120),
+        type: "chat",
+        link: "/help",
+      });
       if (notificationError) {
         toast.error("Message send ho gaya, lekin notification nahi bheji gayi.");
       }
@@ -215,7 +212,6 @@ export function SupportChat({
     setText("");
     setShowEmoji(false);
     await sendBody(body);
-    toast.success("Message sent");
   }
 
   async function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
@@ -234,7 +230,6 @@ export function SupportChat({
     try {
       const url = await uploadMedia(file, `chat-attachments/${senderId}`);
       await sendBody(url);
-      toast.success("Photo sent");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Photo could not be sent");
     } finally {
@@ -251,16 +246,12 @@ export function SupportChat({
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) recordedChunks.current.push(e.data);
       };
-      rec.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-      };
+      rec.onstop = () => stream.getTracks().forEach((t) => t.stop());
       rec.start();
       recorderRef.current = rec;
       setRecording(true);
       setRecordSeconds(0);
-      recordTimerRef.current = setInterval(() => {
-        setRecordSeconds((s) => s + 1);
-      }, 1000);
+      recordTimerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
     } catch {
       toast.error("Could not access microphone. Check app permissions.");
     }
@@ -301,7 +292,6 @@ export function SupportChat({
     try {
       const url = await uploadMedia(blob, `chat-attachments/${senderId}`, `voice-${Date.now()}.webm`);
       await sendBody(url);
-      toast.success("Voice message sent");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Voice message could not be sent");
     } finally {
@@ -309,16 +299,8 @@ export function SupportChat({
     }
   }
 
-  function startEdit(message: {
-    id: string;
-    body: string;
-    sender_id: string;
-    from_staff: boolean;
-  }) {
-    if (
-      message.sender_id !== senderId ||
-      message.from_staff !== !!asStaff
-    ) {
+  function startEdit(message: { id: string; body: string; sender_id: string; from_staff: boolean }) {
+    if (message.sender_id !== senderId || message.from_staff !== !!asStaff) {
       toast.error("Aap sirf apne messages edit kar sakte hain.");
       return;
     }
@@ -326,33 +308,23 @@ export function SupportChat({
       toast.error("Ye edit nahi ho sakta. Aap ise delete kar sakte hain.");
       return;
     }
-
+    setMenuFor(null);
     setEditingId(message.id);
     setEditText(message.body);
   }
 
-  async function saveEdit(message: {
-    id: string;
-    sender_id: string;
-    from_staff: boolean;
-  }) {
+  async function saveEdit(message: { id: string; sender_id: string; from_staff: boolean }) {
     const body = editText.trim();
-
     if (!body) {
       toast.error("Message khaali nahi ho sakta.");
       return;
     }
-
-    if (
-      message.sender_id !== senderId ||
-      message.from_staff !== !!asStaff
-    ) {
+    if (message.sender_id !== senderId || message.from_staff !== !!asStaff) {
       toast.error("Aap sirf apne messages edit kar sakte hain.");
       return;
     }
 
     setSavingEdit(true);
-
     const { data, error } = await supabase
       .from("support_messages")
       .update({ body })
@@ -361,14 +333,12 @@ export function SupportChat({
       .eq("sender_id", senderId)
       .eq("from_staff", !!asStaff)
       .select("id");
-
     setSavingEdit(false);
 
     if (error) {
       toast.error(`Edit nahi hua: ${error.message}`);
       return;
     }
-
     if (!data?.length) {
       toast.error("Edit nahi hua. Supabase permissions check karein.");
       return;
@@ -377,28 +347,17 @@ export function SupportChat({
     setEditingId(null);
     setEditText("");
     await qc.invalidateQueries({ queryKey: key });
-    toast.success("Message updated");
   }
 
-  async function deleteMessage(message: {
-    id: string;
-    sender_id: string;
-    from_staff: boolean;
-  }) {
-    if (
-      message.sender_id !== senderId ||
-      message.from_staff !== !!asStaff
-    ) {
+  async function deleteMessage(message: { id: string; sender_id: string; from_staff: boolean }) {
+    if (message.sender_id !== senderId || message.from_staff !== !!asStaff) {
       toast.error("Aap sirf apne messages delete kar sakte hain.");
       return;
     }
-
-    if (!window.confirm("Kya aap ye message delete karna chahte hain?")) {
-      return;
-    }
+    setMenuFor(null);
+    if (!window.confirm("Kya aap ye message delete karna chahte hain?")) return;
 
     setDeletingId(message.id);
-
     const { data, error } = await supabase
       .from("support_messages")
       .delete()
@@ -407,26 +366,21 @@ export function SupportChat({
       .eq("sender_id", senderId)
       .eq("from_staff", !!asStaff)
       .select("id");
-
     setDeletingId(null);
 
     if (error) {
       toast.error(`Delete nahi hua: ${error.message}`);
       return;
     }
-
     if (!data?.length) {
       toast.error("Delete nahi hua. Supabase permissions check karein.");
       return;
     }
-
     if (editingId === message.id) {
       setEditingId(null);
       setEditText("");
     }
-
     await qc.invalidateQueries({ queryKey: key });
-    toast.success("Message deleted");
   }
 
   function fmtTimer(s: number) {
@@ -435,136 +389,119 @@ export function SupportChat({
     return `${m}:${sec}`;
   }
 
+  // Long-press handling — only for the viewer's own messages.
+  function pressStart(mine: boolean, id: string) {
+    if (!mine) return;
+    pressTimerRef.current = setTimeout(() => setMenuFor(id), 450);
+  }
+  function pressEnd() {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+  }
+
   return (
     <div className={fullHeight ? "flex h-full flex-col rounded-lg border bg-card" : "flex flex-col rounded-lg border bg-card"}>
-      <div className={fullHeight ? "flex-1 min-h-0 space-y-3 overflow-y-auto p-3" : "h-80 space-y-3 overflow-y-auto p-3"}>
-        {msgs.isLoading && (
-          <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-        )}
+      <div className={fullHeight ? "flex-1 min-h-0 space-y-2 overflow-y-auto p-3" : "h-80 space-y-2 overflow-y-auto p-3"}>
+        {msgs.isLoading && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />}
 
         {msgs.isError && (
           <div className="text-center text-sm text-destructive">
             Messages load nahi hue.
-            <Button
-              size="sm"
-              variant="outline"
-              className="ml-2"
-              onClick={() => void msgs.refetch()}
-            >
+            <Button size="sm" variant="outline" className="ml-2" onClick={() => void msgs.refetch()}>
               Retry
             </Button>
           </div>
         )}
 
         {msgs.data?.length === 0 && (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            No messages yet. Say hello!
-          </p>
+          <p className="py-10 text-center text-sm text-muted-foreground">No messages yet. Say hello!</p>
         )}
 
         {msgs.data?.map((m) => {
-          const mine = m.sender_id === senderId &&
-            m.from_staff === !!asStaff;
+          const mine = m.sender_id === senderId && m.from_staff === !!asStaff;
           const isEditing = editingId === m.id;
           const isDeleting = deletingId === m.id;
           const isImage = isImageUrl(m.body);
           const isAudio = isAudioUrl(m.body);
+          const menuOpen = menuFor === m.id;
 
           return (
-            <div
-              key={m.id}
-              className={mine ? "flex justify-end" : "flex justify-start"}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                  mine
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                } ${isImage ? "p-1.5" : ""}`}
-              >
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      rows={3}
-                      maxLength={2000}
-                      disabled={savingEdit}
-                      className="w-full resize-none rounded-md border bg-background p-2 text-sm text-foreground"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={savingEdit}
-                        onClick={() => {
-                          setEditingId(null);
-                          setEditText("");
-                        }}
-                      >
-                        <X className="mr-1 h-4 w-4" />
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        disabled={savingEdit || !editText.trim()}
-                        onClick={() => void saveEdit(m)}
-                      >
-                        {savingEdit ? (
-                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="mr-1 h-4 w-4" />
-                        )}
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                ) : isImage ? (
-                  <img
-                    src={m.body}
-                    alt="Attachment"
-                    className="max-h-64 w-full rounded-md object-cover"
-                  />
-                ) : isAudio ? (
-                  <VoiceNoteBubble src={m.body} mine={mine} />
-                ) : (
-                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                )}
-
-                <p className={`mt-1 text-[10px] opacity-70 ${isImage ? "px-1" : ""}`}>
-                  {m.from_staff ? "JK Academy" : "Student"} ·{" "}
-                  {formatDateTime(m.created_at)}
-                </p>
-
-                {mine && !isEditing && (
-                  <div className={`mt-1 flex justify-end gap-2 ${isImage ? "px-1" : ""}`}>
+            <div key={m.id} className={mine ? "flex justify-end" : "flex justify-start"}>
+              <div className="relative max-w-[72%]">
+                {menuOpen && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute -top-9 right-0 z-10 flex items-center gap-1 rounded-full border bg-card px-1.5 py-1 shadow-md"
+                  >
                     {!isImage && !isAudio && (
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-black/10"
+                        className="flex items-center gap-1 rounded-full px-2 py-1 text-xs hover:bg-accent"
                         onClick={() => startEdit(m)}
-                        aria-label="Edit message"
                       >
-                        <Pencil className="h-3 w-3" />
-                        Edit
+                        <Pencil className="h-3 w-3" /> Edit
                       </button>
                     )}
                     <button
                       type="button"
-                      disabled={isDeleting}
-                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-black/10 disabled:opacity-50"
+                      className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-destructive hover:bg-accent"
                       onClick={() => void deleteMessage(m)}
-                      aria-label="Delete message"
                     >
-                      {isDeleting ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3 w-3" />
-                      )}
-                      Delete
+                      <Trash2 className="h-3 w-3" /> Delete
                     </button>
                   </div>
                 )}
+
+                <div
+                  onTouchStart={() => pressStart(mine, m.id)}
+                  onTouchEnd={pressEnd}
+                  onTouchCancel={pressEnd}
+                  onMouseDown={() => pressStart(mine, m.id)}
+                  onMouseUp={pressEnd}
+                  onMouseLeave={pressEnd}
+                  className={`rounded-2xl px-3 py-1.5 text-sm leading-snug ${
+                    mine ? "bg-primary text-primary-foreground" : "bg-muted"
+                  } ${isImage ? "p-1.5" : ""} ${isDeleting ? "opacity-50" : ""}`}
+                >
+                  {isEditing ? (
+                    <div className="space-y-2 py-1">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={2}
+                        maxLength={2000}
+                        disabled={savingEdit}
+                        className="w-full resize-none rounded-md border bg-background p-2 text-sm text-foreground"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={savingEdit}
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditText("");
+                          }}
+                        >
+                          <X className="mr-1 h-4 w-4" /> Cancel
+                        </Button>
+                        <Button size="sm" disabled={savingEdit || !editText.trim()} onClick={() => void saveEdit(m)}>
+                          {savingEdit ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isImage ? (
+                    <img src={m.body} alt="Attachment" className="max-h-56 w-full rounded-xl object-cover" />
+                  ) : isAudio ? (
+                    <VoiceNoteBubble src={m.body} mine={mine} />
+                  ) : (
+                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  )}
+
+                  <p className={`mt-0.5 text-[10px] opacity-70 ${isImage ? "px-1" : ""}`}>
+                    {m.from_staff ? "JK Academy" : "Student"} · {formatDateTime(m.created_at)}
+                  </p>
+                </div>
               </div>
             </div>
           );
@@ -613,13 +550,7 @@ export function SupportChat({
         </div>
       ) : (
         <div className="flex items-end gap-1.5 border-t p-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAttach}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAttach} />
           <button
             type="button"
             aria-label="Attach photo"
@@ -680,4 +611,4 @@ export function SupportChat({
       )}
     </div>
   );
-        }
+  }

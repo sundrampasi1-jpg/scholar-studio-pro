@@ -1,11 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import {
+  Loader2,
+  Send,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Paperclip,
+  Smile,
+  Mic,
+  Square,
+  Play,
+  Pause,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime } from "@/lib/queries";
+import { uploadMedia } from "@/lib/upload";
 
 type SupportChatProps = {
   studentId: string;
@@ -13,6 +26,74 @@ type SupportChatProps = {
   asStaff?: boolean;
   fullHeight?: boolean;
 };
+
+const QUICK_EMOJIS = ["😀", "😂", "🙏", "👍", "❤️", "🎉", "😊", "🤔", "👏", "🔥"];
+
+function isImageUrl(text: string) {
+  return /^https?:\/\/\S+\.(png|jpe?g|gif|webp)(\?\S*)?$/i.test(text.trim());
+}
+function isAudioUrl(text: string) {
+  return /^https?:\/\/\S+\.(webm|ogg|mp3|m4a|wav)(\?\S*)?$/i.test(text.trim());
+}
+
+function VoiceNoteBubble({ src, mine }: { src: string; mine: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [current, setCurrent] = useState(0);
+
+  function toggle() {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) {
+      el.pause();
+    } else {
+      void el.play();
+    }
+  }
+
+  function fmt(s: number) {
+    if (!isFinite(s) || s < 0) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60)
+      .toString()
+      .padStart(2, "0");
+    return `${m}:${sec}`;
+  }
+
+  return (
+    <div className="flex min-w-[180px] items-center gap-2">
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={playing ? "Pause" : "Play"}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+          mine ? "bg-primary-foreground/20" : "bg-primary/15"
+        }`}
+      >
+        {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+      </button>
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-current/20">
+        <div
+          className="h-full rounded-full bg-current/60"
+          style={{ width: duration ? `${(current / duration) * 100}%` : "0%" }}
+        />
+      </div>
+      <span className="shrink-0 text-[11px] opacity-80">{fmt(playing || current ? current : duration)}</span>
+    </div>
+  );
+}
 
 export function SupportChat({
   studentId,
@@ -25,11 +106,23 @@ export function SupportChat({
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunks = useRef<Blob[]>([]);
+  const recordStreamRef = useRef<MediaStream | null>(null);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const endRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const msgs = useQuery({
     queryKey: key,
@@ -72,10 +165,15 @@ export function SupportChat({
     endRef.current?.scrollIntoView({ block: "end" });
   }, [msgs.data?.length]);
 
-  async function send() {
-    const body = text.trim();
-    if (!body || sending) return;
+  useEffect(() => {
+    return () => {
+      recordStreamRef.current?.getTracks().forEach((t) => t.stop());
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    };
+  }, []);
 
+  async function sendBody(body: string) {
+    if (!body || sending) return;
     setSending(true);
 
     const { error } = await supabase.from("support_messages").insert({
@@ -108,9 +206,107 @@ export function SupportChat({
       }
     }
 
-    setText("");
     await qc.invalidateQueries({ queryKey: key });
+  }
+
+  async function send() {
+    const body = text.trim();
+    if (!body) return;
+    setText("");
+    setShowEmoji(false);
+    await sendBody(body);
     toast.success("Message sent");
+  }
+
+  async function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB.");
+      return;
+    }
+    setUploadingAttachment(true);
+    try {
+      const url = await uploadMedia(file, `chat-attachments/${senderId}`);
+      await sendBody(url);
+      toast.success("Photo sent");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Photo could not be sent");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordStreamRef.current = stream;
+      recordedChunks.current = [];
+      const rec = new MediaRecorder(stream);
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.current.push(e.data);
+      };
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      rec.start();
+      recorderRef.current = rec;
+      setRecording(true);
+      setRecordSeconds(0);
+      recordTimerRef.current = setInterval(() => {
+        setRecordSeconds((s) => s + 1);
+      }, 1000);
+    } catch {
+      toast.error("Could not access microphone. Check app permissions.");
+    }
+  }
+
+  function cancelRecording() {
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    recorderRef.current?.stop();
+    recordStreamRef.current?.getTracks().forEach((t) => t.stop());
+    recordedChunks.current = [];
+    setRecording(false);
+    setRecordSeconds(0);
+  }
+
+  async function stopAndSendRecording() {
+    const rec = recorderRef.current;
+    if (!rec) return;
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    setRecording(false);
+
+    const finished = new Promise<void>((resolve) => {
+      rec.addEventListener("stop", () => resolve(), { once: true });
+    });
+    rec.stop();
+    await finished;
+
+    if (recordSeconds < 1) {
+      recordedChunks.current = [];
+      setRecordSeconds(0);
+      return;
+    }
+
+    const blob = new Blob(recordedChunks.current, { type: "audio/webm" });
+    recordedChunks.current = [];
+    setRecordSeconds(0);
+
+    setUploadingVoice(true);
+    try {
+      const url = await uploadMedia(blob, `chat-attachments/${senderId}`, `voice-${Date.now()}.webm`);
+      await sendBody(url);
+      toast.success("Voice message sent");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Voice message could not be sent");
+    } finally {
+      setUploadingVoice(false);
+    }
   }
 
   function startEdit(message: {
@@ -124,6 +320,10 @@ export function SupportChat({
       message.from_staff !== !!asStaff
     ) {
       toast.error("Aap sirf apne messages edit kar sakte hain.");
+      return;
+    }
+    if (isImageUrl(message.body) || isAudioUrl(message.body)) {
+      toast.error("Ye edit nahi ho sakta. Aap ise delete kar sakte hain.");
       return;
     }
 
@@ -229,6 +429,12 @@ export function SupportChat({
     toast.success("Message deleted");
   }
 
+  function fmtTimer(s: number) {
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toString().padStart(2, "0");
+    return `${m}:${sec}`;
+  }
+
   return (
     <div className={fullHeight ? "flex h-full flex-col rounded-lg border bg-card" : "flex flex-col rounded-lg border bg-card"}>
       <div className={fullHeight ? "flex-1 min-h-0 space-y-3 overflow-y-auto p-3" : "h-80 space-y-3 overflow-y-auto p-3"}>
@@ -261,6 +467,8 @@ export function SupportChat({
             m.from_staff === !!asStaff;
           const isEditing = editingId === m.id;
           const isDeleting = deletingId === m.id;
+          const isImage = isImageUrl(m.body);
+          const isAudio = isAudioUrl(m.body);
 
           return (
             <div
@@ -268,20 +476,21 @@ export function SupportChat({
               className={mine ? "flex justify-end" : "flex justify-start"}
             >
               <div
-                className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
+                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                   mine
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
-                }`}
+                } ${isImage ? "p-1.5" : ""}`}
               >
                 {isEditing ? (
                   <div className="space-y-2">
-                    <Textarea
+                    <textarea
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       rows={3}
                       maxLength={2000}
                       disabled={savingEdit}
+                      className="w-full resize-none rounded-md border bg-background p-2 text-sm text-foreground"
                     />
                     <div className="flex justify-end gap-2">
                       <Button
@@ -310,26 +519,36 @@ export function SupportChat({
                       </Button>
                     </div>
                   </div>
+                ) : isImage ? (
+                  <img
+                    src={m.body}
+                    alt="Attachment"
+                    className="max-h-64 w-full rounded-md object-cover"
+                  />
+                ) : isAudio ? (
+                  <VoiceNoteBubble src={m.body} mine={mine} />
                 ) : (
                   <p className="whitespace-pre-wrap break-words">{m.body}</p>
                 )}
 
-                <p className="mt-1 text-[10px] opacity-70">
+                <p className={`mt-1 text-[10px] opacity-70 ${isImage ? "px-1" : ""}`}>
                   {m.from_staff ? "JK Academy" : "Student"} ·{" "}
                   {formatDateTime(m.created_at)}
                 </p>
 
                 {mine && !isEditing && (
-                  <div className="mt-2 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-black/10"
-                      onClick={() => startEdit(m)}
-                      aria-label="Edit message"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Edit
-                    </button>
+                  <div className={`mt-1 flex justify-end gap-2 ${isImage ? "px-1" : ""}`}>
+                    {!isImage && !isAudio && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-black/10"
+                        onClick={() => startEdit(m)}
+                        aria-label="Edit message"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={isDeleting}
@@ -354,32 +573,111 @@ export function SupportChat({
         <div ref={endRef} />
       </div>
 
-      <div className="flex gap-2 border-t p-2">
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={2}
-          maxLength={2000}
-          placeholder="Type your message…"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void send();
-            }
-          }}
-        />
-        <Button
-          onClick={() => void send()}
-          disabled={sending || !text.trim()}
-          aria-label="Send"
-        >
-          {sending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+      {showEmoji && !recording && (
+        <div className="flex flex-wrap gap-1 border-t bg-muted/30 p-2">
+          {QUICK_EMOJIS.map((em) => (
+            <button
+              key={em}
+              type="button"
+              className="rounded-md px-1.5 py-1 text-lg hover:bg-accent"
+              onClick={() => setText((t) => t + em)}
+            >
+              {em}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {recording ? (
+        <div className="flex items-center gap-2 border-t p-2">
+          <button
+            type="button"
+            aria-label="Cancel recording"
+            onClick={cancelRecording}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-destructive hover:bg-accent"
+          >
+            <Trash2 className="h-5 w-5" />
+          </button>
+          <div className="flex flex-1 items-center gap-2 rounded-2xl border bg-background px-3 py-2">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />
+            <span className="text-sm font-medium">Recording… {fmtTimer(recordSeconds)}</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Stop and send"
+            onClick={() => void stopAndSendRecording()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+          >
+            <Square className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-end gap-1.5 border-t p-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAttach}
+          />
+          <button
+            type="button"
+            aria-label="Attach photo"
+            disabled={uploadingAttachment}
+            onClick={() => fileInputRef.current?.click()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-50"
+          >
+            {uploadingAttachment ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+          </button>
+
+          <div className="flex min-h-9 flex-1 items-end gap-1 rounded-2xl border bg-background px-2 py-1">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={1}
+              maxLength={2000}
+              placeholder="Type your message…"
+              className="max-h-24 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm outline-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Emoji"
+              onClick={() => setShowEmoji((s) => !s)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+            >
+              <Smile className="h-5 w-5" />
+            </button>
+          </div>
+
+          {text.trim() ? (
+            <button
+              type="button"
+              aria-label="Send"
+              disabled={sending}
+              onClick={() => void send()}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+            >
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </button>
           ) : (
-            <Send className="h-4 w-4" />
+            <button
+              type="button"
+              aria-label="Record voice message"
+              disabled={uploadingVoice}
+              onClick={() => void startRecording()}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+            >
+              {uploadingVoice ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+            </button>
           )}
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
-}
+        }

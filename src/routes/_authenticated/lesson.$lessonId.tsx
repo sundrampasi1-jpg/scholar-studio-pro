@@ -53,21 +53,36 @@ function LessonPage() {
 
   useEffect(() => {
     const updateFullscreen = () => {
-      if (document.fullscreenElement) {
-        setFullscreen(document.fullscreenElement === playerRef.current);
-      } else {
-        setFullscreen(false);
-      }
+      const active = document.fullscreenElement;
+      setFullscreen(
+        !!active &&
+        (active === playerRef.current || active === videoRef.current)
+      );
     };
 
     document.addEventListener("fullscreenchange", updateFullscreen);
-    return () => document.removeEventListener("fullscreenchange", updateFullscreen);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", updateFullscreen);
+    };
   }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = fullscreen ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [fullscreen]);
 
   const seek = (seconds: number) => {
     const video = videoRef.current;
     if (!video) return;
-    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
+
+    video.currentTime = Math.max(
+      0,
+      Math.min(video.duration || 0, video.currentTime + seconds)
+    );
   };
 
   const togglePlay = () => {
@@ -83,32 +98,49 @@ function LessonPage() {
 
   const changeSpeed = (value: string) => {
     setSpeed(value);
-    if (videoRef.current) videoRef.current.playbackRate = Number(value);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = Number(value);
+    }
   };
 
   const toggleFullscreen = async () => {
+    const video = videoRef.current;
     const player = playerRef.current;
-    if (!player) return;
 
     try {
-      if (document.fullscreenElement === player) {
+      if (document.fullscreenElement) {
         await document.exitFullscreen();
         setFullscreen(false);
-      } else if (player.requestFullscreen) {
+        return;
+      }
+
+      // Prefer native video fullscreen on supported mobile browsers.
+      if (video && typeof video.requestFullscreen === "function") {
+        await video.requestFullscreen();
+        setFullscreen(true);
+        return;
+      }
+
+      // Fallback to fullscreen on the complete player.
+      if (player && typeof player.requestFullscreen === "function") {
         await player.requestFullscreen();
         setFullscreen(true);
-      } else {
-        setFullscreen(true);
+        return;
       }
-    } catch {
-      setFullscreen(true);
+
+      toast.error("Fullscreen is not supported by this browser.");
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+      toast.error("Fullscreen could not be opened. Try your browser controls.");
     }
   };
 
   const formatTime = (value: number) => {
     if (!Number.isFinite(value)) return "0:00";
+
     const minutes = Math.floor(value / 60);
     const seconds = Math.floor(value % 60);
+
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   };
 
@@ -161,13 +193,14 @@ function LessonPage() {
           completed,
           last_viewed_at: new Date().toISOString(),
         },
-        { onConflict: "user_id,lesson_id" },
+        { onConflict: "user_id,lesson_id" }
       );
 
       if (error) throw error;
     },
     onSuccess: (_data, completed) => {
       if (completed) toast.success("Lesson marked as completed");
+
       queryClient.invalidateQueries({ queryKey: ["lesson-progress", lessonId] });
       queryClient.invalidateQueries({ queryKey: ["progress", courseId] });
       queryClient.invalidateQueries({ queryKey: ["all-progress"] });
@@ -181,7 +214,11 @@ function LessonPage() {
   }
 
   if (lesson.error) {
-    return <StudentShell><ErrorState error={lesson.error} onRetry={() => lesson.refetch()} /></StudentShell>;
+    return (
+      <StudentShell>
+        <ErrorState error={lesson.error} onRetry={() => lesson.refetch()} />
+      </StudentShell>
+    );
   }
 
   if (!lesson.data) {
@@ -202,27 +239,59 @@ function LessonPage() {
       return;
     }
 
-    const url = l.video_url;
+    const toastId = toast.loading("Preparing video download...");
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Download failed");
+      const downloadUrl = new URL(l.video_url);
+      const filename = `${(l.title || "JK-Academy-Lecture").replace(/[^\w.-]+/g, "_")}.mp4`;
+
+      // Supabase Storage supports the download query parameter.
+      downloadUrl.searchParams.set("download", filename);
+
+      const response = await fetch(downloadUrl.toString());
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
 
       const blob = await response.blob();
+
+      if (!blob.size) {
+        throw new Error("Downloaded file is empty.");
+      }
+
       const blobUrl = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
 
       anchor.href = blobUrl;
-      anchor.download = `${l.title || "JK-Academy-Lecture"}.mp4`;
+      anchor.download = filename;
+      anchor.style.display = "none";
+
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
 
       window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-      toast.success("Download started.");
-    } catch {
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast.info("Direct download unavailable. Video opened in a new tab.");
+
+      toast.success("Video download started.", { id: toastId });
+    } catch (error) {
+      console.error("Video download error:", error);
+
+      // Fallback: open the direct download URL.
+      try {
+        const fallbackUrl = new URL(l.video_url);
+        fallbackUrl.searchParams.set(
+          "download",
+          `${(l.title || "JK-Academy-Lecture").replace(/[^\w.-]+/g, "_")}.mp4`
+        );
+
+        window.open(fallbackUrl.toString(), "_blank", "noopener,noreferrer");
+        toast.info("Direct download opened. If it plays instead, use the browser menu to download.", {
+          id: toastId,
+        });
+      } catch {
+        toast.error("Video download failed. Please try again.", { id: toastId });
+      }
     }
   };
 
@@ -245,7 +314,9 @@ function LessonPage() {
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
             JK ACADEMY • VIDEO LECTURE
           </p>
-          <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{l.title}</h1>
+          <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
+            {l.title}
+          </h1>
         </div>
 
         {l.video_url ? (
@@ -253,7 +324,7 @@ function LessonPage() {
             ref={playerRef}
             className={`surface-card overflow-visible rounded-2xl border border-primary/20 bg-card shadow-lg ${
               fullscreen
-                ? "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col justify-center rounded-none bg-black p-2"
+                ? "fixed inset-0 z-[99999] flex h-[100dvh] w-screen flex-col justify-center rounded-none bg-black p-2"
                 : ""
             }`}
           >
@@ -348,7 +419,11 @@ function LessonPage() {
 
                 <div className="flex items-center justify-between gap-2 rounded-b-xl border-t border-border bg-card px-3 py-3">
                   <Button type="button" size="sm" variant="ghost" onClick={togglePlay}>
-                    {playing ? <Pause className="mr-1 h-5 w-5" /> : <Play className="mr-1 h-5 w-5" />}
+                    {playing ? (
+                      <Pause className="mr-1 h-5 w-5" />
+                    ) : (
+                      <Play className="mr-1 h-5 w-5" />
+                    )}
                     {playing ? "Pause" : "Play"}
                   </Button>
 
@@ -405,7 +480,11 @@ function LessonPage() {
                       onClick={toggleFullscreen}
                       aria-label="Toggle fullscreen"
                     >
-                      {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                      {fullscreen ? (
+                        <Minimize className="h-5 w-5" />
+                      ) : (
+                        <Maximize className="h-5 w-5" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -463,7 +542,11 @@ function LessonPage() {
                 Lesson Notes PDF
               </p>
 
-              <Button size="sm" variant="outline" onClick={() => downloadFile(l.pdf_url!, l.title)}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => downloadFile(l.pdf_url!, l.title)}
+              >
                 <Download className="mr-1 h-4 w-4" />
                 Download
               </Button>

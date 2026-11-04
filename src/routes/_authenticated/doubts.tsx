@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { replyDoubtAi } from "@/lib/ai-chat.functions";
 import { z } from "zod";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LoadingState } from "@/components/DataStates";
@@ -51,7 +54,7 @@ function DoubtsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("doubts")
-        .select("*, courses(title), doubt_replies(id, body, created_at, user_id)")
+        .select("*, courses(title), doubt_replies(id, body, created_at, user_id, is_ai)")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;

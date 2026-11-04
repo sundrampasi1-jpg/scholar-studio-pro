@@ -175,7 +175,6 @@ function DoubtsPage() {
                   {d.image_url && (
                     <img src={d.image_url} alt="Doubt attachment" className="mt-2 max-h-60 rounded-md border" />
                   )}
-                  {(!d.doubt_replies ?? []).some?.length === 0 || !(d.doubt_replies ?? []).some((r) => r.is_ai) ? null : null}
                   {!(d.doubt_replies ?? []).some((r) => r.is_ai) && (
                     <div className="mt-3">
                       <Button

@@ -36,6 +36,18 @@ function embedUrl(url: string) {
   return null;
 }
 
+function getMediaPath(rawUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl);
+    const marker = "/object/sign/media/";
+    const index = url.pathname.indexOf(marker);
+    if (index === -1) return null;
+    return decodeURIComponent(url.pathname.slice(index + marker.length));
+  } catch {
+    return null;
+  }
+}
+
 function LessonPage() {
   const { lessonId } = Route.useParams();
   const { user } = useAuth();
@@ -44,6 +56,7 @@ function LessonPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
+  const nativeFullscreenRef = useRef(false);
 
   const [speed, setSpeed] = useState("1");
   const [playing, setPlaying] = useState(false);
@@ -53,23 +66,32 @@ function LessonPage() {
 
   useEffect(() => {
     const updateFullscreen = () => {
-      const active = document.fullscreenElement;
-      setFullscreen(
-        !!active &&
-        (active === playerRef.current || active === videoRef.current)
-      );
+      if (document.fullscreenElement) {
+        nativeFullscreenRef.current = true;
+        setFullscreen(true);
+      } else if (nativeFullscreenRef.current) {
+        nativeFullscreenRef.current = false;
+        setFullscreen(false);
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !document.fullscreenElement) {
+        setFullscreen(false);
+      }
     };
 
     document.addEventListener("fullscreenchange", updateFullscreen);
+    document.addEventListener("keydown", onKeyDown);
 
     return () => {
       document.removeEventListener("fullscreenchange", updateFullscreen);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
 
   useEffect(() => {
     document.body.style.overflow = fullscreen ? "hidden" : "";
-
     return () => {
       document.body.style.overflow = "";
     };
@@ -78,7 +100,6 @@ function LessonPage() {
   const seek = (seconds: number) => {
     const video = videoRef.current;
     if (!video) return;
-
     video.currentTime = Math.max(
       0,
       Math.min(video.duration || 0, video.currentTime + seconds)
@@ -104,43 +125,49 @@ function LessonPage() {
   };
 
   const toggleFullscreen = async () => {
+    if (fullscreen) {
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch {
+          // CSS fullscreen fallback will close below.
+        }
+      }
+      nativeFullscreenRef.current = false;
+      setFullscreen(false);
+      return;
+    }
+
     const video = videoRef.current;
     const player = playerRef.current;
 
     try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        setFullscreen(false);
-        return;
-      }
-
-      // Prefer native video fullscreen on supported mobile browsers.
       if (video && typeof video.requestFullscreen === "function") {
         await video.requestFullscreen();
+        nativeFullscreenRef.current = true;
         setFullscreen(true);
         return;
       }
 
-      // Fallback to fullscreen on the complete player.
       if (player && typeof player.requestFullscreen === "function") {
         await player.requestFullscreen();
+        nativeFullscreenRef.current = true;
         setFullscreen(true);
         return;
       }
-
-      toast.error("Fullscreen is not supported by this browser.");
     } catch (error) {
-      console.error("Fullscreen error:", error);
-      toast.error("Fullscreen could not be opened. Try your browser controls.");
+      console.warn("Native fullscreen unavailable; using CSS fallback.", error);
     }
+
+    // CSS fullscreen fallback for Android browsers/WebView.
+    nativeFullscreenRef.current = false;
+    setFullscreen(true);
   };
 
   const formatTime = (value: number) => {
     if (!Number.isFinite(value)) return "0:00";
-
     const minutes = Math.floor(value / 60);
     const seconds = Math.floor(value % 60);
-
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   };
 
@@ -200,7 +227,6 @@ function LessonPage() {
     },
     onSuccess: (_data, completed) => {
       if (completed) toast.success("Lesson marked as completed");
-
       queryClient.invalidateQueries({ queryKey: ["lesson-progress", lessonId] });
       queryClient.invalidateQueries({ queryKey: ["progress", courseId] });
       queryClient.invalidateQueries({ queryKey: ["all-progress"] });
@@ -242,56 +268,46 @@ function LessonPage() {
     const toastId = toast.loading("Preparing video download...");
 
     try {
-      const downloadUrl = new URL(l.video_url);
       const filename = `${(l.title || "JK-Academy-Lecture").replace(/[^\w.-]+/g, "_")}.mp4`;
+      const mediaPath = getMediaPath(l.video_url);
 
-      // Supabase Storage supports the download query parameter.
-      downloadUrl.searchParams.set("download", filename);
+      let downloadUrl: string;
 
-      const response = await fetch(downloadUrl.toString());
+      if (mediaPath) {
+        // Private Gallery media: create a fresh signed URL with download header.
+        const { data, error } = await supabase.storage
+          .from("media")
+          .createSignedUrl(mediaPath, 60, { download: filename });
 
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`);
+        if (error || !data?.signedUrl) {
+          throw error ?? new Error("Could not create download link.");
+        }
+
+        downloadUrl = data.signedUrl;
+      } else {
+        // External/public video URL fallback.
+        const url = new URL(l.video_url);
+        url.searchParams.set("download", filename);
+        downloadUrl = url.toString();
       }
 
-      const blob = await response.blob();
-
-      if (!blob.size) {
-        throw new Error("Downloaded file is empty.");
-      }
-
-      const blobUrl = URL.createObjectURL(blob);
+      // Do not fetch the whole video as a blob; this avoids CORS and memory issues.
       const anchor = document.createElement("a");
-
-      anchor.href = blobUrl;
+      anchor.href = downloadUrl;
       anchor.download = filename;
-      anchor.style.display = "none";
-
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
 
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-
-      toast.success("Video download started.", { id: toastId });
+      toast.success("Download link opened.", { id: toastId });
     } catch (error) {
       console.error("Video download error:", error);
-
-      // Fallback: open the direct download URL.
-      try {
-        const fallbackUrl = new URL(l.video_url);
-        fallbackUrl.searchParams.set(
-          "download",
-          `${(l.title || "JK-Academy-Lecture").replace(/[^\w.-]+/g, "_")}.mp4`
-        );
-
-        window.open(fallbackUrl.toString(), "_blank", "noopener,noreferrer");
-        toast.info("Direct download opened. If it plays instead, use the browser menu to download.", {
-          id: toastId,
-        });
-      } catch {
-        toast.error("Video download failed. Please try again.", { id: toastId });
-      }
+      toast.error(
+        error instanceof Error ? error.message : "Video download failed.",
+        { id: toastId }
+      );
     }
   };
 
@@ -324,10 +340,21 @@ function LessonPage() {
             ref={playerRef}
             className={`surface-card overflow-visible rounded-2xl border border-primary/20 bg-card shadow-lg ${
               fullscreen
-                ? "fixed inset-0 z-[99999] flex h-[100dvh] w-screen flex-col justify-center rounded-none bg-black p-2"
+                ? "!fixed !inset-0 !z-[2147483647] !flex !h-[100dvh] !w-screen !flex-col !justify-center !rounded-none !border-0 !bg-black !p-2"
                 : ""
             }`}
           >
+            {fullscreen && (
+              <button
+                type="button"
+                onClick={() => void toggleFullscreen()}
+                aria-label="Exit fullscreen"
+                className="absolute right-3 top-3 z-[2147483647] rounded-full bg-black/80 p-3 text-white"
+              >
+                <Minimize className="h-5 w-5" />
+              </button>
+            )}
+
             {embed ? (
               <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
                 <iframe

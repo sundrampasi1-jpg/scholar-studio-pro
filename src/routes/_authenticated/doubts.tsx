@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { replyDoubtAi } from "@/lib/ai-chat.functions";
 import { z } from "zod";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LoadingState } from "@/components/DataStates";
@@ -51,12 +54,24 @@ function DoubtsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("doubts")
-        .select("*, courses(title), doubt_replies(id, body, created_at, user_id)")
+        .select("*, courses(title), doubt_replies(id, body, created_at, user_id, is_ai)")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
+  });
+
+  const replyAiFn = useServerFn(replyDoubtAi);
+
+  const askAi = useMutation({
+    mutationFn: async (doubtId: string) => replyAiFn({ data: { doubtId } }),
+    onSuccess: (res: { ok: boolean; error?: string; skipped?: boolean }) => {
+      if (res.ok) toast.success("AI ne aapke doubt ka jawab de diya");
+      else if (!res.skipped) toast.error(res.error ?? "AI reply nahi de paya");
+      qc.invalidateQueries({ queryKey: ["my-doubts"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const submit = useMutation({
@@ -69,21 +84,27 @@ function DoubtsPage() {
         if (file.size > 5 * 1024 * 1024) throw new Error("Image must be under 5 MB");
         image_url = await uploadMedia(file, `doubts/${user!.id}`);
       }
-      const { error } = await supabase.from("doubts").insert({
-        user_id: user!.id,
-        title: parsed.data.title,
-        body: parsed.data.body,
-        course_id: courseId || null,
-        image_url,
-      });
+      const { data, error } = await supabase
+        .from("doubts")
+        .insert({
+          user_id: user!.id,
+          title: parsed.data.title,
+          body: parsed.data.body,
+          course_id: courseId || null,
+          image_url,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      return data.id;
     },
-    onSuccess: () => {
+    onSuccess: (doubtId: string) => {
       toast.success("Doubt submitted");
       setTitle("");
       setBody("");
       setFile(null);
       qc.invalidateQueries({ queryKey: ["my-doubts"] });
+      askAi.mutate(doubtId);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -154,13 +175,27 @@ function DoubtsPage() {
                   {d.image_url && (
                     <img src={d.image_url} alt="Doubt attachment" className="mt-2 max-h-60 rounded-md border" />
                   )}
+                  {(!d.doubt_replies ?? []).some?.length === 0 || !(d.doubt_replies ?? []).some((r) => r.is_ai) ? null : null}
+                  {!(d.doubt_replies ?? []).some((r) => r.is_ai) && (
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={askAi.isPending && askAi.variables === d.id}
+                        onClick={() => askAi.mutate(d.id)}
+                      >
+                        <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
+                        {askAi.isPending && askAi.variables === d.id ? "AI is answering…" : "Get AI answer"}
+                      </Button>
+                    </div>
+                  )}
                   {(d.doubt_replies ?? []).length > 0 && (
                     <div className="mt-3 space-y-2 border-l-2 border-primary pl-3">
                       {d.doubt_replies.map((r) => (
                         <div key={r.id}>
                           <p className="text-sm">{r.body}</p>
                           <p className="text-[11px] text-muted-foreground">
-                            {r.user_id === user?.id ? "You" : "Teacher"} · {formatDateTime(r.created_at)}
+                            {r.is_ai ? "JK Academy AI" : r.user_id === user?.id ? "You" : "Teacher"} · {formatDateTime(r.created_at)}
                           </p>
                         </div>
                       ))}

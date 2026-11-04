@@ -128,3 +128,49 @@ export const askChatAi = createServerFn({ method: "POST" })
     if (ins.error) throw ins.error;
     return { ok: true as const };
   });
+
+const DOUBT_SYSTEM = `You are "JK Academy AI", the study assistant of JK Academy, an Indian competitive-exam coaching institute.
+A student has posted a doubt. Answer it clearly and correctly, exam-focused. Reply in the same language the student uses (Hindi, Hinglish or English). Keep it short and structured in plain text only — no markdown symbols like ** or #. If the doubt needs the teacher's decision (payment, enrollment, account), say the JK Academy team will also check and they can call/WhatsApp 95695 51576.`;
+
+export const replyDoubtAi = createServerFn({ method: "POST" })
+  .inputValidator((d: { doubtId: string }) => d)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const key = process.env["GEMINI_API_KEY"];
+    if (!key) return { ok: false as const, error: "AI configured nahi hai." };
+    const doubtId = data?.doubtId;
+    if (!doubtId) return { ok: false as const, error: "Doubt missing." };
+
+    // RLS scope: the student can only read their own doubt here.
+    const { data: doubt, error } = await supabase
+      .from("doubts")
+      .select("id, title, body, image_url, doubt_replies(id, is_ai)")
+      .eq("id", doubtId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!doubt) return { ok: false as const, error: "Doubt not found." };
+    if ((doubt.doubt_replies ?? []).some((r) => r.is_ai)) return { ok: false as const, skipped: true };
+
+    const parts: unknown[] = [];
+    if (doubt.image_url && IMAGE_RE.test(doubt.image_url)) {
+      const img = await fetch(doubt.image_url);
+      if (img.ok) {
+        parts.push({ inlineData: { mimeType: img.headers.get("content-type") || "image/png", data: toBase64(await img.arrayBuffer()) } });
+        parts.push({ text: "(The student attached this image with their doubt.)" });
+      }
+    }
+    parts.push({ text: `Title: ${doubt.title}\n\n${doubt.body}` });
+
+    const out = await geminiAny(["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"], {
+      systemInstruction: { parts: [{ text: DOUBT_SYSTEM }] },
+      contents: [{ role: "user", parts }],
+    }, key);
+    const reply = out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
+    if (!reply) return { ok: false as const, error: "AI reply khaali aaya." };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ins = await supabaseAdmin.from("doubt_replies").insert({ doubt_id: doubtId, user_id: userId, body: reply, is_ai: true });
+    if (ins.error) throw ins.error;
+    return { ok: true as const };
+  });

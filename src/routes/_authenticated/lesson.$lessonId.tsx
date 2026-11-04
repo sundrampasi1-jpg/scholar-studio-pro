@@ -1,7 +1,5 @@
-
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { PdfViewer, downloadFile } from "@/components/PdfViewer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -70,20 +68,30 @@ function LessonPage() {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = fullscreen ? "hidden" : "";
+    const handleFullscreenChange = () => {
+      const active = !!document.fullscreenElement;
+      setFullscreen(active);
+
+      if (!active) {
+        try {
+          (screen as any).orientation?.unlock?.();
+        } catch {
+          // Orientation unlock may not be supported.
+        }
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
     return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.body.style.overflow = "";
     };
-  }, [fullscreen]);
+  }, []);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFullscreen(false);
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+    document.body.style.overflow = fullscreen ? "hidden" : "";
+  }, [fullscreen]);
 
   const seek = (seconds: number) => {
     const video = videoRef.current;
@@ -113,8 +121,40 @@ function LessonPage() {
     }
   };
 
-  const toggleFullscreen = () => {
-    setFullscreen((previous) => !previous);
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      const player = playerRef.current;
+      if (!player) return;
+
+      await player.requestFullscreen();
+
+      try {
+        await (screen as any).orientation?.lock?.("landscape");
+      } catch {
+        // Device or browser may not support orientation lock.
+      }
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+      toast.error("Fullscreen is not supported by this device.");
+    }
+  };
+
+  const exitFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        setFullscreen(false);
+      }
+    } catch (error) {
+      console.error("Exit fullscreen error:", error);
+      setFullscreen(false);
+    }
   };
 
   const formatTime = (value: number) => {
@@ -225,19 +265,9 @@ function LessonPage() {
       return;
     }
 
-    const toastId = toast.loading("Downloading video...");
+    const toastId = toast.loading("Preparing video download...");
 
     try {
-      const { data: fileBlob, error } = await supabase.storage
-        .from("media")
-        .download(mediaPath);
-
-      if (error) throw error;
-
-      if (!fileBlob || fileBlob.size === 0) {
-        throw new Error("Video file is empty.");
-      }
-
       const safeTitle = (l.title || "JK-Academy-Lecture")
         .replace(/[^\w.-]+/g, "_");
 
@@ -245,20 +275,20 @@ function LessonPage() {
       const allowedExtensions = ["mp4", "webm", "mov", "m4v"];
       const filename = `${safeTitle}.${allowedExtensions.includes(extension || "") ? extension : "mp4"}`;
 
-      const blobUrl = URL.createObjectURL(fileBlob);
-      const anchor = document.createElement("a");
+      const { data, error } = await supabase.storage
+        .from("media")
+        .createSignedUrl(mediaPath, 60 * 60, { download: filename });
 
-      anchor.href = blobUrl;
-      anchor.download = filename;
-      anchor.style.display = "none";
+      if (error) throw error;
+      if (!data?.signedUrl) {
+        throw new Error("Could not create video download link.");
+      }
 
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
+      window.location.assign(data.signedUrl);
 
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-
-      toast.success("Video download started.", { id: toastId });
+      toast.success("Download requested. Check your Downloads folder.", {
+        id: toastId,
+      });
     } catch (error) {
       console.error("Video download error:", error);
       toast.error(
@@ -273,15 +303,15 @@ function LessonPage() {
       ref={playerRef}
       className={
         fullscreen
-          ? "fixed inset-0 z-[2147483647] flex h-[100dvh] w-screen max-w-none flex-col justify-center overflow-hidden rounded-none border-0 bg-black p-2"
+          ? "flex h-full w-full flex-col justify-center overflow-hidden bg-black p-2"
           : "surface-card overflow-visible rounded-2xl border border-primary/20 bg-card shadow-lg"
       }
-      style={fullscreen ? { margin: 0, maxHeight: "100dvh" } : undefined}
+      style={fullscreen ? { width: "100%", height: "100%", maxHeight: "100%" } : undefined}
     >
       {fullscreen && (
         <button
           type="button"
-          onClick={() => setFullscreen(false)}
+          onClick={() => void exitFullscreen()}
           aria-label="Exit fullscreen"
           className="absolute right-3 top-3 z-[2147483647] rounded-full bg-black/80 p-3 text-white"
         >
@@ -438,7 +468,7 @@ function LessonPage() {
                 type="button"
                 size="icon"
                 variant="ghost"
-                onClick={toggleFullscreen}
+                onClick={() => void toggleFullscreen()}
                 aria-label="Toggle fullscreen"
               >
                 {fullscreen ? (
@@ -478,11 +508,7 @@ function LessonPage() {
           </h1>
         </div>
 
-        {playerElement && (
-          fullscreen && typeof document !== "undefined"
-            ? createPortal(playerElement, document.body)
-            : playerElement
-        )}
+        {playerElement}
 
         {!l.video_url && (
           <div className="surface-card rounded-xl p-5 text-sm text-muted-foreground">

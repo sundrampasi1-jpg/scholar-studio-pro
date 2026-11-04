@@ -1,6 +1,7 @@
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { PdfViewer, downloadFile } from "@/components/PdfViewer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -42,7 +43,12 @@ function getMediaPath(rawUrl: string): string | null {
     const marker = "/object/sign/media/";
     const index = url.pathname.indexOf(marker);
     if (index === -1) return null;
-    return decodeURIComponent(url.pathname.slice(index + marker.length));
+
+    return url.pathname
+      .slice(index + marker.length)
+      .split("/")
+      .map((segment) => decodeURIComponent(segment))
+      .join("/");
   } catch {
     return null;
   }
@@ -55,8 +61,7 @@ function LessonPage() {
   const queryClient = useQueryClient();
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<HTMLDivElement>(null);
-  const nativeFullscreenRef = useRef(false);
+  const playerRef = useRef<HTMLElement>(null);
 
   const [speed, setSpeed] = useState("1");
   const [playing, setPlaying] = useState(false);
@@ -65,41 +70,25 @@ function LessonPage() {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    const updateFullscreen = () => {
-      if (document.fullscreenElement) {
-        nativeFullscreenRef.current = true;
-        setFullscreen(true);
-      } else if (nativeFullscreenRef.current) {
-        nativeFullscreenRef.current = false;
-        setFullscreen(false);
-      }
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !document.fullscreenElement) {
-        setFullscreen(false);
-      }
-    };
-
-    document.addEventListener("fullscreenchange", updateFullscreen);
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", updateFullscreen);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, []);
-
-  useEffect(() => {
     document.body.style.overflow = fullscreen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [fullscreen]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreen(false);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const seek = (seconds: number) => {
     const video = videoRef.current;
     if (!video) return;
+
     video.currentTime = Math.max(
       0,
       Math.min(video.duration || 0, video.currentTime + seconds)
@@ -124,44 +113,8 @@ function LessonPage() {
     }
   };
 
-  const toggleFullscreen = async () => {
-    if (fullscreen) {
-      if (document.fullscreenElement) {
-        try {
-          await document.exitFullscreen();
-        } catch {
-          // CSS fullscreen fallback will close below.
-        }
-      }
-      nativeFullscreenRef.current = false;
-      setFullscreen(false);
-      return;
-    }
-
-    const video = videoRef.current;
-    const player = playerRef.current;
-
-    try {
-      if (video && typeof video.requestFullscreen === "function") {
-        await video.requestFullscreen();
-        nativeFullscreenRef.current = true;
-        setFullscreen(true);
-        return;
-      }
-
-      if (player && typeof player.requestFullscreen === "function") {
-        await player.requestFullscreen();
-        nativeFullscreenRef.current = true;
-        setFullscreen(true);
-        return;
-      }
-    } catch (error) {
-      console.warn("Native fullscreen unavailable; using CSS fallback.", error);
-    }
-
-    // CSS fullscreen fallback for Android browsers/WebView.
-    nativeFullscreenRef.current = false;
-    setFullscreen(true);
+  const toggleFullscreen = () => {
+    setFullscreen((previous) => !previous);
   };
 
   const formatTime = (value: number) => {
@@ -265,43 +218,47 @@ function LessonPage() {
       return;
     }
 
-    const toastId = toast.loading("Preparing video download...");
+    const mediaPath = getMediaPath(l.video_url);
+
+    if (!mediaPath) {
+      toast.error("Download is available only for videos uploaded through JK Academy Gallery.");
+      return;
+    }
+
+    const toastId = toast.loading("Downloading video...");
 
     try {
-      const filename = `${(l.title || "JK-Academy-Lecture").replace(/[^\w.-]+/g, "_")}.mp4`;
-      const mediaPath = getMediaPath(l.video_url);
+      const { data: fileBlob, error } = await supabase.storage
+        .from("media")
+        .download(mediaPath);
 
-      let downloadUrl: string;
+      if (error) throw error;
 
-      if (mediaPath) {
-        // Private Gallery media: create a fresh signed URL with download header.
-        const { data, error } = await supabase.storage
-          .from("media")
-          .createSignedUrl(mediaPath, 60, { download: filename });
-
-        if (error || !data?.signedUrl) {
-          throw error ?? new Error("Could not create download link.");
-        }
-
-        downloadUrl = data.signedUrl;
-      } else {
-        // External/public video URL fallback.
-        const url = new URL(l.video_url);
-        url.searchParams.set("download", filename);
-        downloadUrl = url.toString();
+      if (!fileBlob || fileBlob.size === 0) {
+        throw new Error("Video file is empty.");
       }
 
-      // Do not fetch the whole video as a blob; this avoids CORS and memory issues.
+      const safeTitle = (l.title || "JK-Academy-Lecture")
+        .replace(/[^\w.-]+/g, "_");
+
+      const extension = mediaPath.split(".").pop()?.toLowerCase();
+      const allowedExtensions = ["mp4", "webm", "mov", "m4v"];
+      const filename = `${safeTitle}.${allowedExtensions.includes(extension || "") ? extension : "mp4"}`;
+
+      const blobUrl = URL.createObjectURL(fileBlob);
       const anchor = document.createElement("a");
-      anchor.href = downloadUrl;
+
+      anchor.href = blobUrl;
       anchor.download = filename;
-      anchor.target = "_blank";
-      anchor.rel = "noopener noreferrer";
+      anchor.style.display = "none";
+
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
 
-      toast.success("Download link opened.", { id: toastId });
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+      toast.success("Video download started.", { id: toastId });
     } catch (error) {
       console.error("Video download error:", error);
       toast.error(
@@ -310,6 +267,192 @@ function LessonPage() {
       );
     }
   };
+
+  const playerElement = l.video_url ? (
+    <section
+      ref={playerRef}
+      className={
+        fullscreen
+          ? "fixed inset-0 z-[2147483647] flex h-[100dvh] w-screen max-w-none flex-col justify-center overflow-hidden rounded-none border-0 bg-black p-2"
+          : "surface-card overflow-visible rounded-2xl border border-primary/20 bg-card shadow-lg"
+      }
+      style={fullscreen ? { margin: 0, maxHeight: "100dvh" } : undefined}
+    >
+      {fullscreen && (
+        <button
+          type="button"
+          onClick={() => setFullscreen(false)}
+          aria-label="Exit fullscreen"
+          className="absolute right-3 top-3 z-[2147483647] rounded-full bg-black/80 p-3 text-white"
+        >
+          <Minimize className="h-5 w-5" />
+        </button>
+      )}
+
+      {embed ? (
+        <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+          <iframe
+            src={embed}
+            title={l.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            className="h-full w-full"
+          />
+        </div>
+      ) : (
+        <>
+          <div className="group relative aspect-video w-full overflow-hidden rounded-t-xl bg-black">
+            <video
+              ref={videoRef}
+              src={l.video_url}
+              playsInline
+              preload="metadata"
+              onClick={togglePlay}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              onLoadedMetadata={(event) => {
+                setDuration(event.currentTarget.duration || 0);
+                event.currentTarget.playbackRate = Number(speed);
+              }}
+              onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
+              onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
+              onEnded={() => setPlaying(false)}
+              className="h-full w-full cursor-pointer object-contain"
+            />
+
+            {!playing && (
+              <button
+                type="button"
+                onClick={togglePlay}
+                aria-label="Play video"
+                className="absolute inset-0 flex items-center justify-center bg-black/10"
+              >
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-black shadow-xl">
+                  <Play className="ml-1 h-8 w-8 fill-current" />
+                </span>
+              </button>
+            )}
+
+            <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-between px-3 sm:px-8">
+              <button
+                type="button"
+                onClick={() => seek(-10)}
+                aria-label="Back 10 seconds"
+                className="flex flex-col items-center rounded-full bg-black/65 p-3 text-white shadow-lg backdrop-blur-sm"
+              >
+                <Rewind className="h-6 w-6" />
+                <span className="text-[10px]">10s</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => seek(10)}
+                aria-label="Forward 10 seconds"
+                className="flex flex-col items-center rounded-full bg-black/65 p-3 text-white shadow-lg backdrop-blur-sm"
+              >
+                <FastForward className="h-6 w-6" />
+                <span className="text-[10px]">10s</span>
+              </button>
+            </div>
+
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-3 pb-3 pt-8">
+              <div className="mb-2 flex items-center justify-between text-xs font-medium text-white">
+                <span>{formatTime(current)} / {formatTime(duration)}</span>
+                <span>{speed}×</span>
+              </div>
+
+              <input
+                aria-label="Video progress"
+                type="range"
+                min={0}
+                max={duration || 100}
+                step={1}
+                value={Math.min(current, duration || 100)}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  if (videoRef.current) videoRef.current.currentTime = value;
+                  setCurrent(value);
+                }}
+                className="h-1.5 w-full cursor-pointer accent-amber-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 rounded-b-xl border-t border-border bg-card px-3 py-3">
+            <Button type="button" size="sm" variant="ghost" onClick={togglePlay}>
+              {playing ? (
+                <Pause className="mr-1 h-5 w-5" />
+              ) : (
+                <Play className="mr-1 h-5 w-5" />
+              )}
+              {playing ? "Pause" : "Play"}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <details className="relative">
+                <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-muted">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </summary>
+
+                <div className="absolute bottom-12 right-0 z-50 w-60 rounded-xl border border-border bg-card p-3 text-card-foreground shadow-2xl">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Playback speed
+                  </p>
+
+                  <select
+                    value={speed}
+                    onChange={(event) => changeSpeed(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                  >
+                    <option value="0.5">0.5×</option>
+                    <option value="0.75">0.75×</option>
+                    <option value="1">1× Normal</option>
+                    <option value="1.25">1.25×</option>
+                    <option value="1.5">1.5×</option>
+                    <option value="2">2×</option>
+                  </select>
+
+                  <div className="my-3 border-t border-border" />
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Quality
+                  </p>
+                  <p className="mt-1 text-sm">Original video quality</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Quality depends on the uploaded video source.
+                  </p>
+
+                  <div className="my-3 border-t border-border" />
+                  <button
+                    type="button"
+                    onClick={downloadVideo}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-muted"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download video
+                  </button>
+                </div>
+              </details>
+
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={toggleFullscreen}
+                aria-label="Toggle fullscreen"
+              >
+                {fullscreen ? (
+                  <Minimize className="h-5 w-5" />
+                ) : (
+                  <Maximize className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  ) : null;
 
   return (
     <StudentShell>
@@ -335,190 +478,13 @@ function LessonPage() {
           </h1>
         </div>
 
-        {l.video_url ? (
-          <section
-            ref={playerRef}
-            className={`surface-card overflow-visible rounded-2xl border border-primary/20 bg-card shadow-lg ${
-              fullscreen
-                ? "!fixed !inset-0 !z-[2147483647] !flex !h-[100dvh] !w-screen !flex-col !justify-center !rounded-none !border-0 !bg-black !p-2"
-                : ""
-            }`}
-          >
-            {fullscreen && (
-              <button
-                type="button"
-                onClick={() => void toggleFullscreen()}
-                aria-label="Exit fullscreen"
-                className="absolute right-3 top-3 z-[2147483647] rounded-full bg-black/80 p-3 text-white"
-              >
-                <Minimize className="h-5 w-5" />
-              </button>
-            )}
+        {playerElement && (
+          fullscreen && typeof document !== "undefined"
+            ? createPortal(playerElement, document.body)
+            : playerElement
+        )}
 
-            {embed ? (
-              <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
-                <iframe
-                  src={embed}
-                  title={l.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  className="h-full w-full"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="group relative aspect-video w-full overflow-hidden rounded-t-xl bg-black">
-                  <video
-                    ref={videoRef}
-                    src={l.video_url}
-                    playsInline
-                    preload="metadata"
-                    onClick={togglePlay}
-                    onPlay={() => setPlaying(true)}
-                    onPause={() => setPlaying(false)}
-                    onLoadedMetadata={(event) => {
-                      setDuration(event.currentTarget.duration || 0);
-                      event.currentTarget.playbackRate = Number(speed);
-                    }}
-                    onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
-                    onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
-                    onEnded={() => setPlaying(false)}
-                    className="h-full w-full cursor-pointer object-contain"
-                  />
-
-                  {!playing && (
-                    <button
-                      type="button"
-                      onClick={togglePlay}
-                      aria-label="Play video"
-                      className="absolute inset-0 flex items-center justify-center bg-black/10"
-                    >
-                      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-black shadow-xl">
-                        <Play className="ml-1 h-8 w-8 fill-current" />
-                      </span>
-                    </button>
-                  )}
-
-                  <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-between px-3 sm:px-8">
-                    <button
-                      type="button"
-                      onClick={() => seek(-10)}
-                      aria-label="Back 10 seconds"
-                      className="flex flex-col items-center rounded-full bg-black/65 p-3 text-white shadow-lg backdrop-blur-sm"
-                    >
-                      <Rewind className="h-6 w-6" />
-                      <span className="text-[10px]">10s</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => seek(10)}
-                      aria-label="Forward 10 seconds"
-                      className="flex flex-col items-center rounded-full bg-black/65 p-3 text-white shadow-lg backdrop-blur-sm"
-                    >
-                      <FastForward className="h-6 w-6" />
-                      <span className="text-[10px]">10s</span>
-                    </button>
-                  </div>
-
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-3 pb-3 pt-8">
-                    <div className="mb-2 flex items-center justify-between text-xs font-medium text-white">
-                      <span>{formatTime(current)} / {formatTime(duration)}</span>
-                      <span>{speed}×</span>
-                    </div>
-
-                    <input
-                      aria-label="Video progress"
-                      type="range"
-                      min={0}
-                      max={duration || 100}
-                      step={1}
-                      value={Math.min(current, duration || 100)}
-                      onChange={(event) => {
-                        const value = Number(event.target.value);
-                        if (videoRef.current) videoRef.current.currentTime = value;
-                        setCurrent(value);
-                      }}
-                      className="h-1.5 w-full cursor-pointer accent-amber-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 rounded-b-xl border-t border-border bg-card px-3 py-3">
-                  <Button type="button" size="sm" variant="ghost" onClick={togglePlay}>
-                    {playing ? (
-                      <Pause className="mr-1 h-5 w-5" />
-                    ) : (
-                      <Play className="mr-1 h-5 w-5" />
-                    )}
-                    {playing ? "Pause" : "Play"}
-                  </Button>
-
-                  <div className="flex items-center gap-2">
-                    <details className="relative">
-                      <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-muted">
-                        <Settings className="h-4 w-4" />
-                        Settings
-                      </summary>
-
-                      <div className="absolute bottom-12 right-0 z-50 w-60 rounded-xl border border-border bg-card p-3 text-card-foreground shadow-2xl">
-                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                          Playback speed
-                        </p>
-
-                        <select
-                          value={speed}
-                          onChange={(event) => changeSpeed(event.target.value)}
-                          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
-                        >
-                          <option value="0.5">0.5×</option>
-                          <option value="0.75">0.75×</option>
-                          <option value="1">1× Normal</option>
-                          <option value="1.25">1.25×</option>
-                          <option value="1.5">1.5×</option>
-                          <option value="2">2×</option>
-                        </select>
-
-                        <div className="my-3 border-t border-border" />
-                        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                          Quality
-                        </p>
-                        <p className="mt-1 text-sm">Original video quality</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          Quality depends on the uploaded video source.
-                        </p>
-
-                        <div className="my-3 border-t border-border" />
-                        <button
-                          type="button"
-                          onClick={downloadVideo}
-                          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-muted"
-                        >
-                          <Download className="h-4 w-4" />
-                          Download video
-                        </button>
-                      </div>
-                    </details>
-
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={toggleFullscreen}
-                      aria-label="Toggle fullscreen"
-                    >
-                      {fullscreen ? (
-                        <Minimize className="h-5 w-5" />
-                      ) : (
-                        <Maximize className="h-5 w-5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-        ) : (
+        {!l.video_url && (
           <div className="surface-card rounded-xl p-5 text-sm text-muted-foreground">
             No video available for this lesson.
           </div>

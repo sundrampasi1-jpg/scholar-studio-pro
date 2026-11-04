@@ -53,8 +53,13 @@ function LessonPage() {
 
   useEffect(() => {
     const updateFullscreen = () => {
-      setFullscreen(document.fullscreenElement === playerRef.current);
+      if (document.fullscreenElement) {
+        setFullscreen(document.fullscreenElement === playerRef.current);
+      } else {
+        setFullscreen(false);
+      }
     };
+
     document.addEventListener("fullscreenchange", updateFullscreen);
     return () => document.removeEventListener("fullscreenchange", updateFullscreen);
   }, []);
@@ -68,6 +73,7 @@ function LessonPage() {
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
+
     if (video.paused) {
       void video.play().catch(() => toast.error("Video could not be played."));
     } else {
@@ -81,17 +87,21 @@ function LessonPage() {
   };
 
   const toggleFullscreen = async () => {
+    const player = playerRef.current;
+    if (!player) return;
+
     try {
-      if (!playerRef.current) return;
-      if (document.fullscreenElement) {
+      if (document.fullscreenElement === player) {
         await document.exitFullscreen();
-      } else if (playerRef.current.requestFullscreen) {
-        await playerRef.current.requestFullscreen();
+        setFullscreen(false);
+      } else if (player.requestFullscreen) {
+        await player.requestFullscreen();
+        setFullscreen(true);
       } else {
-        toast.error("Fullscreen is not supported by this browser.");
+        setFullscreen(true);
       }
     } catch {
-      toast.error("Fullscreen could not be opened. Try your browser's fullscreen control.");
+      setFullscreen(true);
     }
   };
 
@@ -110,6 +120,7 @@ function LessonPage() {
         .select("*, chapters(id, name, subjects(id, name, course_id, courses(id, title)))")
         .eq("id", lessonId)
         .maybeSingle();
+
       if (error) throw error;
       return data;
     },
@@ -133,6 +144,7 @@ function LessonPage() {
         .eq("user_id", user!.id)
         .eq("lesson_id", lessonId)
         .maybeSingle();
+
       return data;
     },
   });
@@ -140,6 +152,7 @@ function LessonPage() {
   const save = useMutation({
     mutationFn: async (completed: boolean) => {
       if (!user || !courseId) return;
+
       const { error } = await supabase.from("lesson_progress").upsert(
         {
           user_id: user.id,
@@ -150,6 +163,7 @@ function LessonPage() {
         },
         { onConflict: "user_id,lesson_id" },
       );
+
       if (error) throw error;
     },
     onSuccess: (_data, completed) => {
@@ -182,6 +196,36 @@ function LessonPage() {
   const embed = l.video_url ? embedUrl(l.video_url) : null;
   const completed = !!myProgress.data?.completed;
 
+  const downloadVideo = async () => {
+    if (!l.video_url) {
+      toast.error("Video URL not available.");
+      return;
+    }
+
+    const url = l.video_url;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Download failed");
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+
+      anchor.href = blobUrl;
+      anchor.download = `${l.title || "JK-Academy-Lecture"}.mp4`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      toast.success("Download started.");
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast.info("Direct download unavailable. Video opened in a new tab.");
+    }
+  };
+
   return (
     <StudentShell>
       <div className="mx-auto max-w-5xl">
@@ -207,7 +251,11 @@ function LessonPage() {
         {l.video_url ? (
           <section
             ref={playerRef}
-            className={`surface-card overflow-visible rounded-2xl border border-primary/20 bg-card shadow-lg ${fullscreen ? "flex h-screen flex-col justify-center rounded-none bg-black p-2" : ""}`}
+            className={`surface-card overflow-visible rounded-2xl border border-primary/20 bg-card shadow-lg ${
+              fullscreen
+                ? "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col justify-center rounded-none bg-black p-2"
+                : ""
+            }`}
           >
             {embed ? (
               <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
@@ -263,6 +311,7 @@ function LessonPage() {
                       <Rewind className="h-6 w-6" />
                       <span className="text-[10px]">10s</span>
                     </button>
+
                     <button
                       type="button"
                       onClick={() => seek(10)}
@@ -279,6 +328,7 @@ function LessonPage() {
                       <span>{formatTime(current)} / {formatTime(duration)}</span>
                       <span>{speed}×</span>
                     </div>
+
                     <input
                       aria-label="Video progress"
                       type="range"
@@ -308,10 +358,12 @@ function LessonPage() {
                         <Settings className="h-4 w-4" />
                         Settings
                       </summary>
+
                       <div className="absolute bottom-12 right-0 z-50 w-60 rounded-xl border border-border bg-card p-3 text-card-foreground shadow-2xl">
                         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                           Playback speed
                         </p>
+
                         <select
                           value={speed}
                           onChange={(event) => changeSpeed(event.target.value)}
@@ -326,7 +378,9 @@ function LessonPage() {
                         </select>
 
                         <div className="my-3 border-t border-border" />
-                        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Quality</p>
+                        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          Quality
+                        </p>
                         <p className="mt-1 text-sm">Original video quality</p>
                         <p className="mt-1 text-[11px] text-muted-foreground">
                           Quality depends on the uploaded video source.
@@ -335,9 +389,7 @@ function LessonPage() {
                         <div className="my-3 border-t border-border" />
                         <button
                           type="button"
-                          onClick={() => {
-                            if (l.video_url) downloadFile(l.video_url, l.title);
-                          }}
+                          onClick={downloadVideo}
                           className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-muted"
                         >
                           <Download className="h-4 w-4" />
@@ -373,6 +425,7 @@ function LessonPage() {
               {l.chapters?.subjects?.name ?? "Course"} • Video lecture
             </p>
           </div>
+
           <Button
             size="sm"
             onClick={() => save.mutate(!completed)}
@@ -392,6 +445,7 @@ function LessonPage() {
             <FileText className="h-5 w-5 text-primary" />
             PDF Notes
           </a>
+
           <Link
             to="/doubts"
             className="surface-card flex items-center gap-2 rounded-xl border p-3 text-sm font-semibold hover:bg-muted/50"
@@ -408,11 +462,13 @@ function LessonPage() {
                 <FileText className="h-4 w-4 text-primary" />
                 Lesson Notes PDF
               </p>
+
               <Button size="sm" variant="outline" onClick={() => downloadFile(l.pdf_url!, l.title)}>
                 <Download className="mr-1 h-4 w-4" />
                 Download
               </Button>
             </div>
+
             <PdfViewer
               url={l.pdf_url}
               className="max-h-[55vh] overflow-y-auto rounded-lg border bg-surface p-2"
@@ -423,12 +479,15 @@ function LessonPage() {
         {l.description && (
           <details className="surface-card mt-3 rounded-xl border p-3">
             <summary className="cursor-pointer font-semibold">About this lesson</summary>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{l.description}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+              {l.description}
+            </p>
           </details>
         )}
 
         <div className="surface-card mt-3 rounded-xl border p-3">
           <p className="mb-3 font-semibold">Course lectures</p>
+
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -439,6 +498,7 @@ function LessonPage() {
               <ChevronLeft className="mr-1 h-4 w-4" />
               Previous
             </Button>
+
             <Button
               variant="outline"
               size="sm"

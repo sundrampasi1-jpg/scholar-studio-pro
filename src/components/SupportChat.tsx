@@ -89,6 +89,8 @@ export function SupportChat({
   senderId,
   asStaff,
   fullHeight,
+  messageTextSize = "medium",
+  appearance = "light",
 }: SupportChatProps) {
   const qc = useQueryClient();
   const key = ["support-chat", studentId];

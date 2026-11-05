@@ -8,7 +8,7 @@ import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, ErrorState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { replyLessonCommentAi } from "@/lib/ai-chat.functions";
+import { replyLessonCommentAi, replyLessonReportAi } from "@/lib/ai-chat.functions";
 import { cacheMedia, getCachedMedia } from "@/lib/offline-media";
 import { addDownload, isDownloaded } from "@/lib/downloads";
 import { fetchCourseLessonIds } from "@/lib/queries";
@@ -326,6 +326,7 @@ const REPORT_REASONS = [
 
 function LessonReport({ lessonId, onClose }: { lessonId: string; onClose: () => void }) {
   const { user } = useAuth();
+  const askReportAi = useServerFn(replyLessonReportAi);
   const [reason, setReason] = useState(REPORT_REASONS[0]);
   const [details, setDetails] = useState("");
   const [sending, setSending] = useState(false);
@@ -333,19 +334,27 @@ function LessonReport({ lessonId, onClose }: { lessonId: string; onClose: () => 
   async function submit() {
     if (!user) return;
     setSending(true);
-    const { error } = await supabase.from("lesson_reports").insert({
+    const { data, error } = await supabase.from("lesson_reports").insert({
       lesson_id: lessonId,
       user_id: user.id,
       reason,
       details: details.trim() || null,
-    });
-    setSending(false);
+    }).select("id").single();
     if (error) {
+      setSending(false);
       toast.error(error.message);
       return;
     }
-    toast.success("Report sent — the JK Academy team will check it.");
+    toast.success("Report sent. JK Academy AI is preparing a reply…");
     onClose();
+    try {
+      const result = await askReportAi({ data: { reportId: data.id } });
+      if (!result.ok && "error" in result && result.error) toast.error(result.error);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "AI reply could not be generated.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (

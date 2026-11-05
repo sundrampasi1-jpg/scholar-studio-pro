@@ -49,7 +49,7 @@ function VoiceNoteBubble({ src, mine }: { src: string; mine: boolean }) {
   }
 
   return (
-    <div className="flex min-w-[150px] items-center gap-2 py-1">
+    <div className="flex w-full min-w-0 items-center gap-2 py-1">
       <audio
         ref={audioRef}
         src={src}
@@ -359,8 +359,8 @@ export function SupportChat({
     sender_id: string;
     from_staff: boolean;
   }) {
-    if (message.sender_id !== senderId || message.from_staff !== !!asStaff) {
-      toast.error("Aap sirf apne messages edit kar sakte hain.");
+    if (asStaff ? !message.from_staff : message.sender_id !== senderId || message.from_staff) {
+      toast.error(asStaff ? "Staff sirf staff/AI replies manage kar sakta hai." : "Aap sirf apne messages edit kar sakte hain.");
       return;
     }
 
@@ -386,8 +386,8 @@ export function SupportChat({
       return;
     }
 
-    if (message.sender_id !== senderId || message.from_staff !== !!asStaff) {
-      toast.error("Aap sirf apne messages edit kar sakte hain.");
+    if (asStaff ? !message.from_staff : message.sender_id !== senderId || message.from_staff) {
+      toast.error(asStaff ? "Staff sirf staff/AI replies manage kar sakta hai." : "Aap sirf apne messages edit kar sakte hain.");
       return;
     }
 
@@ -398,8 +398,7 @@ export function SupportChat({
       .update({ body })
       .eq("id", message.id)
       .eq("student_id", studentId)
-      .eq("sender_id", senderId)
-      .eq("from_staff", !!asStaff)
+      .eq("from_staff", asStaff ? true : false)
       .select("id");
 
     setSavingEdit(false);
@@ -425,8 +424,8 @@ export function SupportChat({
     sender_id: string;
     from_staff: boolean;
   }) {
-    if (message.sender_id !== senderId || message.from_staff !== !!asStaff) {
-      toast.error("Aap sirf apne messages delete kar sakte hain.");
+    if (asStaff ? !message.from_staff : message.sender_id !== senderId || message.from_staff) {
+      toast.error(asStaff ? "Staff sirf staff/AI replies manage kar sakta hai." : "Aap sirf apne messages delete kar sakte hain.");
       return;
     }
 
@@ -441,8 +440,7 @@ export function SupportChat({
       .delete()
       .eq("id", message.id)
       .eq("student_id", studentId)
-      .eq("sender_id", senderId)
-      .eq("from_staff", !!asStaff)
+      .eq("from_staff", asStaff ? true : false)
       .select("id");
 
     setDeletingId(null);
@@ -470,8 +468,8 @@ export function SupportChat({
     return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
   }
 
-  function pressStart(mine: boolean, id: string) {
-    if (!mine) return;
+  function pressStart(canManage: boolean, id: string) {
+    if (!canManage) return;
 
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
 
@@ -529,6 +527,7 @@ export function SupportChat({
 
         {msgs.data?.map((m) => {
           const mine = m.sender_id === senderId && m.from_staff === !!asStaff;
+          const canManage = asStaff ? !!m.from_staff : mine;
           const isEditing = editingId === m.id;
           const isDeleting = deletingId === m.id;
           const isImage = isImageUrl(m.body);
@@ -543,22 +542,22 @@ export function SupportChat({
               }`}
             >
               <div
-                className={`relative flex w-fit max-w-[82%] flex-col ${
+                className={`relative flex w-fit min-w-0 max-w-[min(82%,100%)] flex-col ${
                   mine ? "ml-auto" : "mr-auto"
                 }`}
               >
                 <div
                   data-message-bubble
-                  onTouchStart={() => pressStart(mine, m.id)}
+                  onTouchStart={() => pressStart(canManage, m.id)}
                   onTouchEnd={pressEnd}
                   onTouchCancel={pressEnd}
                   onContextMenu={(e) => {
-                    if (mine) {
+                    if (canManage) {
                       e.preventDefault();
                       setMenuFor(m.id);
                     }
                   }}
-                  onMouseDown={() => pressStart(mine, m.id)}
+                  onMouseDown={() => pressStart(canManage, m.id)}
                   onMouseUp={pressEnd}
                   onMouseLeave={pressEnd}
                   className={`w-fit max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm text-[#202A35] ${
@@ -568,7 +567,7 @@ export function SupportChat({
                   }`}
                 >
                   {isEditing ? (
-                    <div className="min-w-[200px] space-y-2 py-1">
+                    <div className="w-full min-w-0 space-y-2 py-1">
                       <textarea
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
@@ -622,7 +621,7 @@ export function SupportChat({
                 </p>
               </div>
 
-              {menuOpen && mine && !isEditing && (
+              {menuOpen && canManage && !isEditing && (
                 <div
                   data-message-menu
                   onClick={(e) => e.stopPropagation()}

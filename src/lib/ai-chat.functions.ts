@@ -282,10 +282,11 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
     ].join("\n");
 
     const out = await geminiAny(
-      ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"],
+      ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"],
       {
         systemInstruction: { parts: [{ text: LESSON_REPORT_SYSTEM }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.35, maxOutputTokens: 300 },
       },
       key,
     );

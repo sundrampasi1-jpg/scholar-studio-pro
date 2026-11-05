@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
+import { GraduationCap, MessageCircleQuestion } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { replyDoubtAi } from "@/lib/ai-chat.functions";
@@ -111,100 +111,107 @@ function DoubtsPage() {
 
   return (
     <StudentShell title="Doubts" subtitle="Ask your teachers anything">
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <form
-          className="surface-card h-fit space-y-3 p-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit.mutate();
-          }}
-        >
-          <h2 className="font-semibold">Ask a new doubt</h2>
-          <div className="space-y-1.5">
-            <Label>Course (optional)</Label>
-            <select
-              value={courseId}
-              onChange={(e) => setCourseId(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-            >
-              <option value="">General</option>
-              {(courses.data ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
+      <div className="mx-auto grid min-w-0 max-w-5xl gap-5">
+        <section className="rounded-3xl border border-[#E9DCC9] bg-gradient-to-br from-[#FFFDF9] via-[#FFF9F0] to-[#F6EBDD] p-4 shadow-[0_8px_28px_rgba(115,78,34,0.08)] sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-extrabold tracking-tight text-[#49351F]">My Doubts</h2>
+              <p className="mt-0.5 text-xs text-[#927D69]">Your questions and their replies</p>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#EBD9BC] bg-white text-[#A87937] shadow-sm">
+              <MessageCircleQuestion className="h-5 w-5" />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Details</Label>
-            <Textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Image (optional)</Label>
-            <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          </div>
-          <Button type="submit" className="w-full" disabled={submit.isPending}>
-            {submit.isPending ? "Submitting…" : "Submit doubt"}
-          </Button>
-        </form>
-
-        <div>
-          <h2 className="mb-3 font-semibold">My doubts</h2>
           {doubts.isLoading ? (
             <LoadingState />
           ) : (doubts.data ?? []).length === 0 ? (
-            <EmptyState title="No doubts yet" />
+            <div className="rounded-2xl border border-dashed border-[#DECBAF] bg-white/80 px-4 py-8 text-center">
+              <MessageCircleQuestion className="mx-auto mb-2 h-8 w-8 text-[#B58A55]" />
+              <p className="font-semibold text-[#5C452B]">No doubts yet</p>
+              <p className="mt-1 text-xs text-[#927D69]">Apna pehla question neeche submit karein.</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {(doubts.data ?? []).map((d) => (
-                <div key={d.id} className="surface-card min-w-0 overflow-hidden p-4">
-                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium">{d.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {d.courses?.title ?? "General"} · {formatDateTime(d.created_at)}
-                      </p>
+                <article key={d.id} className="overflow-hidden rounded-2xl border border-[#EAE1D6] bg-white p-3.5 shadow-[0_4px_16px_rgba(80,57,31,0.06)] sm:p-4">
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="break-words font-bold text-[#49351F]">{d.title}</h3>
+                      <p className="mt-1 text-[11px] text-[#958675]">{d.courses?.title ?? "General"} · {formatDateTime(d.created_at)}</p>
                     </div>
-                    <Badge variant={d.status === "resolved" ? "default" : "secondary"}>{d.status}</Badge>
+                    <Badge className="rounded-full border border-[#E9DCC9] bg-[#F8F0E5] px-3 text-[#795B35]" variant="outline">{d.status}</Badge>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-sm">{d.body}</p>
-                  {d.image_url && (
-                    <img src={d.image_url} alt="Doubt attachment" className="mt-2 max-h-60 max-w-full rounded-md border object-contain" />
-                  )}
-                  {!(d.doubt_replies ?? []).some((r) => r.is_ai) && (
-                    <div className="mt-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={askAi.isPending && askAi.variables === d.id}
-                        onClick={() => askAi.mutate(d.id)}
-                      >
-                        <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
-                        {askAi.isPending && askAi.variables === d.id ? "AI is answering…" : "Get AI answer"}
-                      </Button>
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <div className="max-w-[92%] rounded-[20px] rounded-br-md bg-[#4389C7] px-4 py-3 text-white shadow-sm sm:max-w-[84%]">
+                        <p className="mb-1.5 text-[10px] font-extrabold tracking-[0.13em] text-[#E5F2FF]">MY DOUBT</p>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{d.body}</p>
+                        {d.image_url && <img src={d.image_url} alt="Doubt attachment" className="mt-2 max-h-56 max-w-full rounded-xl border border-white/30 object-contain" />}
+                        <p className="mt-2 text-right text-[10px] text-[#E5F2FF]">You · {formatDateTime(d.created_at)}</p>
+                      </div>
                     </div>
-                  )}
-                  {(d.doubt_replies ?? []).length > 0 && (
-                    <div className="mt-3 space-y-2 border-l-2 border-primary pl-3">
-                      {d.doubt_replies.map((r) => (
-                        <div key={r.id}>
-                          <p className="text-sm">{r.body}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {r.is_ai ? "JK Academy AI" : r.user_id === user?.id ? "You" : "Teacher"} · {formatDateTime(r.created_at)}
-                          </p>
+                    {(d.doubt_replies ?? []).map((r) => (
+                      <div key={r.id} className="flex justify-start">
+                        <div className="max-w-[96%] rounded-[20px] rounded-bl-md border border-[#EAE5DD] bg-[#FFFFFF] px-4 py-3 text-[#34404B] shadow-sm sm:max-w-[88%]">
+                          <div className="mb-2 flex items-center gap-2">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#F5E9D7] text-[#A87937]"><GraduationCap className="h-4 w-4" /></span>
+                            <span className="text-xs font-bold tracking-wide text-[#76552D]">Teacher</span>
+                          </div>
+                          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{r.body}</p>
+                          <p className="mt-2 text-[10px] text-[#958B80]">{formatDateTime(r.created_at)}</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    ))}
+                    {!(d.doubt_replies ?? []).some((r) => r.is_ai) && (
+                      <div className="flex justify-start pl-1">
+                        <Button size="sm" variant="outline" className="rounded-full border-[#E5D5BE] bg-[#FFFCF7] text-xs text-[#805D32] hover:bg-[#F8F0E5]" disabled={askAi.isPending && askAi.variables === d.id} onClick={() => askAi.mutate(d.id)}>
+                          {askAi.isPending && askAi.variables === d.id ? "Reply aa raha hai…" : "Get reply"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </article>
               ))}
             </div>
           )}
-        </div>
+        </section>
+
+        <section className="rounded-3xl border border-[#E9DCC9] bg-white p-4 shadow-[0_8px_28px_rgba(115,78,34,0.07)] sm:p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5E9D7] text-[#A87937]"><MessageCircleQuestion className="h-5 w-5" /></div>
+            <div>
+              <h2 className="font-extrabold text-[#49351F]">Ask a New Doubt</h2>
+              <p className="text-xs text-[#927D69]">Apna question likhein, hum help karenge</p>
+            </div>
+          </div>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); submit.mutate(); }}>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#75502A]">Course (optional)</Label>
+              <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="h-11 w-full rounded-xl border border-[#E8DCCB] bg-[#FFFCF7] px-3 text-sm text-[#49351F] outline-none focus:border-[#B9874C]">
+                <option value="">General</option>
+                {(courses.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#75502A]">Question title</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Damodar Nadi ka udgam" className="h-11 rounded-xl border-[#E8DCCB] bg-[#FFFCF7]"/>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#75502A]">Your doubt</Label>
+              <Textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Apna question detail mein likhein..." className="min-h-28 resize-y rounded-xl border-[#E8DCCB] bg-[#FFFCF7] leading-relaxed"/>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-1">
+                <Label className="text-xs font-semibold text-[#75502A]">Attach image (optional)</Label>
+                <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="h-10 max-w-full rounded-xl border-[#E8DCCB] bg-[#FFFCF7] text-xs"/>
+              </div>
+              {file && <span className="max-w-36 truncate text-[11px] text-[#806039]">{file.name}</span>}
+            </div>
+            <Button type="submit" className="h-11 w-full rounded-xl bg-gradient-to-r from-[#A96F2B] to-[#C18A45] font-bold text-white shadow-md hover:brightness-105" disabled={submit.isPending}>
+              {submit.isPending ? "Submitting…" : "Submit Doubt"}
+            </Button>
+          </form>
+        </section>
       </div>
     </StudentShell>
   );

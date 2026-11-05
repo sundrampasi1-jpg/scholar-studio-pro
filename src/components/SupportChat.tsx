@@ -567,7 +567,7 @@ export function SupportChat({
                   onMouseDown={() => pressStart(canManage, m.id)}
                   onMouseUp={pressEnd}
                   onMouseLeave={pressEnd}
-                  className={`w-fit min-w-0 max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm text-[#202A35] ${
+                  className={`w-fit min-w-0 max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm ${
                     mine ? "border border-[#D8E9D4] bg-[#EAF4E8]" : "border border-[#EEEAE2] bg-white"
                   } ${isImage ? "p-1.5" : ""} ${
                     isDeleting ? "opacity-50" : ""

@@ -283,7 +283,7 @@ export function StudentShell({
                   <LogOut className="h-5 w-5" />Log Out
                 </Button>
               </SheetContent>
-            </Sheet>ropdownMenu>
+            </Sheet>
           </div>
         </div>
       </header>

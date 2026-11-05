@@ -48,10 +48,16 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --shadow-card: 0 2px 10px oklch(0.6 0.12 70 / 0.1), 0 10px 30px oklch(0.6 0.12 70 / 0.1);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-cream: var(--cream);
 }
 
 :root {
   --radius: 1rem;
+  --gold: oklch(0.8 0.11 82);
+  --gold-deep: oklch(0.55 0.1 65);
+  --cream: oklch(0.97 0.02 85);
   --background: oklch(0.97 0.012 75);
   --foreground: oklch(0.2 0.02 60);
   --surface: oklch(0.955 0.015 75);

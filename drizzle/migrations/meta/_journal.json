@@ -71,6 +71,13 @@
       "when": 1793763452130,
       "tag": "0009_doubt_replies_is_ai",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793845058081,
+      "tag": "0010_lesson_player_comments_polls_reports",
+      "breakpoints": true
     }
   ]
 }

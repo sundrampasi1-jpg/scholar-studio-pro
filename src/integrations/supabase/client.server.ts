@@ -29,8 +29,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env['SUPABASE_URL'];
+function createSupabaseAdminClient(urlOverride?: string) {
+  const SUPABASE_URL = urlOverride || process.env['SUPABASE_URL'];
   const SUPABASE_SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'];
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -52,6 +52,15 @@ function createSupabaseAdminClient() {
       persistSession: false,
       autoRefreshToken: false,
     }
+  });
+}
+
+export function createSupabaseAdminClientForUrl(url: string) {
+  const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+  if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY.');
+  return createClient<Database>(url, key, {
+    global: { fetch: createSupabaseFetch(key) },
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
   });
 }
 

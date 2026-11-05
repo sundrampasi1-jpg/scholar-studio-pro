@@ -608,6 +608,8 @@ export type Database = {
       }
       lesson_reports: {
         Row: {
+          ai_reply: string | null
+          ai_replied_at: string | null
           created_at: string
           details: string | null
           id: string
@@ -617,6 +619,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_reply?: string | null
+          ai_replied_at?: string | null
           created_at?: string
           details?: string | null
           id?: string
@@ -626,6 +630,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_reply?: string | null
+          ai_replied_at?: string | null
           created_at?: string
           details?: string | null
           id?: string

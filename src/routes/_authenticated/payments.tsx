@@ -49,10 +49,10 @@ function PaymentsPage() {
       ) : !q.data?.length ? (
         <EmptyState title="No payments yet" description="Paid course purchases will appear here." />
       ) : (
-        <ul className="surface-card divide-y">
+        <ul className="overflow-hidden rounded-3xl border border-[#D8E2EA] bg-white shadow-[0_14px_40px_rgba(18,38,63,0.10)]">
           {q.data.map((p) => (
-            <li key={p.id} className="flex flex-wrap items-center gap-3 p-4">
-              <div className="min-w-0 flex-1">
+            <li key={p.id} className="relative flex flex-wrap items-center gap-3 border-b border-[#E8EDF2] p-4 last:border-b-0 sm:p-5">
+              <div className="flex min-w-0 flex-1 items-center gap-3">\n                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${p.status === "paid" ? "bg-[#E6F5EE] text-[#168653]" : p.status === "pending" ? "bg-[#FFF4DF] text-[#A66A12]" : "bg-[#FDEBEC] text-[#C23A45]"}`}><span className="text-lg font-black">{p.status === "paid" ? "✓" : p.status === "pending" ? "…" : "!"}</span></span>\n                <div className="min-w-0 flex-1">
                 {p.course_id ? (
                   <Link to="/courses/$courseId" params={{ courseId: p.course_id }} className="font-medium hover:underline">
                     {p.courses?.title ?? "Course"}
@@ -63,7 +63,7 @@ function PaymentsPage() {
                 <p className="text-xs text-muted-foreground">{formatDateTime(p.created_at)}</p>
               </div>
               <span className="font-semibold">₹{Number(p.amount).toFixed(0)}</span>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusClass[p.status] ?? "bg-muted"}`}>
+              <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ring-1 ring-inset ring-current/10 ${statusClass[p.status] ?? "bg-muted"}`}>
                 {p.status}
               </span>
             </li>

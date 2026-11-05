@@ -175,7 +175,7 @@ function DoubtsPage() {
                 {index < (doubts.data ?? []).length - 1 && <div className="h-[5px] bg-[#F1E6D6]" />}
                 </div>
               ))}
-            </div>>
+            </div>
           )}
         </section>
 

@@ -294,13 +294,18 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
     const reply = out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
     if (!reply) return { ok: false as const, error: "AI reply khaali aaya." };
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error: updateError } = await supabaseAdmin
+    const { createSupabaseAdminClientForUrl } = await import("@/integrations/supabase/client.server");
+    // Write to the same Supabase project that authenticated this request.
+    const admin = createSupabaseAdminClientForUrl(supabase.supabaseUrl);
+    const { data: updated, error: updateError } = await admin
       .from("lesson_reports")
       .update({ ai_reply: reply, ai_replied_at: new Date().toISOString() })
       .eq("id", reportId)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) throw updateError;
+    if (!updated) throw new Error("AI reply generated, but the report was not updated in the authenticated Supabase project.");
     return { ok: true as const };
   });

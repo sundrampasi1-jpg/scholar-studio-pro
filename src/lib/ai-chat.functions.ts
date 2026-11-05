@@ -174,3 +174,71 @@ export const replyDoubtAi = createServerFn({ method: "POST" })
     if (ins.error) throw ins.error;
     return { ok: true as const };
   });
+
+const LESSON_TEACHER_SYSTEM = `You are the teacher of this lesson at JK Academy, an Indian competitive-exam coaching institute. A student posted a comment under the lesson video. Reply as the class teacher speaking directly to that student. Reply in the same language the student uses (Hindi, Hinglish or English). Keep it short, warm and exam-focused. Plain text only — no markdown symbols like ** or #. Never mention AI, bots or assistants; you are simply the teacher. If the question needs account, payment or enrollment help, tell the student the team will check and they can call/WhatsApp 95695 51576.`;
+
+export const replyLessonCommentAi = createServerFn({ method: "POST" })
+  .inputValidator((d: { commentId: string }) => d)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const key = process.env["GEMINI_API_KEY"];
+    if (!key) return { ok: false as const, error: "AI configured nahi hai." };
+    const commentId = data?.commentId;
+    if (!commentId) return { ok: false as const, error: "Comment missing." };
+
+    const { data: comment } = await supabase
+      .from("lesson_comments")
+      .select("id, lesson_id, user_id, body, parent_id, is_ai")
+      .eq("id", commentId)
+      .maybeSingle();
+    if (!comment || comment.is_ai || comment.parent_id) return { ok: false as const, skipped: true };
+
+    const { data: existing } = await supabase
+      .from("lesson_comments")
+      .select("id")
+      .eq("parent_id", comment.id)
+      .eq("is_ai", true)
+      .limit(1);
+    if (existing?.length) return { ok: false as const, skipped: true };
+
+    const { data: lesson } = await supabase
+      .from("lessons")
+      .select("title, description, chapters(title, subjects(title, courses(title)))")
+      .eq("id", comment.lesson_id)
+      .maybeSingle();
+
+    const chapter = lesson?.chapters as { title?: string; subjects?: { title?: string; courses?: { title?: string } } } | null;
+    const contextLine = [
+      chapter?.subjects?.courses?.title,
+      chapter?.subjects?.title,
+      chapter?.title,
+      lesson?.title,
+    ].filter(Boolean).join(" • ");
+
+    const out = await geminiAny(
+      ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"],
+      {
+        systemInstruction: { parts: [{ text: LESSON_TEACHER_SYSTEM }] },
+        contents: [{
+          role: "user",
+          parts: [{ text: `Lesson context: ${contextLine || lesson?.title || "General"}\nLesson description: ${lesson?.description ?? "—"}\n\nStudent comment: ${comment.body}` }],
+        }],
+      },
+      key,
+    );
+    const reply = out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
+    if (!reply) return { ok: false as const, error: "AI reply khaali aaya." };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ins = await supabaseAdmin.from("lesson_comments").insert({
+      lesson_id: comment.lesson_id,
+      user_id: comment.user_id,
+      parent_id: comment.id,
+      author_name: "Teacher",
+      body: reply,
+      is_ai: true,
+    });
+    if (ins.error) throw ins.error;
+    return { ok: true as const };
+  });

@@ -18,6 +18,8 @@ type SupportChatProps = {
   senderId: string;
   asStaff?: boolean;
   fullHeight?: boolean;
+  messageTextSize?: "small" | "medium" | "large";
+  appearance?: "light" | "system";
 };
 
 const QUICK_EMOJIS = ["😀", "😂", "🙏", "👍", "❤️", "🎉", "😊", "🤔", "👏", "🔥"];
@@ -490,7 +492,7 @@ export function SupportChat({
 
   return (
     <div
-      className={`flex w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#EADCCB] bg-[#FFFCF7] ${
+      className={`flex w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#EADCCB] ${appearance === "system" ? "bg-[Canvas] text-[CanvasText]" : "bg-[#FFFCF7]"} ${
         fullHeight ? "h-full flex-1" : ""
       }`}
     >
@@ -567,8 +569,8 @@ export function SupportChat({
                   onMouseDown={() => pressStart(canManage, m.id)}
                   onMouseUp={pressEnd}
                   onMouseLeave={pressEnd}
-                  className={`w-fit min-w-0 max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm ${
-                    mine ? "border border-[#D8E9D4] bg-[#EAF4E8]" : "border border-[#EEEAE2] bg-white"
+                  className={`w-fit min-w-0 max-w-full rounded-xl px-2.5 py-1 leading-relaxed shadow-sm ${messageTextSize === "small" ? "text-xs" : messageTextSize === "large" ? "text-base" : "text-sm"} ${
+                    mine ? "bg-[#4389C7] text-white" : "border border-[#EEEAE2] bg-white text-[#34404B]"
                   } ${isImage ? "p-1.5" : ""} ${
                     isDeleting ? "opacity-50" : ""
                   }`}

@@ -446,7 +446,7 @@ export function SupportChat({
       .delete()
       .eq("id", message.id)
       .eq("student_id", studentId)
-      .eq("from_staff", asStaff ? true : false)
+      .eq("from_staff", message.from_staff)
       .select("id");
 
     setDeletingId(null);

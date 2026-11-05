@@ -112,8 +112,8 @@ function DoubtsPage() {
   return (
     <StudentShell title="Doubts" subtitle="Ask your teachers anything">
       <div className="mx-auto grid min-w-0 max-w-5xl gap-5">
-        <section className="rounded-3xl border border-[#E9DCC9] bg-gradient-to-br from-[#FFFDF9] via-[#FFF9F0] to-[#F6EBDD] p-4 shadow-[0_8px_28px_rgba(115,78,34,0.08)] sm:p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
+        <section className="overflow-hidden rounded-3xl border border-[#E8DCCB] bg-white p-0 shadow-[0_10px_30px_rgba(91,64,34,0.08)]">
+          <div className="mb-0 flex items-center justify-between gap-3 border-b border-[#E9DDCA] bg-gradient-to-r from-[#FFFCF7] to-white px-4 py-4 sm:px-5">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-[#49351F]">My Doubts</h2>
               <p className="mt-0.5 text-xs text-[#927D69]">Your questions and their replies</p>
@@ -125,7 +125,7 @@ function DoubtsPage() {
           {doubts.isLoading ? (
             <LoadingState />
           ) : (doubts.data ?? []).length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#DECBAF] bg-white/80 px-4 py-8 text-center">
+            <div className="mx-4 my-4 rounded-2xl border border-dashed border-[#DECBAF] bg-[#FFFCF8] px-4 py-8 text-center">
               <MessageCircleQuestion className="mx-auto mb-2 h-8 w-8 text-[#B58A55]" />
               <p className="font-semibold text-[#5C452B]">No doubts yet</p>
               <p className="mt-1 text-xs text-[#927D69]">Apna pehla question neeche submit karein.</p>
@@ -144,7 +144,7 @@ function DoubtsPage() {
                   <div className="space-y-3">
                     <div className="flex justify-end">
                       <div className="max-w-[92%] rounded-[20px] rounded-br-md bg-[#4389C7] px-4 py-3 text-white shadow-sm sm:max-w-[84%]">
-                        <p className="mb-1.5 text-[10px] font-extrabold tracking-[0.13em] text-[#E5F2FF]">MY DOUBT</p>
+                        <p className="mb-1.5 text-[10px] font-black tracking-[0.14em] text-[#F5DDAF]">MY DOUBT</p>
                         <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{d.body}</p>
                         {d.image_url && <img src={d.image_url} alt="Doubt attachment" className="mt-2 max-h-56 max-w-full rounded-xl border border-white/30 object-contain" />}
                         <p className="mt-2 text-right text-[10px] text-[#E5F2FF]">You · {formatDateTime(d.created_at)}</p>
@@ -152,7 +152,7 @@ function DoubtsPage() {
                     </div>
                     {(d.doubt_replies ?? []).map((r) => (
                       <div key={r.id} className="flex justify-start">
-                        <div className="max-w-[96%] rounded-[20px] rounded-bl-md border border-[#EAE5DD] bg-[#FFFFFF] px-4 py-3 text-[#34404B] shadow-sm sm:max-w-[88%]">
+                        <div className="max-w-[96%] rounded-[20px] rounded-bl-md border-[1.5px] border-[#CDB58F] bg-white px-4 py-3 text-[#34404B] shadow-[0_3px_10px_rgba(91,64,34,0.06)] sm:max-w-[88%]">
                           <div className="mb-2 flex items-center gap-2">
                             <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#F5E9D7] text-[#A87937]"><GraduationCap className="h-4 w-4" /></span>
                             <span className="text-xs font-bold tracking-wide text-[#76552D]">Teacher</span>
@@ -176,7 +176,7 @@ function DoubtsPage() {
           )}
         </section>
 
-        <section className="rounded-3xl border border-[#E9DCC9] bg-white p-4 shadow-[0_8px_28px_rgba(115,78,34,0.07)] sm:p-5">
+        <section className="rounded-3xl border border-[#E8DCCB] bg-white p-4 shadow-[0_10px_30px_rgba(91,64,34,0.08)] sm:p-5">
           <div className="mb-4 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5E9D7] text-[#A87937]"><MessageCircleQuestion className="h-5 w-5" /></div>
             <div>

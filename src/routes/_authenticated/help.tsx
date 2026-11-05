@@ -23,6 +23,7 @@ import { StudentShell } from "@/components/StudentShell";
 import { Button } from "@/components/ui/button";
 import { SupportChat } from "@/components/SupportChat";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/help")({
   head: () => ({

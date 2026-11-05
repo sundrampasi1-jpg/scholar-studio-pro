@@ -258,7 +258,7 @@ export function StudentShell({
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="fixed right-0 top-16 bottom-20 z-[60] w-[min(86vw,360px)] overflow-y-auto rounded-l-3xl rounded-r-none border border-[#E9D8C2] bg-card p-3 shadow-[-14px_0_40px_rgba(40,25,10,0.18)]">
+              <DropdownMenuContent side="bottom" align="end" sideOffset={8} collisionPadding={12} className="z-[60] max-h-[calc(100dvh-6rem)] w-[min(86vw,360px)] overflow-y-auto rounded-2xl border border-[#E9D8C2] bg-card p-3 shadow-[-14px_0_40px_rgba(40,25,10,0.18)]">
                 <DropdownMenuLabel className="truncate px-2 py-3 text-sm font-semibold text-foreground">
                   {user?.email}
                 </DropdownMenuLabel>

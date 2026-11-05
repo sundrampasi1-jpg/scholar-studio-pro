@@ -64,7 +64,7 @@ function VoiceNoteBubble({ src, mine }: { src: string; mine: boolean }) {
         type="button"
         onClick={toggle}
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-          mine ? "bg-[#D2E7FA]" : "bg-[#DCEEFF]"
+          mine ? "bg-[#E5F1E3]" : "bg-[#F3F3F0]"
         }`}
       >
         {playing ? <Pause size={15} /> : <Play size={15} />}
@@ -568,7 +568,7 @@ export function SupportChat({
                   onMouseUp={pressEnd}
                   onMouseLeave={pressEnd}
                   className={`w-fit min-w-0 max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm text-[#202A35] ${
-                    mine ? "bg-[#E3F1FF]" : "bg-[#F0F7FF]"
+                    mine ? "border border-[#D8E9D4] bg-[#EAF4E8]" : "border border-[#EEEAE2] bg-white"
                   } ${isImage ? "p-1.5" : ""} ${
                     isDeleting ? "opacity-50" : ""
                   }`}

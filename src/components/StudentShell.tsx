@@ -16,6 +16,9 @@ import {
   FileText,
   Menu,
   ClipboardList,
+  CreditCard,
+  MessageCircle,
+  BarChart3,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -23,13 +26,13 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 const navItems = [
   { to: "/dashboard", label: "Home", Icon: LayoutDashboard },
@@ -246,84 +249,41 @@ export function StudentShell({
               )}
             </Link>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <Sheet>
+              <SheetTrigger asChild>
                 <Button
                   variant="outline"
                   size="icon"
-                  aria-label="Open menu"
+                  aria-label="Open profile menu"
                   className="h-10 w-10 rounded-xl"
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent side="bottom" align="end" sideOffset={8} collisionPadding={12} className="z-[60] max-h-[calc(100dvh-6rem)] w-[min(86vw,360px)] overflow-y-auto rounded-2xl border border-[#E9D8C2] bg-card p-3 shadow-[-14px_0_40px_rgba(40,25,10,0.18)]">
-                <DropdownMenuLabel className="truncate px-2 py-3 text-sm font-semibold text-foreground">
-                  {user?.email}
-                </DropdownMenuLabel>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
-                  <Link to="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
-                  <Link to="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
-                  <Link to="/payments">
-                    <Wallet className="mr-2 h-4 w-4" />
-                    Payments
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
-                  <Link to="/help">
-                    <Phone className="mr-2 h-4 w-4" />
-                    Help &amp; chat
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
-                  <Link to="/my-reports">
-                    <ClipboardList className="mr-2 h-4 w-4" />
-                    My Reports
-                  </Link>
-                </DropdownMenuItem>
-
-                {isStaff && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
-                      <Link to="/admin">
-                        {isAdmin ? (
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                        ) : (
-                          <Settings className="mr-2 h-4 w-4" />
-                        )}
-                        {isAdmin ? "Admin panel" : "Teacher panel"}
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[min(88vw,380px)] max-w-[88vw] overflow-y-auto border-l border-border bg-card px-5 pb-8 pt-10">
+                <div className="mb-6 flex items-center gap-4 border-b border-border pb-6 pr-5">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-primary/10 text-primary">
+                    <User className="h-8 w-8" />
+                  </div>
+                  <div className="min-w-0">
+                    <SheetTitle className="truncate text-left text-lg">{user?.user_metadata?.full_name || user?.user_metadata?.name || "My Account"}</SheetTitle>
+                    <SheetDescription className="mt-1 break-all text-left">{user?.email || "JK Academy account"}</SheetDescription>
+                  </div>
+                </div>
+                <nav className="space-y-1" aria-label="Account menu">
+                  <SheetClose asChild><Link to="/profile" className="flex min-h-14 items-center gap-4 rounded-xl px-3 text-[15px] font-semibold transition-colors hover:bg-accent"><User className="h-5 w-5 shrink-0" />My Profile<span className="ml-auto text-muted-foreground">›</span></Link></SheetClose>
+                  <SheetClose asChild><Link to="/settings" className="flex min-h-14 items-center gap-4 rounded-xl px-3 text-[15px] font-semibold transition-colors hover:bg-accent"><Settings className="h-5 w-5 shrink-0" />Settings<span className="ml-auto text-muted-foreground">›</span></Link></SheetClose>
+                  <SheetClose asChild><Link to="/payments" className="flex min-h-14 items-center gap-4 rounded-xl px-3 text-[15px] font-semibold transition-colors hover:bg-accent"><CreditCard className="h-5 w-5 shrink-0" />My Payments<span className="ml-auto text-muted-foreground">›</span></Link></SheetClose>
+                  <SheetClose asChild><Link to="/help" className="flex min-h-14 items-center gap-4 rounded-xl px-3 text-[15px] font-semibold transition-colors hover:bg-accent"><MessageCircle className="h-5 w-5 shrink-0" />Help &amp; Chat<span className="ml-auto text-muted-foreground">›</span></Link></SheetClose>
+                  <SheetClose asChild><Link to="/my-reports" className="flex min-h-14 items-center gap-4 rounded-xl px-3 text-[15px] font-semibold transition-colors hover:bg-accent"><BarChart3 className="h-5 w-5 shrink-0" />My Reports<span className="ml-auto text-muted-foreground">›</span></Link></SheetClose>
+                  {isStaff && <SheetClose asChild><Link to="/admin" className="flex min-h-14 items-center gap-4 rounded-xl px-3 text-[15px] font-semibold transition-colors hover:bg-accent"><ShieldCheck className="h-5 w-5 shrink-0" />{isAdmin ? "Admin Panel" : "Teacher Panel"}<span className="ml-auto text-muted-foreground">›</span></Link></SheetClose>}
+                </nav>
+                <div className="my-5 border-t border-border" />
+                <Button variant="ghost" className="h-14 w-full justify-start gap-4 rounded-xl px-3 text-base font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={signOut}>
+                  <LogOut className="h-5 w-5" />Log Out
+                </Button>
+              </SheetContent>
+            </Sheet>ropdownMenu>
           </div>
         </div>
       </header>

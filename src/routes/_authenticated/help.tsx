@@ -98,9 +98,9 @@ function HelpPage() {
       <Link
         to="/courses"
         onClick={closeChat}
-        className="flex shrink-0 items-center gap-2 rounded-full border border-[#EADCCB] bg-white px-3.5 py-2.5 text-xs font-semibold text-[#75502A] shadow-sm"
+        className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#EADCCB] bg-white px-3 py-3 text-[13px] font-semibold text-[#75502A] shadow-sm"
       >
-        <BookOpen size={16} className="text-[#B87932]" />
+        <BookOpen size={18} className="text-[#B87932]" />
         Courses
       </Link>
 
@@ -112,13 +112,13 @@ function HelpPage() {
           setMoreOpen(false);
           setExpandedFaq(null);
         }}
-        className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2.5 text-xs font-semibold shadow-sm ${
+        className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-3 text-[13px] font-semibold shadow-sm ${
           faqOpen
             ? "border-[#C18A45] bg-[#FFF0DC] text-[#75502A]"
             : "border-[#EADCCB] bg-white text-[#75502A]"
         }`}
       >
-        <HelpCircle size={16} className="text-[#B87932]" />
+        <HelpCircle size={18} className="text-[#B87932]" />
         FAQs
       </button>
 
@@ -135,7 +135,7 @@ function HelpPage() {
             : "border-[#EADCCB] bg-white text-[#75502A]"
         }`}
       >
-        <Headset size={16} className="text-[#B87932]" />
+        <Headset size={18} className="text-[#B87932]" />
         Talk to Agent
       </button>
 
@@ -147,9 +147,9 @@ function HelpPage() {
             setFaqOpen(false);
             setAgentOpen(false);
           }}
-          className="flex items-center gap-2 rounded-full border border-[#EADCCB] bg-white px-3.5 py-2.5 text-xs font-semibold text-[#75502A] shadow-sm"
+          className="flex items-center gap-1.5 rounded-full border border-[#EADCCB] bg-white px-3 py-3 text-[13px] font-semibold text-[#75502A] shadow-sm"
         >
-          More <MoreHorizontal size={16} />
+          More <MoreHorizontal size={18} />
         </button>
 
         {moreOpen && (
@@ -289,8 +289,8 @@ function HelpPage() {
                 <X size={23} />
               </button>
               <div className="min-w-0 flex-1">
-                <p className="text-base font-bold text-[#473321]">Chat</p>
-                <p className="text-xs text-[#927D69]">JK Academy Support</p>
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F7E8CC] to-[#E8C58F] text-[#956326] shadow-sm"><GraduationCap size={25} /></div>
+                <div className="min-w-0"><p className="text-base font-extrabold tracking-tight text-[#49351F]">JK Academy</p><p className="text-xs font-medium text-[#927D69]">Chat & Support</p></div>
               </div>
               <button
                 type="button"

@@ -459,9 +459,7 @@ function LessonPage() {
       }
     }
     void load();
-    void isDownloaded(lessonId).then((d) => {
-      if (!cancelled && d) setSavedOffline(true);
-    });
+    if (isDownloaded(lessonId)) setSavedOffline(true);
     return () => {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
@@ -672,26 +670,33 @@ function LessonPage() {
         </div>
       ) : (
         <div className={`relative ${fullscreen ? "h-full w-full" : "aspect-video w-full"}`}>
-          <video
-            ref={videoRef}
-            src={videoSrc ?? undefined}
-            playsInline
-            preload="metadata"
-            onClick={togglePlay}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onLoadedMetadata={(event) => {
-              const el = event.currentTarget;
-              setDuration(el.duration || 0);
-              el.playbackRate = speed;
-              setNativeH(el.videoHeight || 0);
-              if (quality) applyQuality(quality);
-            }}
-            onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
-            onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
-            onEnded={() => setPlaying(false)}
-            className="h-full w-full object-contain"
-          />
+          {videoSrc ? (
+            <video
+              ref={videoRef}
+              key={videoSrc}
+              src={videoSrc}
+              playsInline
+              preload="metadata"
+              onClick={togglePlay}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              onLoadedMetadata={(event) => {
+                const el = event.currentTarget;
+                setDuration(el.duration || 0);
+                el.playbackRate = speed;
+                setNativeH(el.videoHeight || 0);
+                if (quality) applyQuality(quality);
+              }}
+              onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
+              onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
+              onEnded={() => setPlaying(false)}
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm text-white/70">
+              Video unavailable
+            </div>
+          )}
 
           {/* Center play */}
           {!playing && (

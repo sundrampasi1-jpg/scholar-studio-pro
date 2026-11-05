@@ -288,9 +288,10 @@ function HelpPage() {
               >
                 <X size={23} />
               </button>
-              <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F7E8CC] to-[#E8C58F] text-[#956326] shadow-sm"><GraduationCap size={25} /></div>
-                <div className="min-w-0"><p className="text-base font-extrabold tracking-tight text-[#49351F]">JK Academy</p><p className="text-xs font-medium text-[#927D69]">Chat & Support</p></div>
+                <div className="min-w-0"><p className="bg-gradient-to-r from-[#79501F] to-[#B87932] bg-clip-text text-[17px] font-extrabold tracking-tight text-transparent">JK Academy</p><p className="text-xs font-semibold tracking-[0.12em] text-[#927D69]">CHAT & SUPPORT</p></div>
+              </div>
               </div>
               <button
                 type="button"
@@ -309,17 +310,14 @@ function HelpPage() {
                       <X size={17} />
                     </button>
                   </div>
-                  <label className="mb-1.5 block text-xs font-semibold text-[#75502A]" htmlFor="chat-language">Preferred language</label>
-                  <select
-                    id="chat-language"
-                    value={chatLanguage}
-                    onChange={(e) => setChatLanguage(e.target.value)}
-                    className="w-full rounded-xl border border-[#EADCCB] bg-[#FFFCF7] px-3 py-2.5 text-sm text-[#473321] outline-none focus:border-[#C18A45]"
-                  >
-                    <option>Hindi / Hinglish</option>
-                    <option>English</option>
-                  </select>
-                  <p className="mt-2 text-[11px] leading-relaxed text-[#927D69]">This is a language preference only. Your existing AI reply behaviour remains unchanged.</p>
+                  <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+                    <div><label className="mb-1.5 block text-xs font-semibold text-[#75502A]" htmlFor="chat-language">Language</label><select id="chat-language" value={chatLanguage} onChange={(e) => setChatLanguage(e.target.value)} className="w-full rounded-xl border border-[#EADCCB] bg-[#FFFCF7] px-3 py-2.5 text-sm text-[#473321]"><option>Hindi / Hinglish</option><option>English</option></select></div>
+                    <div><label className="mb-1.5 block text-xs font-semibold text-[#75502A]" htmlFor="chat-size">Text Size</label><select id="chat-size" value={chatTextSize} onChange={(e) => setChatTextSize(e.target.value)} className="w-full rounded-xl border border-[#EADCCB] bg-[#FFFCF7] px-3 py-2.5 text-sm text-[#473321]"><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></div>
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-[#57432E]">Chat reply notifications<input type="checkbox" checked={chatNotifications} onChange={(e) => setChatNotifications(e.target.checked)} className="h-5 w-5 accent-[#A96F2B]"/></label>
+                    <div><label className="mb-1.5 block text-xs font-semibold text-[#75502A]" htmlFor="chat-appearance">Chat Appearance</label><select id="chat-appearance" value={chatAppearance} onChange={(e) => setChatAppearance(e.target.value)} className="w-full rounded-xl border border-[#EADCCB] bg-[#FFFCF7] px-3 py-2.5 text-sm text-[#473321]"><option value="light">Light</option><option value="system">System</option></select></div>
+                    <button type="button" disabled={clearingHistory} onClick={() => void clearChatHistory()} className="w-full rounded-xl border border-red-200 px-3 py-2.5 text-left text-sm font-semibold text-red-600 disabled:opacity-50">{clearingHistory ? "Clearing..." : "Clear Chat History"}</button>
+                    <p className="text-[11px] leading-relaxed text-[#927D69]">Preferences are saved on this device. AI reply behaviour remains unchanged.</p>
+                  </div>
                 </div>
               )}
             </header>
@@ -330,6 +328,8 @@ function HelpPage() {
                 studentId={user.id}
                 senderId={user.id}
                 fullHeight
+                messageTextSize={chatTextSize}
+                appearance={chatAppearance}
               />
             </main>
 

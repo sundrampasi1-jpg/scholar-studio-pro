@@ -1,4 +1,3 @@
-
 import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,6 +15,7 @@ import {
   ClipboardCheck,
   FileText,
   Menu,
+  ClipboardList,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Brand } from "@/components/Brand";
@@ -40,7 +40,6 @@ const navItems = [
   { to: "/reels", label: "Reels", Icon: Clapperboard },
 ] as const;
 
-/** True when the touch started inside a horizontally scrollable element. */
 function insideHorizontalScroller(node: HTMLElement | null, stop: HTMLElement) {
   let current: HTMLElement | null = node;
   while (current && current !== stop) {
@@ -294,6 +293,13 @@ export function StudentShell({
                   </Link>
                 </DropdownMenuItem>
 
+                <DropdownMenuItem asChild>
+                  <Link to="/my-reports">
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    My Reports
+                  </Link>
+                </DropdownMenuItem>
+
                 {isStaff && (
                   <>
                     <DropdownMenuSeparator />
@@ -361,4 +367,4 @@ export function StudentShell({
       </nav>
     </div>
   );
-}
+        }

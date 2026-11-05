@@ -19,10 +19,19 @@ function AdminReportsPage() {
     queryKey: ["admin-lesson-reports"],
     queryFn: async () => {
       const { data, error } = await supabase.from("lesson_reports")
-        .select("id, user_id, lesson_id, reason, details, status, created_at, ai_reply, ai_replied_at, lessons(title)")
+        .select("id, user_id, lesson_id, reason, details, status, created_at, ai_reply, ai_replied_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      const lessonIds = [...new Set(rows.map((row) => row.lesson_id).filter(Boolean))];
+      if (!lessonIds.length) return rows.map((row) => ({ ...row, lesson_title: null }));
+      const { data: lessons, error: lessonError } = await supabase
+        .from("lessons")
+        .select("id, title")
+        .in("id", lessonIds);
+      if (lessonError) throw lessonError;
+      const titles = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson.title]));
+      return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? null }));
     },
   });
   const saveReply = useMutation({
@@ -60,13 +69,12 @@ function AdminReportsPage() {
         {reports.error && <ErrorState error={reports.error} onRetry={() => void reports.refetch()} />}
         {!reports.isLoading && !reports.error && reports.data?.length === 0 && <EmptyState title="No lesson reports" description="Student lesson reports will appear here." />}
         {reports.data?.map((report) => {
-          const lesson = report.lessons as { title?: string } | null;
           return (
             <article key={report.id} className="min-w-0 overflow-hidden rounded-xl border bg-card p-4 shadow-sm">
               <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lesson</p>
-                  <h2 className="break-words font-semibold">{lesson?.title || "Lesson"}</h2>
+                  <h2 className="break-words font-semibold">{report.lesson_title || "Lesson"}</h2>
                   <p className="mt-1 break-all text-xs text-muted-foreground">Student ID: {report.user_id}</p>
                 </div>
                 <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-semibold">{report.status || "open"}</span>

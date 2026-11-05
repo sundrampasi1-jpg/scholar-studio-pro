@@ -111,7 +111,7 @@ function DoubtsPage() {
 
   return (
     <StudentShell title="Doubts" subtitle="Ask your teachers anything">
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <form
           className="surface-card h-fit space-y-3 p-4"
           onSubmit={(e) => {
@@ -161,8 +161,8 @@ function DoubtsPage() {
           ) : (
             <div className="space-y-3">
               {(doubts.data ?? []).map((d) => (
-                <div key={d.id} className="surface-card p-4">
-                  <div className="flex items-start justify-between gap-2">
+                <div key={d.id} className="surface-card min-w-0 overflow-hidden p-4">
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="font-medium">{d.title}</p>
                       <p className="text-xs text-muted-foreground">
@@ -171,9 +171,9 @@ function DoubtsPage() {
                     </div>
                     <Badge variant={d.status === "resolved" ? "default" : "secondary"}>{d.status}</Badge>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm">{d.body}</p>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm">{d.body}</p>
                   {d.image_url && (
-                    <img src={d.image_url} alt="Doubt attachment" className="mt-2 max-h-60 rounded-md border" />
+                    <img src={d.image_url} alt="Doubt attachment" className="mt-2 max-h-60 max-w-full rounded-md border object-contain" />
                   )}
                   {!(d.doubt_replies ?? []).some((r) => r.is_ai) && (
                     <div className="mt-3">

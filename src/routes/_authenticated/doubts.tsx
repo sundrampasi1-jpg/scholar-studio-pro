@@ -113,7 +113,7 @@ function DoubtsPage() {
     <StudentShell title="Doubts" subtitle="Ask your teachers anything">
       <div className="mx-auto grid min-w-0 max-w-5xl gap-5">
         <section className="overflow-hidden rounded-3xl border border-[#E8DCCB] bg-white p-0 shadow-[0_10px_30px_rgba(91,64,34,0.08)]">
-          <div className="mb-0 flex items-center justify-between gap-3 border-b border-[#E9DDCA] bg-gradient-to-r from-[#FFFCF7] to-white px-4 py-4 sm:px-5">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E9DDCA] bg-white px-4 py-4 sm:px-5">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-[#49351F]">My Doubts</h2>
               <p className="mt-0.5 text-xs text-[#927D69]">Your questions and their replies</p>
@@ -131,15 +131,16 @@ function DoubtsPage() {
               <p className="mt-1 text-xs text-[#927D69]">Apna pehla question neeche submit karein.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {(doubts.data ?? []).map((d) => (
-                <article key={d.id} className="overflow-hidden rounded-2xl border border-[#EAE1D6] bg-white p-3.5 shadow-[0_4px_16px_rgba(80,57,31,0.06)] sm:p-4">
+            <div className="bg-white">
+              {(doubts.data ?? []).map((d, index) => (
+                <div key={d.id}>
+                <article className="bg-white px-4 py-4 sm:px-5 sm:py-5">
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h3 className="break-words font-bold text-[#49351F]">{d.title}</h3>
                       <p className="mt-1 text-[11px] text-[#958675]">{d.courses?.title ?? "General"} · {formatDateTime(d.created_at)}</p>
                     </div>
-                    <Badge className="rounded-full border border-[#E9DCC9] bg-[#F8F0E5] px-3 text-[#795B35]" variant="outline">{d.status}</Badge>
+                    <Badge className="rounded-full border border-[#242424] bg-[#292929] px-3 text-white hover:bg-[#292929]" variant="outline">{d.status}</Badge>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-end">
@@ -171,12 +172,14 @@ function DoubtsPage() {
                     )}
                   </div>
                 </article>
+                {index < (doubts.data ?? []).length - 1 && <div className="h-[5px] bg-[#F1E6D6]" />}
+                </div>
               ))}
-            </div>
+            </div>>
           )}
         </section>
 
-        <section className="rounded-3xl border border-[#E8DCCB] bg-white p-4 shadow-[0_10px_30px_rgba(91,64,34,0.08)] sm:p-5">
+        <section className="rounded-3xl border border-[#E9DCC9] bg-gradient-to-br from-[#FFFDF9] via-[#FFF9F0] to-[#F6EBDD] p-4 shadow-[0_8px_28px_rgba(115,78,34,0.07)] sm:p-5">
           <div className="mb-4 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5E9D7] text-[#A87937]"><MessageCircleQuestion className="h-5 w-5" /></div>
             <div>

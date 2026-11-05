@@ -19,12 +19,21 @@ function MyReportsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lesson_reports")
-        .select("id, lesson_id, reason, details, status, created_at, ai_reply, ai_replied_at, lessons(title)")
+        .select("id, lesson_id, reason, details, status, created_at, ai_reply, ai_replied_at")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      const lessonIds = [...new Set(rows.map((row) => row.lesson_id).filter(Boolean))];
+      if (!lessonIds.length) return rows.map((row) => ({ ...row, lesson_title: null }));
+      const { data: lessons, error: lessonError } = await supabase
+        .from("lessons")
+        .select("id, title")
+        .in("id", lessonIds);
+      if (lessonError) throw lessonError;
+      const titles = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson.title]));
+      return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? null }));
     },
   });
 
@@ -67,8 +76,6 @@ function MyReportsPage() {
 
         <div className="space-y-4">
           {reports.data?.map((report) => {
-            const lesson = report.lessons as { title?: string } | null;
-
             return (
               <article
                 key={report.id}
@@ -80,7 +87,7 @@ function MyReportsPage() {
                       Reported lesson
                     </p>
                     <h2 className="mt-1 break-words text-base font-extrabold">
-                      {lesson?.title || "Lesson"}
+                      {report.lesson_title || "Lesson"}
                     </h2>
                   </div>
 

@@ -1,8 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
-// Admin-only area. The database also enforces this: every write policy
-// requires the admin/staff role, so hiding UI is not the only protection.
+// Staff access is checked here; individual data operations remain protected by RLS.
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   beforeLoad: async () => {
@@ -12,7 +11,8 @@ export const Route = createFileRoute("/_authenticated/admin")({
       .from("user_roles")
       .select("role")
       .eq("user_id", u.user.id)
-      .eq("role", "admin")
+      .in("role", ["admin", "teacher"])
+      .limit(1)
       .maybeSingle();
     if (!data) throw redirect({ to: "/dashboard" });
   },

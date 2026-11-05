@@ -12,7 +12,7 @@ import {
   Mic,
   MoreHorizontal,
   Headset,
-  ShieldCheck,
+  Settings,
   ChevronDown,
   ChevronRight,
   Send,
@@ -71,6 +71,8 @@ function HelpPage() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [agentOpen, setAgentOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chatLanguage, setChatLanguage] = useState("Hindi / Hinglish");
 
   useEffect(() => {
     if (!chatOpen) return;
@@ -88,6 +90,7 @@ function HelpPage() {
     setFaqOpen(false);
     setAgentOpen(false);
     setMoreOpen(false);
+    setSettingsOpen(false);
   }
 
   const quickLinks = (
@@ -275,91 +278,54 @@ function HelpPage() {
               overscrollBehavior: "none",
             }}
           >
-            {/* Header */}
-            <header className="flex shrink-0 items-center gap-3 border-b border-[#EADCCB] bg-white px-3 py-3">
+            {/* Compact chat header */}
+            <header className="relative z-50 flex shrink-0 items-center gap-3 border-b border-[#EADCCB] bg-white px-3 py-3">
               <button
                 type="button"
                 aria-label="Close chat"
                 onClick={closeChat}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#FFF3E2]"
               >
-                <X size={24} />
+                <X size={23} />
               </button>
-
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D8A45C] to-[#AD651C] text-white shadow-md">
-                <GraduationCap size={25} />
-              </div>
-
               <div className="min-w-0 flex-1">
-                <p className="text-base font-bold">JK Academy</p>
-                <p className="text-xs text-[#927D69]">Help & Support</p>
+                <p className="text-base font-bold text-[#473321]">Chat</p>
+                <p className="text-xs text-[#927D69]">JK Academy Support</p>
               </div>
-
-              <ShieldCheck size={22} className="text-[#B87932]" />
+              <button
+                type="button"
+                aria-label="Chat settings"
+                aria-expanded={settingsOpen}
+                onClick={() => setSettingsOpen((v) => !v)}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-[#947747] hover:bg-[#FFF3E2]"
+              >
+                <Settings size={21} />
+              </button>
+              {settingsOpen && (
+                <div className="absolute right-3 top-[58px] z-[10020] w-64 rounded-2xl border border-[#EADCCB] bg-white p-4 shadow-xl">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="font-bold text-[#473321]">Chat settings</p>
+                    <button type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)} className="rounded-full p-1 text-[#927D69] hover:bg-[#FFF3E2]">
+                      <X size={17} />
+                    </button>
+                  </div>
+                  <label className="mb-1.5 block text-xs font-semibold text-[#75502A]" htmlFor="chat-language">Preferred language</label>
+                  <select
+                    id="chat-language"
+                    value={chatLanguage}
+                    onChange={(e) => setChatLanguage(e.target.value)}
+                    className="w-full rounded-xl border border-[#EADCCB] bg-[#FFFCF7] px-3 py-2.5 text-sm text-[#473321] outline-none focus:border-[#C18A45]"
+                  >
+                    <option>Hindi / Hinglish</option>
+                    <option>English</option>
+                  </select>
+                  <p className="mt-2 text-[11px] leading-relaxed text-[#927D69]">This is a language preference only. Your existing AI reply behaviour remains unchanged.</p>
+                </div>
+              )}
             </header>
 
-            {/* Support identity and contact actions */}
-            <section className="shrink-0 border-b border-[#EADCCB] bg-[#FFF9F1] px-3 py-3">
-              <div className="rounded-[22px] border border-[#F0E2D1] bg-white p-3.5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F9E8EB]">
-                    <Headset size={28} className="text-[#B33B4C]" />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="text-sm font-bold">
-                        JK Academy Support
-                      </p>
-                      <span className="h-2 w-2 rounded-full bg-green-500" />
-                      <span className="text-xs font-semibold text-green-700">
-                        Support
-                      </span>
-                    </div>
-
-                    <p className="mt-1 text-xs text-[#897663]">
-                      We're here to help you
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-3 divide-x divide-[#EADCCB] overflow-hidden rounded-[20px] border border-[#F0E2D1] bg-white shadow-sm">
-                <a
-                  href="tel:+919569551576"
-                  className="flex flex-col items-center gap-2 py-3 hover:bg-[#FFF3E2]"
-                >
-                  <Phone size={21} className="text-[#B33B4C]" />
-                  <span className="text-xs font-semibold">Call us</span>
-                </a>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAgentOpen(true);
-                    setFaqOpen(false);
-                    setMoreOpen(false);
-                  }}
-                  className="flex flex-col items-center gap-2 py-3 hover:bg-[#FFF3E2]"
-                >
-                  <Mic size={21} className="text-[#B33B4C]" />
-                  <span className="text-xs font-semibold">Voice Help</span>
-                </button>
-
-                <a
-                  href="https://wa.me/919569551576"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex flex-col items-center gap-2 py-3 hover:bg-[#FFF3E2]"
-                >
-                  <MessageCircle size={21} className="text-[#B33B4C]" />
-                  <span className="text-xs font-semibold">WhatsApp</span>
-                </a>
-              </div>
-            </section>
-
             {/* Actual chat */}
-            <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#FFF9F1] p-3">
+            <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#FFF9F1] p-2">
               <SupportChat
                 studentId={user.id}
                 senderId={user.id}

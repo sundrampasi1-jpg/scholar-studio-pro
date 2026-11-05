@@ -114,7 +114,8 @@ export function SupportChat({
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const endRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const previousMessageCountRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const msgs = useQuery({
@@ -151,7 +152,12 @@ export function SupportChat({
   }, [studentId, qc]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    const count = msgs.data?.length ?? 0;
+    const list = messageListRef.current;
+    if (list && count > previousMessageCountRef.current) {
+      list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+    }
+    previousMessageCountRef.current = count;
   }, [msgs.data?.length]);
 
   useEffect(() => {
@@ -359,7 +365,7 @@ export function SupportChat({
     sender_id: string;
     from_staff: boolean;
   }) {
-    if (asStaff ? !message.from_staff : message.sender_id !== senderId || message.from_staff) {
+    if (!asStaff && (message.sender_id !== senderId || message.from_staff)) {
       toast.error(asStaff ? "Staff sirf staff/AI replies manage kar sakta hai." : "Aap sirf apne messages edit kar sakte hain.");
       return;
     }
@@ -386,7 +392,7 @@ export function SupportChat({
       return;
     }
 
-    if (asStaff ? !message.from_staff : message.sender_id !== senderId || message.from_staff) {
+    if (!asStaff && (message.sender_id !== senderId || message.from_staff)) {
       toast.error(asStaff ? "Staff sirf staff/AI replies manage kar sakta hai." : "Aap sirf apne messages edit kar sakte hain.");
       return;
     }
@@ -398,7 +404,7 @@ export function SupportChat({
       .update({ body })
       .eq("id", message.id)
       .eq("student_id", studentId)
-      .eq("from_staff", asStaff ? true : false)
+      .eq("from_staff", message.from_staff)
       .select("id");
 
     setSavingEdit(false);
@@ -490,8 +496,9 @@ export function SupportChat({
     >
       {/* Message list */}
       <div
-        className={`w-full min-w-0 max-w-full min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 ${
-          fullHeight ? "" : "h-80"
+        ref={messageListRef}
+        className={`w-full min-w-0 max-w-full min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y p-3 ${
+          fullHeight ? "" : "h-80 max-h-[70vh]"
         }`}
       >
         {msgs.isLoading && (
@@ -527,7 +534,7 @@ export function SupportChat({
 
         {msgs.data?.map((m) => {
           const mine = m.sender_id === senderId && m.from_staff === !!asStaff;
-          const canManage = asStaff ? !!m.from_staff : mine;
+          const canManage = asStaff ? true : mine;
           const isEditing = editingId === m.id;
           const isDeleting = deletingId === m.id;
           const isImage = isImageUrl(m.body);
@@ -665,7 +672,6 @@ export function SupportChat({
             <Loader2 size={14} className="animate-spin" /> JK Academy AI typing...
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       {/* Emoji panel */}

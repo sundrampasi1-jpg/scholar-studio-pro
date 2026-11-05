@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { run } from "@/lib/admin-ui";
 import { formatDateTime } from "@/lib/queries";
+import { Pencil, Trash2, Save, X } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/doubts")({
   head: () => ({ meta: [{ title: "Student doubts — JK Academy Admin" }, { name: "description", content: "Reply to student doubts." }] }),
@@ -21,10 +23,12 @@ function AdminDoubts() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<"all" | "pending" | "resolved">("pending");
   const [reply, setReply] = useState<Record<string, string>>({});
+  const [editingReply, setEditingReply] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState("");
   const doubts = useQuery({
     queryKey: ["admin-doubts"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("doubts").select("*, doubt_replies(id, body, created_at)").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("doubts").select("*, doubt_replies(id, body, created_at, user_id, is_ai)").order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -40,6 +44,22 @@ function AdminDoubts() {
       setReply((r) => ({ ...r, [d.id]: "" }));
       refresh();
     }
+  }
+  async function updateReply(id: string) {
+    const body = editBody.trim();
+    if (!body) { toast.error("Reply cannot be empty"); return; }
+    const { error } = await supabase.from("doubt_replies").update({ body }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Reply updated");
+    setEditingReply(null); setEditBody("");
+    await refresh();
+  }
+  async function deleteReply(id: string) {
+    if (!window.confirm("Delete this reply?")) return;
+    const { error } = await supabase.from("doubt_replies").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Reply deleted");
+    await refresh();
   }
   async function setStatus(id: string, status: string) {
     if (await run(supabase.from("doubts").update({ status }).eq("id", id))) refresh();
@@ -66,7 +86,26 @@ function AdminDoubts() {
               {d.image_url && <img src={d.image_url} alt="Doubt attachment" className="max-h-60 rounded-md border" />}
               <p className="text-xs text-muted-foreground">{formatDateTime(d.created_at)}</p>
               {d.doubt_replies?.map((r) => (
-                <div key={r.id} className="rounded-md bg-muted p-2">{r.body}</div>
+                <div key={r.id} className="min-w-0 rounded-md bg-muted p-3">
+                  <p className="mb-1 text-xs font-semibold text-muted-foreground">{r.is_ai ? "JK Academy AI" : "Teacher / Staff"}</p>
+                  {editingReply === r.id ? (
+                    <div className="space-y-2">
+                      <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={3} className="w-full min-w-0" />
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" onClick={() => void updateReply(r.id)}><Save className="mr-1 h-4 w-4" />Save</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingReply(null); setEditBody(""); }}><X className="mr-1 h-4 w-4" />Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="whitespace-pre-wrap break-words">{r.body}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => { setEditingReply(r.id); setEditBody(r.body); }}><Pencil className="mr-1 h-4 w-4" />Edit</Button>
+                        <Button size="sm" variant="destructive" onClick={() => void deleteReply(r.id)}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>
+                      </div>
+                    </>
+                  )}
+                </div>
               ))}
               <Textarea placeholder="Write a reply…" value={reply[d.id] ?? ""} onChange={(e) => setReply({ ...reply, [d.id]: e.target.value })} />
               <div className="flex gap-2">

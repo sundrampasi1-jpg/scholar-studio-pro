@@ -2,6 +2,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   User, Camera, BookOpen, Wallet, FileText, FileQuestion, Radio,
@@ -56,6 +57,9 @@ function ProfilePage() {
   const [playingLessonId, setPlayingLessonId] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
 
   const profile = useQuery({
     queryKey: ["profile", user?.id],
@@ -130,6 +134,15 @@ function ProfilePage() {
   useEffect(() => {
     return () => {
       if (playingUrl) URL.revokeObjectURL(playingUrl);
+    };
+  }, [playingUrl]);
+
+  useEffect(() => {
+    if (!playingUrl) return;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = oldOverflow;
     };
   }, [playingUrl]);
 
@@ -271,6 +284,9 @@ function ProfilePage() {
     setFullscreen(false);
     setPlayingUrl(null);
     setVideoPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setVolume(1);
     setPlayingTitle("");
     setPlayingLessonId(null);
   }
@@ -452,74 +468,163 @@ function ProfilePage() {
         </section>
       </div>
 
-      {playingUrl && (
+      {playingUrl && createPortal(
         <div
           ref={playerRef}
-          className={`fixed inset-0 z-50 flex items-center justify-center bg-black ${
-            fullscreen ? "h-[100dvh] w-[100dvw] p-0" : "p-3 sm:p-4"
-          }`}
+          className="fixed inset-0 z-[99999] flex h-[100dvh] w-screen flex-col items-center justify-center overflow-hidden bg-black"
+          style={{ touchAction: "none" }}
         >
-          <div className={`relative flex flex-col bg-black ${
-            fullscreen ? "h-full w-full" : "w-full max-w-3xl overflow-hidden rounded-xl"
-          }`}>
-            <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between gap-3 bg-gradient-to-b from-black/80 to-transparent px-3 py-3 text-white">
-              <p className="min-w-0 truncate font-semibold">{playingTitle}</p>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void toggleFullscreen()}
-                  aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-                  className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25"
-                >
-                  {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={closeVideo}
-                  aria-label="Close video"
-                  className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+          <div className="absolute left-0 right-0 top-0 z-30 flex items-center justify-between gap-3 bg-gradient-to-b from-black/90 to-transparent p-4 text-white">
+            <p className="min-w-0 flex-1 truncate font-semibold">{playingTitle}</p>
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void toggleFullscreen()}
+                aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                className="rounded-full bg-white/15 p-3"
+              >
+                {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+              </button>
+              <button
+                type="button"
+                onClick={closeVideo}
+                aria-label="Close video"
+                className="rounded-full bg-white/15 p-3"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex h-full w-full items-center justify-center overflow-hidden">
+            <video
+              key={playingUrl}
+              src={playingUrl}
+              controls={false}
+              playsInline
+              preload="metadata"
+              onLoadedMetadata={(e) => {
+                setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0);
+                e.currentTarget.volume = volume;
+              }}
+              onDurationChange={(e) => {
+                setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0);
+              }}
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+              onPlay={() => setVideoPlaying(true)}
+              onPause={() => setVideoPlaying(false)}
+              className="max-h-full max-w-full object-contain"
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
+          </div>
+
+          {!videoPlaying && (
+            <button
+              type="button"
+              onClick={() => {
+                const video = playerRef.current?.querySelector("video");
+                if (video) void video.play();
+              }}
+              aria-label="Play video"
+              className="absolute left-1/2 top-1/2 z-20 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white"
+            >
+              <Play className="ml-1 h-8 w-8 fill-white" />
+            </button>
+          )}
+
+          <div
+            className="absolute bottom-0 left-0 right-0 z-30 space-y-3 bg-gradient-to-t from-black via-black/90 to-transparent px-4 pb-6 pt-12 text-white"
+            style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
+          >
+            <div className="flex items-center gap-2 text-xs tabular-nums">
+              <span className="w-10 text-right">
+                {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, "0")}
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={duration || 1}
+                step={0.1}
+                value={Math.min(currentTime, duration || 0)}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  const video = playerRef.current?.querySelector("video");
+                  if (video) {
+                    video.currentTime = next;
+                    setCurrentTime(next);
+                  }
+                }}
+                aria-label="Seek video"
+                className="h-2 min-w-0 flex-1 cursor-pointer accent-white"
+              />
+              <span className="w-10">
+                {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, "0")}
+              </span>
             </div>
 
-            <div
-              className={`relative flex items-center justify-center bg-black ${
-                fullscreen ? "h-full w-full" : "aspect-video w-full"
-              }`}
-            >
-              <video
-                key={playingUrl}
-                src={playingUrl}
-                controls={false}
-                playsInline
-                preload="metadata"
-                onPlay={() => setVideoPlaying(true)}
-                onPause={() => setVideoPlaying(false)}
-                onClick={(e) => {
-                  const video = e.currentTarget;
+            <div className="flex items-center justify-center gap-8">
+              <button
+                type="button"
+                onClick={() => {
+                  const video = playerRef.current?.querySelector("video");
+                  if (video) video.currentTime = Math.max(0, video.currentTime - 10);
+                }}
+                aria-label="Back 10 seconds"
+                className="flex flex-col items-center text-xs"
+              >
+                <span className="text-2xl leading-none">↶</span>
+                <span>10 sec</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const video = playerRef.current?.querySelector("video");
+                  if (!video) return;
                   if (video.paused) void video.play();
                   else video.pause();
                 }}
-                className="absolute inset-0 h-full w-full bg-black object-contain"
+                aria-label={videoPlaying ? "Pause video" : "Play video"}
+                className="rounded-full bg-white/20 p-3"
+              >
+                {videoPlaying ? <span className="px-1 text-xl">Ⅱ</span> : <Play className="h-6 w-6 fill-white" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const video = playerRef.current?.querySelector("video");
+                  if (video) video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+                }}
+                aria-label="Forward 10 seconds"
+                className="flex flex-col items-center text-xs"
+              >
+                <span className="text-2xl leading-none">↷</span>
+                <span>10 sec</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-sm" aria-hidden="true">{volume === 0 ? "🔇" : "🔊"}</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={volume}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setVolume(next);
+                  const video = playerRef.current?.querySelector("video");
+                  if (video) video.volume = next;
+                }}
+                aria-label="Volume"
+                className="h-2 w-32 cursor-pointer accent-white"
               />
-              {!videoPlaying && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const video = playerRef.current?.querySelector("video");
-                    if (video) void video.play();
-                  }}
-                  aria-label="Play video"
-                  className="absolute inset-0 m-auto flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-white"
-                >
-                  <Play className="ml-1 h-7 w-7 fill-white" />
-                </button>
-              )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </StudentShell>
   );

@@ -78,6 +78,20 @@
       "when": 1793845058081,
       "tag": "0010_lesson_player_comments_polls_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793880000000,
+      "tag": "0011_reports_ai_and_admin_message_edit",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793880001000,
+      "tag": "0012_staff_delete_chat_and_doubt_replies",
+      "breakpoints": true
     }
   ]
 }

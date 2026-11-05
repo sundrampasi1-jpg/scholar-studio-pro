@@ -258,14 +258,14 @@ export function StudentShell({
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+              <DropdownMenuContent align="end" className="fixed right-0 top-16 bottom-20 z-[60] w-[min(86vw,360px)] overflow-y-auto rounded-l-3xl rounded-r-none border border-[#E9D8C2] bg-card p-3 shadow-[-14px_0_40px_rgba(40,25,10,0.18)]">
+                <DropdownMenuLabel className="truncate px-2 py-3 text-sm font-semibold text-foreground">
                   {user?.email}
                 </DropdownMenuLabel>
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
                   <Link to="/profile">
                     <User className="mr-2 h-4 w-4" />
                     Profile
@@ -318,7 +318,7 @@ export function StudentShell({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem onClick={signOut}>
+                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" onClick={signOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Log out
                 </DropdownMenuItem>

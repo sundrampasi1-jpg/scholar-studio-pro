@@ -272,28 +272,28 @@ export function StudentShell({
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
                   <Link to="/settings">
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
                   <Link to="/payments">
                     <Wallet className="mr-2 h-4 w-4" />
                     Payments
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
                   <Link to="/help">
                     <Phone className="mr-2 h-4 w-4" />
                     Help &amp; chat
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
                   <Link to="/my-reports">
                     <ClipboardList className="mr-2 h-4 w-4" />
                     My Reports
@@ -303,7 +303,7 @@ export function StudentShell({
                 {isStaff && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
+                    <DropdownMenuItem className="min-h-12 rounded-xl px-3 text-[15px] font-semibold" asChild>
                       <Link to="/admin">
                         {isAdmin ? (
                           <ShieldCheck className="mr-2 h-4 w-4" />

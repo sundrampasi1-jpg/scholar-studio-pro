@@ -29,7 +29,8 @@ function AdminReportsPage() {
         .from("lessons")
         .select("id, title")
         .in("id", lessonIds);
-      if (lessonError) throw lessonError;
+      // Lesson titles are supplementary: a title lookup/RLS hiccup must not hide reports.
+      if (lessonError) console.error("Admin reports: lesson title lookup failed", lessonError);
       const titles = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson.title]));
       return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? null }));
     },

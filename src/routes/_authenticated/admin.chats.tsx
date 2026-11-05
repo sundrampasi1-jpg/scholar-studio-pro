@@ -58,7 +58,7 @@ function AdminChats() {
         <Switch checked={!!ai.data?.ai_chat_enabled} disabled={!ai.data} onCheckedChange={(v) => void toggleAi(v)} />
       </div>
       {threads.isLoading ? <LoadingState /> : !threads.data?.length ? <EmptyState title="No chats yet" /> : (
-        <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[280px_minmax(0,1fr)]">
           <div className="space-y-1">
             {threads.data.map((t) => (
               <button key={t.id} onClick={() => setActive(t.id)}
@@ -69,7 +69,7 @@ function AdminChats() {
               </button>
             ))}
           </div>
-          <div>{active && user ? <SupportChat studentId={active} senderId={user.id} asStaff /> : <p className="text-sm text-muted-foreground">Pick a chat to reply.</p>}</div>
+          <div className="w-full min-w-0 max-w-full overflow-hidden">{active && user ? <SupportChat studentId={active} senderId={user.id} asStaff /> : <p className="text-sm text-muted-foreground">Pick a chat to reply.</p>}</div>
         </div>
       )}
     </AdminShell>

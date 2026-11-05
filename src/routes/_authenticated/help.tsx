@@ -1,6 +1,7 @@
  
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import {
   GraduationCap,
@@ -72,7 +73,24 @@ function HelpPage() {
   const [agentOpen, setAgentOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [chatLanguage, setChatLanguage] = useState("Hindi / Hinglish");
+  const [chatLanguage, setChatLanguage] = useState(() => localStorage.getItem("jk-chat-language") || "Hindi / Hinglish");
+  const [chatTextSize, setChatTextSize] = useState(() => localStorage.getItem("jk-chat-text-size") || "medium");
+  const [chatNotifications, setChatNotifications] = useState(() => localStorage.getItem("jk-chat-notifications") !== "off");
+  const [chatAppearance, setChatAppearance] = useState(() => localStorage.getItem("jk-chat-appearance") || "light");
+  const [clearingHistory, setClearingHistory] = useState(false);
+  useEffect(() => { localStorage.setItem("jk-chat-language", chatLanguage); }, [chatLanguage]);
+  useEffect(() => { localStorage.setItem("jk-chat-text-size", chatTextSize); }, [chatTextSize]);
+  useEffect(() => { localStorage.setItem("jk-chat-notifications", chatNotifications ? "on" : "off"); }, [chatNotifications]);
+  useEffect(() => { localStorage.setItem("jk-chat-appearance", chatAppearance); }, [chatAppearance]);
+  async function clearChatHistory() {
+    if (!user || clearingHistory) return;
+    if (!window.confirm("Are you sure you want to permanently clear your chat history?")) return;
+    setClearingHistory(true);
+    const { error } = await supabase.from("support_messages").delete().eq("student_id", user.id);
+    setClearingHistory(false);
+    if (error) { toast.error("Chat history clear nahi hui: " + error.message); return; }
+    window.location.reload();
+  }
 
   useEffect(() => {
     if (!chatOpen) return;
@@ -291,7 +309,6 @@ function HelpPage() {
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F7E8CC] to-[#E8C58F] text-[#956326] shadow-sm"><GraduationCap size={25} /></div>
                 <div className="min-w-0"><p className="bg-gradient-to-r from-[#79501F] to-[#B87932] bg-clip-text text-[17px] font-extrabold tracking-tight text-transparent">JK Academy</p><p className="text-xs font-semibold tracking-[0.12em] text-[#927D69]">CHAT & SUPPORT</p></div>
-              </div>
               </div>
               <button
                 type="button"

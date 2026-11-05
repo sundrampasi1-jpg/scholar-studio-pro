@@ -99,7 +99,6 @@ export const askChatAi = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const rows: { student_id: string; sender_id: string; body: string; from_staff: boolean; is_ai: boolean }[] = [];
 
-    // Voice reply for voice input — free TTS tier; falls back to text only.
     if (AUDIO_RE.test(last.body)) {
       try {
         const tts = await geminiAny(["gemini-3.8-flash-lite-tts", "gemini-2.5-flash-preview-tts"], {
@@ -142,7 +141,6 @@ export const replyDoubtAi = createServerFn({ method: "POST" })
     const doubtId = data?.doubtId;
     if (!doubtId) return { ok: false as const, error: "Doubt missing." };
 
-    // RLS scope: the student can only read their own doubt here.
     const { data: doubt, error } = await supabase
       .from("doubts")
       .select("id, title, body, image_url, doubt_replies(id, is_ai)")
@@ -240,5 +238,68 @@ export const replyLessonCommentAi = createServerFn({ method: "POST" })
       is_ai: true,
     });
     if (ins.error) throw ins.error;
+    return { ok: true as const };
+  });
+
+const LESSON_REPORT_SYSTEM = `You are JK Academy's student support assistant.
+A student has reported a problem with a lesson, video, audio, PDF or notes.
+Reply in the same language as the student's report. Be polite, concise and practical.
+Acknowledge the reported issue, suggest one simple safe troubleshooting step if relevant, and clearly say the JK Academy team will review the report.
+Do not claim that the issue is already fixed. Plain text only.`;
+
+export const replyLessonReportAi = createServerFn({ method: "POST" })
+  .inputValidator((d: { reportId: string }) => d)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const reportId = data?.reportId;
+    const key = process.env["GEMINI_API_KEY"];
+
+    if (!reportId) return { ok: false as const, error: "Report missing." };
+    if (!key) return { ok: false as const, error: "AI configured nahi hai." };
+
+    const { data: report, error } = await supabase
+      .from("lesson_reports")
+      .select("id, lesson_id, user_id, reason, details, ai_reply")
+      .eq("id", reportId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!report) return { ok: false as const, error: "Report not found." };
+    if (report.ai_reply) return { ok: true as const, skipped: true };
+
+    const { data: lesson } = await supabase
+      .from("lessons")
+      .select("title")
+      .eq("id", report.lesson_id)
+      .maybeSingle();
+
+    const prompt = [
+      `Lesson: ${lesson?.title ?? "Unknown lesson"}`,
+      `Problem category: ${report.reason}`,
+      `Student details: ${report.details ?? "No extra details"}`,
+    ].join("\n");
+
+    const out = await geminiAny(
+      ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"],
+      {
+        systemInstruction: { parts: [{ text: LESSON_REPORT_SYSTEM }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      },
+      key,
+    );
+
+    const reply = out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
+    if (!reply) return { ok: false as const, error: "AI reply khaali aaya." };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: updateError } = await supabaseAdmin
+      .from("lesson_reports")
+      .update({ ai_reply: reply, ai_replied_at: new Date().toISOString() })
+      .eq("id", reportId)
+      .eq("user_id", userId);
+
+    if (updateError) throw updateError;
     return { ok: true as const };
   });

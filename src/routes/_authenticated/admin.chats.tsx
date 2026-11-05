@@ -63,8 +63,8 @@ function AdminChats() {
             {threads.data.map((t) => (
               <button key={t.id} onClick={() => setActive(t.id)}
                 className={`w-full rounded-md border p-3 text-left text-sm ${active === t.id ? "border-primary bg-accent" : "bg-card"}`}>
-                <p className="font-medium">{t.profile?.full_name || t.profile?.email || "Student"}</p>
-                <p className="truncate text-xs text-muted-foreground">{t.last.from_staff ? (t.last.is_ai ? "AI: " : "You: ") : ""}{t.last.body}</p>
+                <p className="min-w-0 break-words [overflow-wrap:anywhere] font-medium">{t.profile?.full_name || t.profile?.email || "Student"}</p>
+                <p className="min-w-0 max-w-full truncate break-words text-xs text-muted-foreground">{t.last.from_staff ? (t.last.is_ai ? "AI: " : "You: ") : ""}{t.last.body}</p>
                 <p className="text-[10px] text-muted-foreground">{formatDateTime(t.last.created_at)}{!t.last.from_staff && " · awaiting reply"}</p>
               </button>
             ))}

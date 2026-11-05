@@ -1,3 +1,4 @@
+
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -54,6 +55,7 @@ function ProfilePage() {
   const [playingTitle, setPlayingTitle] = useState("");
   const [playingLessonId, setPlayingLessonId] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
   const profile = useQuery({
     queryKey: ["profile", user?.id],
@@ -131,7 +133,6 @@ function ProfilePage() {
     };
   }, [playingUrl]);
 
-  // Keep fullscreen state in sync with Android/browser fullscreen controls.
   useEffect(() => {
     const handleFullscreenChange = () => {
       const active = document.fullscreenElement === playerRef.current;
@@ -269,6 +270,7 @@ function ProfilePage() {
     }
     setFullscreen(false);
     setPlayingUrl(null);
+    setVideoPlaying(false);
     setPlayingTitle("");
     setPlayingLessonId(null);
   }
@@ -482,19 +484,43 @@ function ProfilePage() {
               </div>
             </div>
 
-            <video
-              key={playingUrl}
-              src={playingUrl}
-              controls
-              playsInline
-              preload="metadata"
-              className={`w-full bg-black object-contain ${
-                fullscreen ? "h-full" : "max-h-[75vh]"
+            <div
+              className={`relative flex items-center justify-center bg-black ${
+                fullscreen ? "h-full w-full" : "aspect-video w-full"
               }`}
-            />
+            >
+              <video
+                key={playingUrl}
+                src={playingUrl}
+                controls={false}
+                playsInline
+                preload="metadata"
+                onPlay={() => setVideoPlaying(true)}
+                onPause={() => setVideoPlaying(false)}
+                onClick={(e) => {
+                  const video = e.currentTarget;
+                  if (video.paused) void video.play();
+                  else video.pause();
+                }}
+                className="absolute inset-0 h-full w-full bg-black object-contain"
+              />
+              {!videoPlaying && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const video = playerRef.current?.querySelector("video");
+                    if (video) void video.play();
+                  }}
+                  aria-label="Play video"
+                  className="absolute inset-0 m-auto flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-white"
+                >
+                  <Play className="ml-1 h-7 w-7 fill-white" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
     </StudentShell>
   );
-                                                              }
+}

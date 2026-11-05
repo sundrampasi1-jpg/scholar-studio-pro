@@ -59,7 +59,10 @@ function ProfilePage() {
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
+  const [showControls, setShowControls] = useState(true);
+
+  const lastTapRef = useRef<{ time: number; x: number } | null>(null);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const profile = useQuery({
     queryKey: ["profile", user?.id],
@@ -147,6 +150,12 @@ function ProfilePage() {
   }, [playingUrl]);
 
   useEffect(() => {
+    if (!playingUrl || !videoPlaying || !showControls) return;
+    const timer = window.setTimeout(() => setShowControls(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [playingUrl, videoPlaying, showControls]);
+
+  useEffect(() => {
     const handleFullscreenChange = () => {
       const active = document.fullscreenElement === playerRef.current;
       setFullscreen(active);
@@ -230,6 +239,7 @@ function ProfilePage() {
       const url = URL.createObjectURL(blob);
       setPlayingTitle(item.title);
       setPlayingLessonId(item.lessonId);
+      setShowControls(true);
       setPlayingUrl(url);
     } catch {
       toast.error("Could not open downloaded video.");
@@ -286,7 +296,11 @@ function ProfilePage() {
     setVideoPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setVolume(1);
+    setShowControls(true);
+
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    lastTapRef.current = null;
+
     setPlayingTitle("");
     setPlayingLessonId(null);
   }
@@ -471,57 +485,71 @@ function ProfilePage() {
       {playingUrl && createPortal(
         <div
           ref={playerRef}
-          className="fixed inset-0 z-[99999] flex h-[100dvh] w-screen flex-col items-center justify-center overflow-hidden bg-black"
-          style={{ touchAction: "none" }}
-        >
-          <div className="absolute left-0 right-0 top-0 z-30 flex items-center justify-between gap-3 bg-gradient-to-b from-black/90 to-transparent p-4 text-white">
-            <p className="min-w-0 flex-1 truncate font-semibold">{playingTitle}</p>
-            <div className="flex shrink-0 items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void toggleFullscreen()}
-                aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-                className="rounded-full bg-white/15 p-3"
-              >
-                {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-              </button>
-              <button
-                type="button"
-                onClick={closeVideo}
-                aria-label="Close video"
-                className="rounded-full bg-white/15 p-3"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
+          className="fixed inset-0 z-[99999] flex h-[100dvh] w-screen items-center justify-center overflow-hidden bg-black"
+          style={{ touchAction: "pan-x pan-y" }}
+          onPointerUp={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest("button, input")) return;
 
-          <div className="flex h-full w-full items-center justify-center overflow-hidden">
-            <video
-              key={playingUrl}
-              src={playingUrl}
-              controls={false}
-              playsInline
-              preload="metadata"
-              onLoadedMetadata={(e) => {
-                setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0);
-                e.currentTarget.volume = volume;
-              }}
-              onDurationChange={(e) => {
-                setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0);
-              }}
-              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-              onPlay={() => setVideoPlaying(true)}
-              onPause={() => setVideoPlaying(false)}
-              className="max-h-full max-w-full object-contain"
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            />
-          </div>
+            const now = Date.now();
+            const x = e.clientX;
+            const previous = lastTapRef.current;
+
+            if (previous && now - previous.time < 280) {
+              if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+              lastTapRef.current = null;
+
+              const video = playerRef.current?.querySelector("video");
+              if (video) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const forward = x >= rect.left + rect.width / 2;
+                video.currentTime = Math.max(
+                  0,
+                  Math.min(video.duration || 0, video.currentTime + (forward ? 10 : -10))
+                );
+              }
+              setShowControls(false);
+              return;
+            }
+
+            lastTapRef.current = { time: now, x };
+            if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+
+            tapTimerRef.current = setTimeout(() => {
+              setShowControls((visible) => !visible);
+              lastTapRef.current = null;
+            }, 280);
+          }}
+        >
+          <video
+            key={playingUrl}
+            src={playingUrl}
+            controls={false}
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={(e) => {
+              setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0);
+            }}
+            onDurationChange={(e) => {
+              setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0);
+            }}
+            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onPlay={() => {
+              setVideoPlaying(true);
+              setShowControls(false);
+            }}
+            onPause={() => {
+              setVideoPlaying(false);
+              setShowControls(true);
+            }}
+            className="h-full w-full object-contain"
+          />
 
           {!videoPlaying && (
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 const video = playerRef.current?.querySelector("video");
                 if (video) void video.play();
               }}
@@ -532,97 +560,82 @@ function ProfilePage() {
             </button>
           )}
 
-          <div
-            className="absolute bottom-0 left-0 right-0 z-30 space-y-3 bg-gradient-to-t from-black via-black/90 to-transparent px-4 pb-6 pt-12 text-white"
-            style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
-          >
-            <div className="flex items-center gap-2 text-xs tabular-nums">
-              <span className="w-10 text-right">
-                {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, "0")}
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={duration || 1}
-                step={0.1}
-                value={Math.min(currentTime, duration || 0)}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  const video = playerRef.current?.querySelector("video");
-                  if (video) {
-                    video.currentTime = next;
-                    setCurrentTime(next);
-                  }
-                }}
-                aria-label="Seek video"
-                className="h-2 min-w-0 flex-1 cursor-pointer accent-white"
-              />
-              <span className="w-10">
-                {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, "0")}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-center gap-8">
-              <button
-                type="button"
-                onClick={() => {
-                  const video = playerRef.current?.querySelector("video");
-                  if (video) video.currentTime = Math.max(0, video.currentTime - 10);
-                }}
-                aria-label="Back 10 seconds"
-                className="flex flex-col items-center text-xs"
+          {showControls && (
+            <>
+              <div
+                className="absolute left-0 right-0 top-0 z-30 flex items-center justify-between gap-3 bg-gradient-to-b from-black/90 to-transparent p-4 text-white"
+                onPointerUp={(e) => e.stopPropagation()}
               >
-                <span className="text-2xl leading-none">↶</span>
-                <span>10 sec</span>
-              </button>
+                <p className="min-w-0 flex-1 truncate font-semibold">{playingTitle}</p>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void toggleFullscreen()}
+                    aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                    className="rounded-full bg-white/15 p-3"
+                  >
+                    {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeVideo}
+                    aria-label="Close video"
+                    className="rounded-full bg-white/15 p-3"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  const video = playerRef.current?.querySelector("video");
-                  if (!video) return;
-                  if (video.paused) void video.play();
-                  else video.pause();
-                }}
-                aria-label={videoPlaying ? "Pause video" : "Play video"}
-                className="rounded-full bg-white/20 p-3"
+              <div
+                className="absolute bottom-0 left-0 right-0 z-30 space-y-3 bg-gradient-to-t from-black via-black/90 to-transparent px-4 pb-6 pt-12 text-white"
+                style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
+                onPointerUp={(e) => e.stopPropagation()}
               >
-                {videoPlaying ? <span className="px-1 text-xl">Ⅱ</span> : <Play className="h-6 w-6 fill-white" />}
-              </button>
+                <div className="flex items-center gap-2 text-xs tabular-nums">
+                  <span className="w-10 text-right">
+                    {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, "0")}
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 1}
+                    step={0.1}
+                    value={Math.min(currentTime, duration || 0)}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      const video = playerRef.current?.querySelector("video");
+                      if (video) {
+                        video.currentTime = next;
+                        setCurrentTime(next);
+                      }
+                    }}
+                    aria-label="Seek video"
+                    className="h-2 min-w-0 flex-1 cursor-pointer accent-white"
+                  />
+                  <span className="w-10">
+                    {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, "0")}
+                  </span>
+                </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  const video = playerRef.current?.querySelector("video");
-                  if (video) video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-                }}
-                aria-label="Forward 10 seconds"
-                className="flex flex-col items-center text-xs"
-              >
-                <span className="text-2xl leading-none">↷</span>
-                <span>10 sec</span>
-              </button>
-            </div>
-
-            <div className="flex items-center justify-center gap-3">
-              <span className="text-sm" aria-hidden="true">{volume === 0 ? "🔇" : "🔊"}</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={volume}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  setVolume(next);
-                  const video = playerRef.current?.querySelector("video");
-                  if (video) video.volume = next;
-                }}
-                aria-label="Volume"
-                className="h-2 w-32 cursor-pointer accent-white"
-              />
-            </div>
-          </div>
+                <div className="flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const video = playerRef.current?.querySelector("video");
+                      if (!video) return;
+                      if (video.paused) void video.play();
+                      else video.pause();
+                    }}
+                    aria-label={videoPlaying ? "Pause video" : "Play video"}
+                    className="rounded-full bg-white/20 p-3"
+                  >
+                    {videoPlaying ? <span className="px-1 text-xl">Ⅱ</span> : <Play className="h-6 w-6 fill-white" />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>,
         document.body
       )}

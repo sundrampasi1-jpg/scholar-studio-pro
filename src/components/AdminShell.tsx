@@ -29,6 +29,7 @@ const modules = [
   { to: "/admin/tests", label: "Tests & questions", icon: FileQuestion },
   { to: "/admin/live", label: "Live classes", icon: Radio },
   { to: "/admin/doubts", label: "Doubts", icon: HelpCircle },
+  { to: "/admin/reports", label: "Lesson reports", icon: FileText },
   { to: "/admin/chats", label: "Student chats", icon: MessageCircle },
   { to: "/admin/reels", label: "Reels", icon: Clapperboard },
   { to: "/admin/announcements", label: "Announcements", icon: Megaphone },

@@ -1,26 +1,11 @@
-
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  User,
-  Camera,
-  BookOpen,
-  Wallet,
-  FileText,
-  FileQuestion,
-  Radio,
-  Bell,
-  Settings,
-  KeyRound,
-  Phone,
-  Shield,
-  LogOut,
-  Download,
-  Play,
-  Trash2,
-  X,
+  User, Camera, BookOpen, Wallet, FileText, FileQuestion, Radio,
+  Bell, Settings, KeyRound, Phone, Shield, LogOut, Download,
+  Play, Trash2, X, Maximize, Minimize,
 } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { LoadingState } from "@/components/DataStates";
@@ -30,15 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/queries";
-import {
-  listDownloads,
-  removeDownload,
-  type DownloadEntry,
-} from "@/lib/downloads";
-import {
-  getCachedMedia,
-  deleteCachedMedia,
-} from "@/lib/offline-media";
+import { listDownloads, removeDownload, type DownloadEntry } from "@/lib/downloads";
+import { getCachedMedia, deleteCachedMedia } from "@/lib/offline-media";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -46,8 +24,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
       { title: "My profile — JK Academy" },
       {
         name: "description",
-        content:
-          "Manage your JK Academy student profile, courses, payments and more.",
+        content: "Manage your JK Academy student profile, courses, payments and more.",
       },
     ],
   }),
@@ -64,6 +41,7 @@ function ProfilePage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -75,6 +53,7 @@ function ProfilePage() {
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const [playingTitle, setPlayingTitle] = useState("");
   const [playingLessonId, setPlayingLessonId] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const profile = useQuery({
     queryKey: ["profile", user?.id],
@@ -85,7 +64,6 @@ function ProfilePage() {
         .select("*")
         .eq("id", user!.id)
         .maybeSingle();
-
       if (result.error) throw result.error;
       return result.data as any;
     },
@@ -97,12 +75,9 @@ function ProfilePage() {
     queryFn: async () => {
       const result = await supabase
         .from("payments")
-        .select(
-          "id, amount, status, provider_ref, created_at, course_id, courses(title)"
-        )
+        .select("id, amount, status, provider_ref, created_at, course_id, courses(title)")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
-
       if (result.error) throw result.error;
       return result.data;
     },
@@ -124,28 +99,19 @@ function ProfilePage() {
 
     async function loadAvatar() {
       const path = profile.data?.avatar_url;
-
       if (!path) {
         setAvatarUrl(null);
         return;
       }
-
       if (path.startsWith("http")) {
         setAvatarUrl(path);
         return;
       }
-
-      const result = await supabase.storage
-        .from("media")
-        .createSignedUrl(path, 3600);
-
-      if (!cancelled && result.data) {
-        setAvatarUrl(result.data.signedUrl);
-      }
+      const result = await supabase.storage.from("media").createSignedUrl(path, 3600);
+      if (!cancelled && result.data) setAvatarUrl(result.data.signedUrl);
     }
 
     loadAvatar();
-
     return () => {
       cancelled = true;
     };
@@ -161,26 +127,35 @@ function ProfilePage() {
 
   useEffect(() => {
     return () => {
-      if (playingUrl) {
-        URL.revokeObjectURL(playingUrl);
-      }
+      if (playingUrl) URL.revokeObjectURL(playingUrl);
     };
   }, [playingUrl]);
 
+  // Keep fullscreen state in sync with Android/browser fullscreen controls.
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const active = document.fullscreenElement === playerRef.current;
+      setFullscreen(active);
+      if (!active) {
+        try {
+          void (screen.orientation as any)?.unlock?.();
+        } catch {
+          // Orientation unlock is not supported on every browser.
+        }
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
   const save = useMutation({
     mutationFn: async () => {
-      if (fullName.trim().length < 2) {
-        throw new Error("Enter your full name.");
-      }
-
+      if (fullName.trim().length < 2) throw new Error("Enter your full name.");
       const result = await supabase
         .from("profiles")
-        .update({
-          full_name: fullName.trim(),
-          phone: phone.trim() || null,
-        })
+        .update({ full_name: fullName.trim(), phone: phone.trim() || null })
         .eq("id", user!.id);
-
       if (result.error) throw result.error;
     },
     onSuccess: () => {
@@ -191,30 +166,21 @@ function ProfilePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  async function handleAvatarChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-
     if (!file || !user) return;
 
     setUploading(true);
-
     try {
       const ext = file.name.split(".").pop();
       const path = "avatars/" + user.id + "." + ext;
-
-      const upResult = await supabase.storage
-        .from("media")
-        .upload(path, file, { upsert: true });
-
+      const upResult = await supabase.storage.from("media").upload(path, file, { upsert: true });
       if (upResult.error) throw upResult.error;
 
       const dbResult = await supabase
         .from("profiles")
         .update({ avatar_url: path })
         .eq("id", user.id);
-
       if (dbResult.error) throw dbResult.error;
 
       toast.success("Photo updated");
@@ -229,14 +195,9 @@ function ProfilePage() {
 
   async function resetPassword() {
     if (!user?.email) return;
-
     const result = await supabase.auth.resetPasswordForEmail(user.email);
-
-    if (result.error) {
-      toast.error(result.error.message);
-    } else {
-      toast.success("Password reset link sent to your email");
-    }
+    if (result.error) toast.error(result.error.message);
+    else toast.success("Password reset link sent to your email");
   }
 
   async function signOut() {
@@ -247,14 +208,12 @@ function ProfilePage() {
   async function openDownloadedVideo(item: DownloadEntry) {
     try {
       const blob = await getCachedMedia(item.lessonId);
-
       if (!blob || !blob.size) {
         toast.error("Video file is not available on this device.");
         return;
       }
 
       const url = URL.createObjectURL(blob);
-
       setPlayingTitle(item.title);
       setPlayingLessonId(item.lessonId);
       setPlayingUrl(url);
@@ -269,34 +228,55 @@ function ProfilePage() {
       removeDownload(item.key);
       setDownloads(listDownloads());
 
-      if (playingLessonId === item.lessonId) {
-        setPlayingUrl(null);
-        setPlayingTitle("");
-        setPlayingLessonId(null);
-      }
-
+      if (playingLessonId === item.lessonId) closeVideo();
       toast.success("Download deleted.");
     } catch {
       toast.error("Could not delete download.");
     }
   }
 
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      const player = playerRef.current;
+      if (!player) return;
+
+      await player.requestFullscreen();
+
+      try {
+        await (screen.orientation as any)?.lock?.("landscape");
+      } catch {
+        // Some Android browsers/PWA modes do not allow orientation lock.
+      }
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+      toast.error("Fullscreen is not supported by this device.");
+    }
+  }
+
   function closeVideo() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+    try {
+      void (screen.orientation as any)?.unlock?.();
+    } catch {
+      // Ignore unsupported orientation unlock.
+    }
+    setFullscreen(false);
     setPlayingUrl(null);
     setPlayingTitle("");
     setPlayingLessonId(null);
   }
 
-  const studentId = user?.id
-    ? user.id.slice(0, 8).toUpperCase()
-    : "—";
+  const studentId = user?.id ? user.id.slice(0, 8).toUpperCase() : "—";
 
   if (profile.isLoading) {
-    return (
-      <StudentShell title="My profile">
-        <LoadingState />
-      </StudentShell>
-    );
+    return <StudentShell title="My profile"><LoadingState /></StudentShell>;
   }
 
   return (
@@ -306,16 +286,11 @@ function ProfilePage() {
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary/10">
               {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="Profile"
-                  className="h-full w-full object-cover"
-                />
+                <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
               ) : (
                 <User className="h-9 w-9 text-primary" />
               )}
             </div>
-
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -325,33 +300,16 @@ function ProfilePage() {
             >
               <Camera className="h-3.5 w-3.5" />
             </button>
-
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-lg font-semibold">
-              {profile.data?.full_name || "Student"}
-            </p>
-            <p className="truncate text-sm text-muted-foreground">
-              {user?.email}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Student ID: {studentId}
-            </p>
+            <p className="text-lg font-semibold">{profile.data?.full_name || "Student"}</p>
+            <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
+            <p className="text-xs text-muted-foreground">Student ID: {studentId}</p>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditing(!editing)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setEditing(!editing)}>
             {editing ? "Cancel" : "Edit profile"}
           </Button>
         </div>
@@ -368,59 +326,32 @@ function ProfilePage() {
               <Label>Gmail / Email</Label>
               <Input value={user?.email ?? ""} disabled />
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="pn">Full name</Label>
-              <Input
-                id="pn"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
+              <Input id="pn" value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="pp">Mobile number</Label>
-              <Input
-                id="pp"
-                inputMode="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
+              <Input id="pp" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
-
-            <Button type="submit" disabled={save.isPending}>
-              Save changes
-            </Button>
+            <Button type="submit" disabled={save.isPending}>Save changes</Button>
           </form>
         )}
 
         <section className="surface-card p-5">
           <h2 className="mb-3 flex items-center gap-2 font-semibold">
-            <BookOpen className="h-4 w-4 text-primary" />
-            My courses
+            <BookOpen className="h-4 w-4 text-primary" /> My courses
           </h2>
-
           {myCourses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No purchased batches yet.
-            </p>
+            <p className="text-sm text-muted-foreground">No purchased batches yet.</p>
           ) : (
             <ul className="divide-y">
               {myCourses.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex items-center justify-between py-2"
-                >
-                  <Link
-                    to="/courses/$courseId"
-                    params={{ courseId: p.course_id! }}
-                    className="text-sm font-medium hover:underline"
-                  >
+                <li key={p.id} className="flex items-center justify-between py-2">
+                  <Link to="/courses/$courseId" params={{ courseId: p.course_id! }} className="text-sm font-medium hover:underline">
                     {p.courses?.title ?? "Course"}
                   </Link>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDateTime(p.created_at)}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{formatDateTime(p.created_at)}</span>
                 </li>
               ))}
             </ul>
@@ -429,40 +360,20 @@ function ProfilePage() {
 
         <section className="surface-card p-5">
           <h2 className="mb-3 flex items-center gap-2 font-semibold">
-            <Wallet className="h-4 w-4 text-primary" />
-            My payments
+            <Wallet className="h-4 w-4 text-primary" /> My payments
           </h2>
-
           {!payments.data?.length ? (
-            <p className="text-sm text-muted-foreground">
-              No payments yet.
-            </p>
+            <p className="text-sm text-muted-foreground">No payments yet.</p>
           ) : (
             <ul className="divide-y">
               {payments.data.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex flex-wrap items-center gap-2 py-2 text-sm"
-                >
-                  <span className="min-w-0 flex-1 truncate">
-                    {p.courses?.title ?? "Course"}
-                  </span>
-                  <span className="font-semibold">
-                    ₹{Number(p.amount).toFixed(0)}
-                  </span>
-                  <span
-                    className={
-                      "rounded-full px-2 py-0.5 text-xs font-medium capitalize " +
-                      (statusClass[p.status] ?? "bg-muted")
-                    }
-                  >
+                <li key={p.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{p.courses?.title ?? "Course"}</span>
+                  <span className="font-semibold">₹{Number(p.amount).toFixed(0)}</span>
+                  <span className={"rounded-full px-2 py-0.5 text-xs font-medium capitalize " + (statusClass[p.status] ?? "bg-muted")}>
                     {p.status}
                   </span>
-                  {p.provider_ref && (
-                    <span className="w-full text-[10px] text-muted-foreground">
-                      Txn: {p.provider_ref}
-                    </span>
-                  )}
+                  {p.provider_ref && <span className="w-full text-[10px] text-muted-foreground">Txn: {p.provider_ref}</span>}
                 </li>
               ))}
             </ul>
@@ -471,50 +382,27 @@ function ProfilePage() {
 
         <section className="surface-card p-5">
           <h2 className="mb-3 flex items-center gap-2 font-semibold">
-            <Download className="h-4 w-4 text-primary" />
-            My downloads
+            <Download className="h-4 w-4 text-primary" /> My downloads
           </h2>
-
           {downloads.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No downloads yet on this device.
-            </p>
+            <p className="text-sm text-muted-foreground">No downloads yet on this device.</p>
           ) : (
             <ul className="divide-y">
               {downloads.map((item) => (
-                <li
-                  key={item.lessonId}
-                  className="flex min-w-0 items-center gap-2 py-3"
-                >
+                <li key={item.lessonId} className="flex min-w-0 items-center gap-2 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {item.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDateTime(item.at)}
-                    </p>
+                    <p className="truncate text-sm font-medium">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">{formatDateTime(item.at)}</p>
                     {item.size > 0 && (
                       <p className="text-xs text-muted-foreground">
                         {(item.size / (1024 * 1024)).toFixed(1)} MB
                       </p>
                     )}
                   </div>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void openDownloadedVideo(item)}
-                  >
-                    <Play className="mr-1 h-4 w-4" />
-                    Play
+                  <Button size="sm" variant="outline" onClick={() => void openDownloadedVideo(item)}>
+                    <Play className="mr-1 h-4 w-4" /> Play
                   </Button>
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Delete download"
-                    onClick={() => void deleteDownload(item)}
-                  >
+                  <Button size="icon" variant="ghost" aria-label="Delete download" onClick={() => void deleteDownload(item)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </li>
@@ -524,107 +412,74 @@ function ProfilePage() {
         </section>
 
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Link
-            to="/notes"
-            className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium"
-          >
-            <FileText className="h-5 w-5 text-primary" />
-            My PDFs and Notes
+          <Link to="/notes" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
+            <FileText className="h-5 w-5 text-primary" /> My PDFs and Notes
           </Link>
-
-          <Link
-            to="/tests"
-            className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium"
-          >
-            <FileQuestion className="h-5 w-5 text-primary" />
-            My tests
+          <Link to="/tests" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
+            <FileQuestion className="h-5 w-5 text-primary" /> My tests
           </Link>
-
-          <Link
-            to="/live"
-            className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium"
-          >
-            <Radio className="h-5 w-5 text-primary" />
-            Live classes
+          <Link to="/live" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
+            <Radio className="h-5 w-5 text-primary" /> Live classes
           </Link>
-
-          <Link
-            to="/notifications"
-            className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium"
-          >
-            <Bell className="h-5 w-5 text-primary" />
-            Notifications
+          <Link to="/notifications" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
+            <Bell className="h-5 w-5 text-primary" /> Notifications
           </Link>
-
-          <Link
-            to="/help"
-            className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium"
-          >
-            <Phone className="h-5 w-5 text-primary" />
-            Help and support
+          <Link to="/help" className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
+            <Phone className="h-5 w-5 text-primary" /> Help and support
           </Link>
-
-          <button
-            type="button"
-            onClick={resetPassword}
-            className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium"
-          >
-            <KeyRound className="h-5 w-5 text-primary" />
-            Reset password
+          <button type="button" onClick={resetPassword} className="surface-card flex flex-col items-center gap-2 p-4 text-center text-sm font-medium">
+            <KeyRound className="h-5 w-5 text-primary" /> Reset password
           </button>
         </section>
 
         <section className="surface-card p-5">
           <h2 className="mb-3 flex items-center gap-2 font-semibold">
-            <Settings className="h-4 w-4 text-primary" />
-            Account
+            <Settings className="h-4 w-4 text-primary" /> Account
           </h2>
-
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetPassword}
-            >
-              <KeyRound className="mr-1.5 h-4 w-4" />
-              Change password
+            <Button variant="outline" size="sm" onClick={resetPassword}>
+              <KeyRound className="mr-1.5 h-4 w-4" /> Change password
             </Button>
-
             <Button variant="outline" size="sm" asChild>
-              <Link to="/help">
-                <Shield className="mr-1.5 h-4 w-4" />
-                Privacy and terms
-              </Link>
+              <Link to="/help"><Shield className="mr-1.5 h-4 w-4" /> Privacy and terms</Link>
             </Button>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={signOut}
-            >
-              <LogOut className="mr-1.5 h-4 w-4" />
-              Logout
+            <Button variant="destructive" size="sm" onClick={signOut}>
+              <LogOut className="mr-1.5 h-4 w-4" /> Logout
             </Button>
           </div>
         </section>
       </div>
 
       {playingUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-          <div className="w-full max-w-3xl space-y-3">
-            <div className="flex items-center justify-between gap-3 text-white">
-              <p className="min-w-0 truncate font-semibold">
-                {playingTitle}
-              </p>
-
-              <button
-                type="button"
-                onClick={closeVideo}
-                aria-label="Close video"
-                className="rounded-full p-2 hover:bg-white/10"
-              >
-                <X className="h-6 w-6" />
-              </button>
+        <div
+          ref={playerRef}
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black ${
+            fullscreen ? "h-[100dvh] w-[100dvw] p-0" : "p-3 sm:p-4"
+          }`}
+        >
+          <div className={`relative flex flex-col bg-black ${
+            fullscreen ? "h-full w-full" : "w-full max-w-3xl overflow-hidden rounded-xl"
+          }`}>
+            <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between gap-3 bg-gradient-to-b from-black/80 to-transparent px-3 py-3 text-white">
+              <p className="min-w-0 truncate font-semibold">{playingTitle}</p>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void toggleFullscreen()}
+                  aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                  className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25"
+                >
+                  {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeVideo}
+                  aria-label="Close video"
+                  className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             <video
@@ -632,11 +487,14 @@ function ProfilePage() {
               src={playingUrl}
               controls
               playsInline
-              className="max-h-[75vh] w-full rounded-xl bg-black"
+              preload="metadata"
+              className={`w-full bg-black object-contain ${
+                fullscreen ? "h-full" : "max-h-[75vh]"
+              }`}
             />
           </div>
         </div>
       )}
     </StudentShell>
   );
-}
+                                                              }

@@ -63,6 +63,18 @@ export async function downloadAndCache(url: string, filename: string): Promise<v
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
+export async function deleteCachedMedia(key: string): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("Cache delete failed"));
+    tx.onabort = () => reject(tx.error ?? new Error("Cache delete failed"));
+  });
+  db.close();
+}
+
 export function mediaExt(url: string): string {
   return url.split("?")[0]?.match(/\.(mp4|webm|mov|mkv|m4v)$/i)?.[1] ?? "mp4";
 }

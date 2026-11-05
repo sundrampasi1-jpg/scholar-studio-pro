@@ -490,7 +490,7 @@ export function SupportChat({
     >
       {/* Message list */}
       <div
-        className={`min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 ${
+        className={`min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 ${
           fullHeight ? "" : "h-80"
         }`}
       >
@@ -542,7 +542,7 @@ export function SupportChat({
               }`}
             >
               <div
-                className={`relative flex w-fit min-w-0 max-w-[78%] flex-col ${
+                className={`relative flex w-fit min-w-0 max-w-[75%] flex-col ${
                   mine ? "ml-auto" : "mr-auto"
                 }`}
               >
@@ -611,7 +611,7 @@ export function SupportChat({
                   ) : isAudio ? (
                     <VoiceNoteBubble src={m.body} mine={mine} />
                   ) : (
-                    <p className="min-w-0 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.body}</p>
+                    <p className="min-w-0 max-w-full whitespace-pre-wrap break-all">{m.body}</p>
                   )}
                 </div>
 

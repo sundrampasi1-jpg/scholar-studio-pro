@@ -860,20 +860,13 @@ function LessonPage() {
 
   return (
     <StudentShell>
-      <div className="mx-auto max-w-3xl space-y-4">
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          {courseId && (
-            <Link to="/courses/$courseId" params={{ courseId }} className="hover:underline">
-              {l.chapters?.subjects?.courses?.title ?? "Course"}
-            </Link>
-          )}
-          <span>/</span>
-          <span>{l.chapters?.subjects?.name}</span>
-          <span>/</span>
-          <span>{l.chapters?.name}</span>
-        </div>
-
+      <div className="mx-auto max-w-5xl space-y-4">
         {playerElement}
+
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gold/20 bg-card/80 px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
+          {courseId && <Link to="/courses/$courseId" params={{ courseId }} className="text-gold-deep hover:underline">{l.chapters?.subjects?.courses?.title ?? "Course"}</Link>}
+          <span>/</span><span>{l.chapters?.subjects?.name}</span><span>/</span><span>{l.chapters?.name}</span>
+        </div>
 
         {!l.video_url && (
           <div className="rounded-2xl border border-gold/30 bg-cream p-5 text-sm text-muted-foreground">
@@ -882,7 +875,7 @@ function LessonPage() {
         )}
 
         {/* Title card */}
-        <div className="rounded-2xl border border-gold/30 bg-cream p-4 shadow-sm">
+        <div className="rounded-2xl border border-gold/30 bg-gradient-to-br from-[#FFF9EF] to-[#F4E6D1] p-4 shadow-[0_8px_24px_rgba(112,73,27,0.10)]">
           <div className="flex items-start gap-3">
             <span className="mt-1 h-10 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-gold to-gold-deep" />
             <div className="min-w-0 flex-1">
@@ -913,7 +906,7 @@ function LessonPage() {
         <div className="grid grid-cols-4 gap-2.5">
           <a
             href="#lesson-discussion"
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-gold/30 bg-cream px-2 py-4 text-center shadow-sm hover:bg-gold/10"
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-gold/30 bg-gradient-to-b from-[#FFFCF6] to-[#F5E9D7] px-2 py-4 text-center shadow-[0_5px_16px_rgba(112,73,27,0.10)] transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
             <MessageCircle className="h-6 w-6 text-gold-deep" />
             <span className="text-[11px] font-extrabold uppercase tracking-wide text-gold-deep">Comments</span>

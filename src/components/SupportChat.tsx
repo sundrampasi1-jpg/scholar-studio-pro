@@ -542,7 +542,7 @@ export function SupportChat({
               }`}
             >
               <div
-                className={`relative flex w-fit min-w-0 max-w-[min(82%,100%)] flex-col ${
+                className={`relative flex w-fit min-w-0 max-w-[78%] flex-col ${
                   mine ? "ml-auto" : "mr-auto"
                 }`}
               >
@@ -560,7 +560,7 @@ export function SupportChat({
                   onMouseDown={() => pressStart(canManage, m.id)}
                   onMouseUp={pressEnd}
                   onMouseLeave={pressEnd}
-                  className={`w-fit max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm text-[#202A35] ${
+                  className={`w-fit min-w-0 max-w-full rounded-xl px-2.5 py-1 text-sm leading-relaxed shadow-sm text-[#202A35] ${
                     mine ? "bg-[#E3F1FF]" : "bg-[#F0F7FF]"
                   } ${isImage ? "p-1.5" : ""} ${
                     isDeleting ? "opacity-50" : ""
@@ -611,7 +611,7 @@ export function SupportChat({
                   ) : isAudio ? (
                     <VoiceNoteBubble src={m.body} mine={mine} />
                   ) : (
-                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                    <p className="min-w-0 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.body}</p>
                   )}
                 </div>
 

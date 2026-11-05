@@ -484,13 +484,13 @@ export function SupportChat({
 
   return (
     <div
-      className={`flex min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#EADCCB] bg-[#FFFCF7] ${
+      className={`flex w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#EADCCB] bg-[#FFFCF7] ${
         fullHeight ? "h-full flex-1" : ""
       }`}
     >
       {/* Message list */}
       <div
-        className={`min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 ${
+        className={`w-full min-w-0 max-w-full min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 ${
           fullHeight ? "" : "h-80"
         }`}
       >
@@ -537,12 +537,12 @@ export function SupportChat({
           return (
             <div
               key={m.id}
-              className={`flex min-w-0 flex-col ${
+              className={`flex w-full min-w-0 flex-col ${
                 mine ? "items-end" : "items-start"
               }`}
             >
               <div
-                className={`relative flex w-fit min-w-0 max-w-[75%] flex-col ${
+                className={`relative flex w-fit min-w-0 max-w-[75%] flex-col overflow-hidden ${
                   mine ? "ml-auto" : "mr-auto"
                 }`}
               >
@@ -611,7 +611,7 @@ export function SupportChat({
                   ) : isAudio ? (
                     <VoiceNoteBubble src={m.body} mine={mine} />
                   ) : (
-                    <p className="min-w-0 max-w-full whitespace-pre-wrap break-all">{m.body}</p>
+                    <p className="min-w-0 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.body}</p>
                   )}
                 </div>
 

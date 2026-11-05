@@ -189,9 +189,40 @@ function HelpPage() {
       title="Contact & help"
       subtitle="We're here to help with courses, payments and studies."
     >
+      {/* Chat preview */}
+      {user && (
+        <div className="mb-5">
+          <h2 className="mb-3 text-lg font-semibold">Chat with JK Academy</h2>
+
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="group flex w-full items-center gap-3 rounded-2xl border border-[#DCC49F] bg-gradient-to-r from-[#FFF9EF] via-white to-[#F5E8D4] p-4 text-left shadow-[0_10px_28px_rgba(126,83,31,0.13)] transition-all hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F9E8D8]">
+              <Headset size={25} className="text-[#A96720]" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-extrabold tracking-tight text-[#3C2918]">JK Academy Support</p>
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tap to chat with JK Academy support
+              </p>
+            </div>
+
+            <span className="shrink-0 rounded-full bg-[#9B5C16] px-3 py-2 text-xs font-bold text-white shadow-sm">
+              Open Chat
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Contact cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="surface-card p-5">
+        <div className="rounded-2xl border border-[#E8D8C3] bg-gradient-to-br from-white to-[#FFF4E6] p-5 shadow-[0_8px_22px_rgba(112,73,27,0.09)]">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F9E8D8]">
             <Phone className="h-5 w-5 text-[#A96720]" />
           </div>
@@ -232,37 +263,6 @@ function HelpPage() {
           </Button>
         </div>
       </div>
-
-      {/* Chat preview */}
-      {user && (
-        <div className="mt-6">
-          <h2 className="mb-3 text-lg font-semibold">Chat with JK Academy</h2>
-
-          <button
-            type="button"
-            onClick={() => setChatOpen(true)}
-            className="surface-card flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-accent"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F9E8D8]">
-              <Headset size={25} className="text-[#A96720]" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold">JK Academy Support</p>
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Tap to chat with JK Academy support
-              </p>
-            </div>
-
-            <span className="shrink-0 text-sm font-semibold text-[#A96720]">
-              Open Chat
-            </span>
-          </button>
-        </div>
-      )}
 
       {/* Full-screen support chat */}
       {user && chatOpen &&

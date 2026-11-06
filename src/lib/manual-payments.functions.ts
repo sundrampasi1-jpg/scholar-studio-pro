@@ -108,7 +108,12 @@ export const approveManualPayment = createServerFn({ method: "POST" })
     const enrollmentWrite = existing
       ? await supabaseAdmin.from("enrollments").update(access).eq("id", existing.id)
       : await supabaseAdmin.from("enrollments").insert(access);
-    if (enrollmentWrite.error) throw enrollmentWrite.error;
+    if (enrollmentWrite.error) {
+      // Roll back approval status so the admin can retry after the access-write issue is fixed.
+      await supabaseAdmin.from("payments").update({ status: "pending", paid_at: null })
+        .eq("id", pay.id).eq("status", "paid");
+      throw enrollmentWrite.error;
+    }
     const { data: course } = await supabaseAdmin
       .from("courses")
       .select("title")

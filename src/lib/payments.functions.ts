@@ -26,6 +26,9 @@ export const createCourseOrder = createServerFn({ method: "POST" })
       .from("batches").select("id, validity_days")
       .eq("course_id", course.id).eq("is_active", true)
       .order("created_at", { ascending: true }).limit(1).maybeSingle();
+    const { data: previousPayment } = await supabaseAdmin.from("payments")
+      .select("id").eq("user_id", context.userId).eq("course_id", course.id)
+      .eq("status", "paid").order("created_at", { ascending: false }).limit(1).maybeSingle();
     const amountPaise = Math.round(Number(course.price) * 100);
     const res = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
@@ -51,6 +54,7 @@ export const createCourseOrder = createServerFn({ method: "POST" })
       provider: "razorpay",
       provider_ref: order.id,
       batch_id: batch?.id ?? null,
+      renewal_of: previousPayment?.id ?? null,
     });
     if (error) throw new Error(error.message);
     return {

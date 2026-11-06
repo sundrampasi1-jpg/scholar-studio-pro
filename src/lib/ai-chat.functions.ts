@@ -296,12 +296,10 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
     const reply = out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
     if (!reply) return { ok: false as const, error: "AI reply khaali aaya." };
 
-    const { createSupabaseAdminClientForUrl } = await import("@/integrations/supabase/client.server");
-    // Write to the same Supabase project that authenticated this request.
-    const projectUrl = process.env["SUPABASE_URL"];
-    if (!projectUrl) throw new Error("Missing SUPABASE_URL.");
-    const admin = createSupabaseAdminClientForUrl(projectUrl);
-    const { data: updated, error: updateError } = await admin
+    // Use the server-only admin client, which reads the configured Supabase URL
+    // and service-role key from the same environment as the authenticated app.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error: updateError } = await supabaseAdmin
       .from("lesson_reports")
       .update({ ai_reply: reply, ai_replied_at: new Date().toISOString() })
       .eq("id", reportId)

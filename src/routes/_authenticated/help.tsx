@@ -75,9 +75,9 @@ function HelpPage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chatLanguage, setChatLanguage] = useState(() => localStorage.getItem("jk-chat-language") || "Hindi / Hinglish");
-  const [chatTextSize, setChatTextSize] = useState(() => localStorage.getItem("jk-chat-text-size") || "medium");
+  const [chatTextSize, setChatTextSize] = useState<"small" | "medium" | "large">(() => { const value = localStorage.getItem("jk-chat-text-size"); return value === "small" || value === "large" ? value : "medium"; });
   const [chatNotifications, setChatNotifications] = useState(() => localStorage.getItem("jk-chat-notifications") !== "off");
-  const [chatAppearance, setChatAppearance] = useState(() => localStorage.getItem("jk-chat-appearance") || "light");
+  const [chatAppearance, setChatAppearance] = useState<"light" | "system">(() => localStorage.getItem("jk-chat-appearance") === "system" ? "system" : "light");
   const [clearingHistory, setClearingHistory] = useState(false);
   useEffect(() => { localStorage.setItem("jk-chat-language", chatLanguage); }, [chatLanguage]);
   useEffect(() => { localStorage.setItem("jk-chat-text-size", chatTextSize); }, [chatTextSize]);

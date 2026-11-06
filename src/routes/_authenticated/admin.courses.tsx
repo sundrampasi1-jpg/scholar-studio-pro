@@ -154,6 +154,37 @@ function CourseContent({ course }: { course: Course }) {
   const key = ["admin-course-tree", course.id];
   const [lesson, setLesson] = useState<Partial<Lesson> | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [batchName, setBatchName] = useState("");
+  const [validityDrafts, setValidityDrafts] = useState<Record<string, string>>({});
+  const batches = useQuery({
+    queryKey: ["admin-course-batches", course.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("batches")
+        .select("id, name, validity_days, is_active, start_date, end_date")
+        .eq("course_id", course.id).order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  async function addBatch() {
+    const name = batchName.trim();
+    if (!name) return;
+    if (await run(supabase.from("batches").insert({ course_id: course.id, name, validity_days: 365, is_active: true }))) {
+      setBatchName("");
+      qc.invalidateQueries({ queryKey: ["admin-course-batches", course.id] });
+    }
+  }
+  async function saveBatchValidity(id: string, currentDays: number) {
+    const parsed = Number(validityDrafts[id] ?? currentDays);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 3650) {
+      window.alert("Validity must be between 1 and 3650 days.");
+      return;
+    }
+    if (await run(supabase.from("batches").update({ validity_days: parsed }).eq("id", id), "Validity saved")) {
+      setValidityDrafts((old) => { const next = { ...old }; delete next[id]; return next; });
+      qc.invalidateQueries({ queryKey: ["admin-course-batches", course.id] });
+    }
+  }
 
   const tree = useQuery({
     queryKey: key,
@@ -215,7 +246,26 @@ function CourseContent({ course }: { course: Course }) {
   }
 
   return (
-    <div className="surface-card mt-6 p-4">
+    <div className="mt-6 space-y-4">
+      <section className="surface-card p-4">
+        <h2 className="font-semibold">Batch validity & access period</h2>
+        <p className="mt-1 text-xs text-muted-foreground">New verified purchases and renewals use the batch validity. Default is 365 days.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Input className="max-w-xs" placeholder="New batch name" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
+          <Button size="sm" onClick={() => void addBatch()} disabled={!batchName.trim()}><Plus className="mr-1 h-4 w-4" /> Add batch</Button>
+        </div>
+        {batches.isLoading ? <LoadingState /> : batches.data?.length ? (
+          <div className="mt-3 space-y-2">
+            {batches.data.map((batch) => <div key={batch.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
+              <span className="min-w-0 flex-1 text-sm font-medium">{batch.name} {batch.is_active ? "" : "(inactive)"}</span>
+              <Input className="w-24" type="number" min={1} max={3650} value={validityDrafts[batch.id] ?? String(batch.validity_days)} onChange={(e) => setValidityDrafts((old) => ({ ...old, [batch.id]: e.target.value }))} />
+              <span className="text-xs text-muted-foreground">days</span>
+              <Button size="sm" variant="outline" onClick={() => void saveBatchValidity(batch.id, batch.validity_days)}>Save</Button>
+            </div>)}
+          </div>
+        ) : <p className="mt-3 text-xs text-muted-foreground">No batches created for this course yet.</p>}
+      </section>
+      <div className="surface-card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Content of “{course.title}”</h2>
         <Button size="sm" onClick={addSubject}><Plus className="mr-1 h-4 w-4" /> Subject</Button>
@@ -293,6 +343,7 @@ function CourseContent({ course }: { course: Course }) {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

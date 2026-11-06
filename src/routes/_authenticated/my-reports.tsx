@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudentShell } from "@/components/StudentShell";
 import { LoadingState, ErrorState, EmptyState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useServerFn } from "@tanstack/react-start";
+import { replyLessonReportAi } from "@/lib/ai-chat.functions";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useState } from "react";
 import { FileText, Clock, MessageCircle, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/my-reports")({
@@ -12,6 +17,19 @@ export const Route = createFileRoute("/_authenticated/my-reports")({
 
 function MyReportsPage() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const askReportAi = useServerFn(replyLessonReportAi);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  async function retryAi(reportId: string) {
+    if (retryingId) return;
+    setRetryingId(reportId);
+    try {
+      const result = await askReportAi({ data: { reportId } });
+      if (!result.ok && "error" in result && result.error) toast.error(result.error);
+      else { toast.success("AI response checked"); await queryClient.invalidateQueries({ queryKey: ["my-lesson-reports", user?.id] }); }
+    } catch (error) { toast.error(error instanceof Error ? error.message : "AI reply could not be generated."); }
+    finally { setRetryingId(null); }
+  }
 
   const reports = useQuery({
     queryKey: ["my-lesson-reports", user?.id],
@@ -137,9 +155,10 @@ function MyReportsPage() {
                       )}
                     </>
                   ) : (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Your report has been received. The response will appear here when available.
-                    </p>
+                    <div className="mt-2 space-y-2">
+                      <p className="text-sm text-muted-foreground">Your report has been received. The response will appear here when available.</p>
+                      <Button size="sm" variant="outline" disabled={!!retryingId} onClick={() => void retryAi(report.id)}>{retryingId === report.id ? "Generating…" : "Try AI response again"}</Button>
+                    </div>
                   )}
                 </div>
 

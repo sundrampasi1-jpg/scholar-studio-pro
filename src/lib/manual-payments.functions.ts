@@ -26,12 +26,13 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
     if (!course || course.is_free || Number(course.price) <= 0)
       throw new Error("This course is not a paid course.");
     const { data: enrollment } = await supabaseAdmin
-      .from("enrollments")
-      .select("id")
-      .eq("user_id", context.userId)
-      .eq("course_id", course.id)
-      .maybeSingle();
-    if (enrollment) throw new Error("You already have access to this course.");
+      .from("enrollments").select("id, expires_at")
+      .eq("user_id", context.userId).eq("course_id", course.id).maybeSingle();
+    if (enrollment?.expires_at && new Date(enrollment.expires_at) > new Date())
+      throw new Error("You already have active access to this course."); 
+    const { data: batch } = await supabaseAdmin.from("batches")
+      .select("id").eq("course_id", course.id).eq("is_active", true)
+      .order("created_at", { ascending: true }).limit(1).maybeSingle();
     // Retire any earlier pending manual attempt for the same course so only one is awaiting review.
     await supabaseAdmin
       .from("payments")
@@ -49,6 +50,7 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
       provider: "upi_manual",
       provider_ref: `upi_${data.upiId}`,
       screenshot_url: data.screenshotUrl,
+      batch_id: batch?.id ?? null,
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };
@@ -72,21 +74,34 @@ export const approveManualPayment = createServerFn({ method: "POST" })
     const supabaseAdmin = await getAdminClientOrThrow(context.userId, context.supabase);
     const { data: pay } = await supabaseAdmin
       .from("payments")
-      .select("id, user_id, course_id, amount, status")
+      .select("id, user_id, course_id, amount, status, batch_id")
       .eq("id", data.paymentId)
       .maybeSingle();
     if (!pay) throw new Error("Payment not found.");
     if (pay.status !== "pending") throw new Error("This payment is not waiting for approval.");
     if (!pay.course_id || !pay.user_id) throw new Error("Payment is missing the course or student.");
-    await supabaseAdmin.from("payments").update({ status: "paid" }).eq("id", pay.id);
-    const { data: existing } = await supabaseAdmin
-      .from("enrollments")
-      .select("id")
-      .eq("user_id", pay.user_id)
-      .eq("course_id", pay.course_id)
-      .maybeSingle();
-    if (!existing)
-      await supabaseAdmin.from("enrollments").insert({ user_id: pay.user_id, course_id: pay.course_id });
+    const now = new Date();
+    const { data: batch } = pay.batch_id
+      ? await supabaseAdmin.from("batches").select("id, validity_days").eq("id", pay.batch_id).maybeSingle()
+      : { data: null };
+    const days = Math.max(1, Number(batch?.validity_days ?? 365));
+    const { data: existing } = await supabaseAdmin.from("enrollments")
+      .select("id, expires_at, renewal_count")
+      .eq("user_id", pay.user_id).eq("course_id", pay.course_id).maybeSingle();
+    const base = existing?.expires_at && new Date(existing.expires_at) > now ? new Date(existing.expires_at) : now;
+    const expiresAt = new Date(base.getTime() + days * 86400000).toISOString();
+    const { error: paymentError } = await supabaseAdmin.from("payments")
+      .update({ status: "paid", paid_at: now.toISOString() }).eq("id", pay.id).eq("status", "pending");
+    if (paymentError) throw paymentError;
+    const access = {
+      user_id: pay.user_id, course_id: pay.course_id, batch_id: pay.batch_id,
+      status: "active", purchased_at: now.toISOString(), expires_at: expiresAt,
+      renewal_count: (existing?.renewal_count ?? 0) + (existing ? 1 : 0),
+    };
+    const enrollmentWrite = existing
+      ? await supabaseAdmin.from("enrollments").update(access).eq("id", existing.id)
+      : await supabaseAdmin.from("enrollments").insert(access);
+    if (enrollmentWrite.error) throw enrollmentWrite.error;
     const { data: course } = await supabaseAdmin
       .from("courses")
       .select("title")

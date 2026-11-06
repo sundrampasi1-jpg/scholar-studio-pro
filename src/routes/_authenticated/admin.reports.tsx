@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { replyLessonReportAi } from "@/lib/ai-chat.functions";
 import { AdminShell } from "@/components/AdminShell";
 import { LoadingState, ErrorState, EmptyState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +17,19 @@ function AdminReportsPage() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const askReportAi = useServerFn(replyLessonReportAi);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  async function generateReportReply(reportId: string) {
+    if (generatingId) return;
+    setGeneratingId(reportId);
+    try {
+      const result = await askReportAi({ data: { reportId } });
+      if (!result.ok && "error" in result && result.error) toast.error(result.error);
+      else toast.success("AI response generated");
+      await queryClient.invalidateQueries({ queryKey: ["admin-lesson-reports"] });
+    } catch (error) { toast.error(error instanceof Error ? error.message : "AI reply could not be generated."); }
+    finally { setGeneratingId(null); }
+  }
   const [teacherDrafts, setTeacherDrafts] = useState<Record<string, string>>({});
   const [editCommentId, setEditCommentId] = useState<string | null>(null);
   const [editCommentDraft, setEditCommentDraft] = useState("");
@@ -153,7 +168,8 @@ function AdminReportsPage() {
               <section className="mt-4 min-w-0 rounded-lg border border-primary/20 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-bold"><FileText className="h-4 w-4" /> JK Academy AI Response</h3>
-                  {editingId !== report.id && <div className="flex gap-2">
+                  {editingId !== report.id && <div className="flex flex-wrap gap-2">
+                    {!report.ai_reply && <Button size="sm" variant="outline" disabled={!!generatingId} onClick={() => void generateReportReply(report.id)}>{generatingId === report.id ? "Generating…" : "Generate AI reply"}</Button>}
                     <Button size="sm" variant="outline" onClick={() => { setEditingId(report.id); setDraft(report.ai_reply || ""); }}><Pencil className="mr-1 h-3.5 w-3.5" /> Edit</Button>
                     {report.ai_reply && <Button size="sm" variant="destructive" disabled={clearReply.isPending} onClick={() => clearReply.mutate(report.id)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Delete</Button>}
                   </div>}

@@ -23,9 +23,9 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDoubtsRouteImport } from './routes/_authenticated/doubts'
 import { Route as AuthenticatedHelpRouteImport } from './routes/_authenticated/help'
 import { Route as AuthenticatedLiveRouteImport } from './routes/_authenticated/live'
+import { Route as AuthenticatedMyReportsRouteImport } from './routes/_authenticated/my-reports'
 import { Route as AuthenticatedNotesRouteImport } from './routes/_authenticated/notes'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
-import { Route as AuthenticatedMyReportsRouteImport } from './routes/_authenticated/my-reports'
 import { Route as AuthenticatedPaymentsRouteImport } from './routes/_authenticated/payments'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReelsRouteImport } from './routes/_authenticated/reels'
@@ -121,14 +121,14 @@ const AuthenticatedLiveRoute = AuthenticatedLiveRouteImport.update({
   path: '/live',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedNotesRoute = AuthenticatedNotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedMyReportsRoute = AuthenticatedMyReportsRouteImport.update({
   id: '/my-reports',
   path: '/my-reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNotesRoute = AuthenticatedNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedNotificationsRoute =
@@ -206,16 +206,17 @@ const AuthenticatedAdminPaymentsRoute =
     path: '/payments',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminReportsRoute = AuthenticatedAdminReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
 const AuthenticatedAdminReelsRoute = AuthenticatedAdminReelsRouteImport.update({
   id: '/reels',
   path: '/reels',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminReportsRoute =
+  AuthenticatedAdminReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminStudentsRoute =
   AuthenticatedAdminStudentsRouteImport.update({
     id: '/students',
@@ -271,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/doubts': typeof AuthenticatedDoubtsRoute
   '/help': typeof AuthenticatedHelpRoute
   '/live': typeof AuthenticatedLiveRoute
+  '/my-reports': typeof AuthenticatedMyReportsRoute
   '/notes': typeof AuthenticatedNotesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -286,6 +288,7 @@ export interface FileRoutesByFullPath {
   '/admin/notes': typeof AuthenticatedAdminNotesRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/reels': typeof AuthenticatedAdminReelsRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/students': typeof AuthenticatedAdminStudentsRoute
   '/admin/tests': typeof AuthenticatedAdminTestsRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
@@ -308,6 +311,7 @@ export interface FileRoutesByTo {
   '/doubts': typeof AuthenticatedDoubtsRoute
   '/help': typeof AuthenticatedHelpRoute
   '/live': typeof AuthenticatedLiveRoute
+  '/my-reports': typeof AuthenticatedMyReportsRoute
   '/notes': typeof AuthenticatedNotesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -323,6 +327,7 @@ export interface FileRoutesByTo {
   '/admin/notes': typeof AuthenticatedAdminNotesRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/reels': typeof AuthenticatedAdminReelsRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/students': typeof AuthenticatedAdminStudentsRoute
   '/admin/tests': typeof AuthenticatedAdminTestsRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
@@ -348,6 +353,7 @@ export interface FileRoutesById {
   '/_authenticated/doubts': typeof AuthenticatedDoubtsRoute
   '/_authenticated/help': typeof AuthenticatedHelpRoute
   '/_authenticated/live': typeof AuthenticatedLiveRoute
+  '/_authenticated/my-reports': typeof AuthenticatedMyReportsRoute
   '/_authenticated/notes': typeof AuthenticatedNotesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/payments': typeof AuthenticatedPaymentsRoute
@@ -363,6 +369,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/notes': typeof AuthenticatedAdminNotesRoute
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/reels': typeof AuthenticatedAdminReelsRoute
+  '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/students': typeof AuthenticatedAdminStudentsRoute
   '/_authenticated/admin/tests': typeof AuthenticatedAdminTestsRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
@@ -388,6 +395,7 @@ export interface FileRouteTypes {
     | '/doubts'
     | '/help'
     | '/live'
+    | '/my-reports'
     | '/notes'
     | '/notifications'
     | '/payments'
@@ -403,6 +411,7 @@ export interface FileRouteTypes {
     | '/admin/notes'
     | '/admin/payments'
     | '/admin/reels'
+    | '/admin/reports'
     | '/admin/students'
     | '/admin/tests'
     | '/courses/$courseId'
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/doubts'
     | '/help'
     | '/live'
+    | '/my-reports'
     | '/notes'
     | '/notifications'
     | '/payments'
@@ -440,6 +450,7 @@ export interface FileRouteTypes {
     | '/admin/notes'
     | '/admin/payments'
     | '/admin/reels'
+    | '/admin/reports'
     | '/admin/students'
     | '/admin/tests'
     | '/courses/$courseId'
@@ -464,6 +475,7 @@ export interface FileRouteTypes {
     | '/_authenticated/doubts'
     | '/_authenticated/help'
     | '/_authenticated/live'
+    | '/_authenticated/my-reports'
     | '/_authenticated/notes'
     | '/_authenticated/notifications'
     | '/_authenticated/payments'
@@ -479,6 +491,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/notes'
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/reels'
+    | '/_authenticated/admin/reports'
     | '/_authenticated/admin/students'
     | '/_authenticated/admin/tests'
     | '/_authenticated/courses/$courseId'
@@ -599,18 +612,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLiveRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/notes': {
-      id: '/_authenticated/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof AuthenticatedNotesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/my-reports': {
       id: '/_authenticated/my-reports'
       path: '/my-reports'
       fullPath: '/my-reports'
       preLoaderRoute: typeof AuthenticatedMyReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notes': {
+      id: '/_authenticated/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof AuthenticatedNotesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/notifications': {
@@ -711,18 +724,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/reports': {
-      id: '/_authenticated/admin/reports'
-      path: '/reports'
-      fullPath: '/admin/reports'
-      preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/reels': {
       id: '/_authenticated/admin/reels'
       path: '/reels'
       fullPath: '/admin/reels'
       preLoaderRoute: typeof AuthenticatedAdminReelsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/reports': {
+      id: '/_authenticated/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/students': {
@@ -818,9 +831,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDoubtsRoute: typeof AuthenticatedDoubtsRoute
   AuthenticatedHelpRoute: typeof AuthenticatedHelpRoute
   AuthenticatedLiveRoute: typeof AuthenticatedLiveRoute
+  AuthenticatedMyReportsRoute: typeof AuthenticatedMyReportsRoute
   AuthenticatedNotesRoute: typeof AuthenticatedNotesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
-  AuthenticatedMyReportsRoute: typeof AuthenticatedMyReportsRoute
   AuthenticatedPaymentsRoute: typeof AuthenticatedPaymentsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReelsRoute: typeof AuthenticatedReelsRoute
@@ -841,9 +854,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDoubtsRoute: AuthenticatedDoubtsRoute,
   AuthenticatedHelpRoute: AuthenticatedHelpRoute,
   AuthenticatedLiveRoute: AuthenticatedLiveRoute,
+  AuthenticatedMyReportsRoute: AuthenticatedMyReportsRoute,
   AuthenticatedNotesRoute: AuthenticatedNotesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
-  AuthenticatedMyReportsRoute: AuthenticatedMyReportsRoute,
   AuthenticatedPaymentsRoute: AuthenticatedPaymentsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReelsRoute: AuthenticatedReelsRoute,

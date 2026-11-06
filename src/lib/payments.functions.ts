@@ -112,9 +112,12 @@ export const verifyCoursePayment = createServerFn({ method: "POST" })
       .eq("user_id", context.userId).eq("course_id", pay.course_id).maybeSingle();
     const base = existing?.expires_at && new Date(existing.expires_at) > now ? new Date(existing.expires_at) : now;
     const expiresAt = new Date(base.getTime() + validityDays * 86400000).toISOString();
-    const { error: paymentUpdateError } = await supabaseAdmin.from("payments")
-      .update({ status: "paid", paid_at: now.toISOString() }).eq("id", pay.id).eq("status", "pending");
+    const { data: paymentUpdate, error: paymentUpdateError } = await supabaseAdmin.from("payments")
+      .update({ status: "paid", paid_at: now.toISOString() })
+      .eq("id", pay.id).eq("status", "pending").select("id").maybeSingle();
     if (paymentUpdateError) throw paymentUpdateError;
+    // A pending payment can be settled only once; duplicate callbacks must not extend access.
+    if (!paymentUpdate) return { ok: true as const, alreadyProcessed: true as const };
     const enrollmentPayload = {
       user_id: context.userId, course_id: pay.course_id, batch_id: pay.batch_id,
       status: "active", purchased_at: now.toISOString(), expires_at: expiresAt,

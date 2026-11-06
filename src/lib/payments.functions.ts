@@ -22,6 +22,10 @@ export const createCourseOrder = createServerFn({ method: "POST" })
       .eq("id", data.courseId)
       .maybeSingle();
     if (!course || course.is_free || Number(course.price) <= 0) throw new Error("This course is not a paid course.");
+    const { data: batch } = await supabaseAdmin
+      .from("batches").select("id, validity_days")
+      .eq("course_id", course.id).eq("is_active", true)
+      .order("created_at", { ascending: true }).limit(1).maybeSingle();
     const amountPaise = Math.round(Number(course.price) * 100);
     const res = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
@@ -46,6 +50,7 @@ export const createCourseOrder = createServerFn({ method: "POST" })
       status: "pending",
       provider: "razorpay",
       provider_ref: order.id,
+      batch_id: batch?.id ?? null,
     });
     if (error) throw new Error(error.message);
     return {
@@ -85,22 +90,36 @@ export const verifyCoursePayment = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
     if (!pay || !pay.course_id) throw new Error("Order not found.");
-    // Double-check with Razorpay that the payment was captured/authorized for this order.
+    if (pay.status === "paid") return { ok: true as const, alreadyProcessed: true as const };
+    // Access is granted only after Razorpay confirms a captured payment.
     const r = await fetch(`https://api.razorpay.com/v1/payments/${data.paymentId}`, {
       headers: { authorization: "Basic " + btoa(`${k.id}:${k.secret}`) },
     });
     const p = (await r.json()) as { order_id?: string; status?: string };
-    if (!r.ok || p.order_id !== data.orderId || !["captured", "authorized"].includes(p.status ?? ""))
-      throw new Error("Payment not completed.");
-    await supabaseAdmin.from("payments").update({ status: "paid" }).eq("id", pay.id);
-    const { data: existing } = await supabaseAdmin
-      .from("enrollments")
-      .select("id")
-      .eq("user_id", context.userId)
-      .eq("course_id", pay.course_id)
-      .maybeSingle();
-    if (!existing)
-      await supabaseAdmin.from("enrollments").insert({ user_id: context.userId, course_id: pay.course_id });
+    if (!r.ok || p.order_id !== data.orderId || p.status !== "captured")
+      throw new Error("Payment is not captured yet.");
+    const now = new Date();
+    const { data: batch } = pay.batch_id
+      ? await supabaseAdmin.from("batches").select("id, validity_days").eq("id", pay.batch_id).maybeSingle()
+      : { data: null };
+    const validityDays = Math.max(1, Number(batch?.validity_days ?? 365));
+    const { data: existing } = await supabaseAdmin.from("enrollments")
+      .select("id, expires_at, renewal_count")
+      .eq("user_id", context.userId).eq("course_id", pay.course_id).maybeSingle();
+    const base = existing?.expires_at && new Date(existing.expires_at) > now ? new Date(existing.expires_at) : now;
+    const expiresAt = new Date(base.getTime() + validityDays * 86400000).toISOString();
+    const { error: paymentUpdateError } = await supabaseAdmin.from("payments")
+      .update({ status: "paid", paid_at: now.toISOString() }).eq("id", pay.id).eq("status", "pending");
+    if (paymentUpdateError) throw paymentUpdateError;
+    const enrollmentPayload = {
+      user_id: context.userId, course_id: pay.course_id, batch_id: pay.batch_id,
+      status: "active", purchased_at: now.toISOString(), expires_at: expiresAt,
+      renewal_count: (existing?.renewal_count ?? 0) + (existing ? 1 : 0),
+    };
+    const enrollmentWrite = existing
+      ? await supabaseAdmin.from("enrollments").update(enrollmentPayload).eq("id", existing.id)
+      : await supabaseAdmin.from("enrollments").insert(enrollmentPayload);
+    if (enrollmentWrite.error) throw enrollmentWrite.error;
     await supabaseAdmin.from("notifications").insert({
       user_id: context.userId,
       title: "Payment successful",

@@ -126,7 +126,12 @@ export const verifyCoursePayment = createServerFn({ method: "POST" })
     const enrollmentWrite = existing
       ? await supabaseAdmin.from("enrollments").update(enrollmentPayload).eq("id", existing.id)
       : await supabaseAdmin.from("enrollments").insert(enrollmentPayload);
-    if (enrollmentWrite.error) throw enrollmentWrite.error;
+    if (enrollmentWrite.error) {
+      // Restore pending status so a verified payment can be safely retried if access-write fails.
+      await supabaseAdmin.from("payments").update({ status: "pending", paid_at: null })
+        .eq("id", pay.id).eq("status", "paid");
+      throw enrollmentWrite.error;
+    }
     await supabaseAdmin.from("notifications").insert({
       user_id: context.userId,
       title: "Payment successful",

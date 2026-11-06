@@ -133,6 +133,7 @@ export type Database = {
           is_active: boolean
           name: string
           start_date: string | null
+          validity_days: number
         }
         Insert: {
           course_id: string
@@ -142,6 +143,7 @@ export type Database = {
           is_active?: boolean
           name: string
           start_date?: string | null
+          validity_days?: number
         }
         Update: {
           course_id?: string
@@ -151,6 +153,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           start_date?: string | null
+          validity_days?: number
         }
         Relationships: [
           {
@@ -380,6 +383,9 @@ export type Database = {
           course_id: string
           created_at: string
           id: string
+          purchased_at: string | null
+          expires_at: string | null
+          renewal_count: number
           status: string
           user_id: string
         }
@@ -387,7 +393,10 @@ export type Database = {
           batch_id?: string | null
           course_id: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          purchased_at?: string | null
+          renewal_count?: number
           status?: string
           user_id: string
         }
@@ -395,7 +404,10 @@ export type Database = {
           batch_id?: string | null
           course_id?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          purchased_at?: string | null
+          renewal_count?: number
           status?: string
           user_id?: string
         }
@@ -863,6 +875,9 @@ export type Database = {
           created_at: string
           discount: number
           id: string
+          paid_at: string | null
+          batch_id: string | null
+          renewal_of: string | null
           provider: string
           provider_ref: string | null
           screenshot_url: string | null
@@ -876,6 +891,9 @@ export type Database = {
           created_at?: string
           discount?: number
           id?: string
+          paid_at?: string | null
+          batch_id?: string | null
+          renewal_of?: string | null
           provider?: string
           provider_ref?: string | null
           screenshot_url?: string | null
@@ -889,6 +907,9 @@ export type Database = {
           created_at?: string
           discount?: number
           id?: string
+          paid_at?: string | null
+          batch_id?: string | null
+          renewal_of?: string | null
           provider?: string
           provider_ref?: string | null
           screenshot_url?: string | null

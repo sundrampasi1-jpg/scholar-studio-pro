@@ -72,14 +72,13 @@ function fmtSize(bytes: number) {
 
 /* ---------------- Class discussion (comments + AI teacher reply) ---------------- */
 
-function LessonDiscussion({ lessonId }: { lessonId: string }) {
+function LessonDiscussion({ lessonId, onClose }: { lessonId: string; onClose: () => void }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const askAi = useServerFn(replyLessonCommentAi);
   const [text, setText] = useState("");
   const [posting, setPosting] = useState(false);
   const [teacherTyping, setTeacherTyping] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
 
   const profile = useQuery({
     queryKey: ["profile", user?.id],
@@ -141,81 +140,98 @@ function LessonDiscussion({ lessonId }: { lessonId: string }) {
   const repliesFor = (id: string) => all.filter((c) => c.parent_id === id);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-gold/20 px-4 py-3">
-        <p className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-foreground">
-          <MessageCircle className="h-4 w-4 text-gold-deep" />
-          Class discussion
-        </p>
-        <span className="flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-[10px] font-bold uppercase text-success">
-          <span className="h-1.5 w-1.5 rounded-full bg-success" />
-          Live
-        </span>
-      </div>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45" onClick={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Lesson comments"
+        className="flex max-h-[72dvh] min-h-[52dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[26px] border border-black/5 bg-white shadow-[0_-12px_45px_rgba(0,0,0,0.18)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 justify-center pt-2.5">
+          <span className="h-1.5 w-12 rounded-full bg-gray-300" />
+        </div>
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-3">
+          <div>
+            <h2 className="text-lg font-extrabold text-[#242424]">Comments</h2>
+            <p className="text-xs text-gray-500">{all.length} comments · Class discussion</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close comments" className="rounded-full p-2 text-gray-600 transition hover:bg-gray-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-      <div ref={listRef} className="max-h-80 space-y-3 overflow-y-auto px-4 py-3">
-        {comments.isLoading && <Loader2 className="mx-auto h-5 w-5 animate-spin text-gold-deep" />}
-        {!comments.isLoading && topLevel.length === 0 && (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            Be the first to ask or share — the teacher replies here.
-          </p>
-        )}
-        {topLevel.map((c) => (
-          <div key={c.id} className="space-y-1.5">
-            <div className="flex items-start gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/25 text-gold-deep">
-                <span className="text-xs font-bold">{(c.author_name || "S").slice(0, 1).toUpperCase()}</span>
-              </span>
-              <div className="min-w-0 flex-1 rounded-xl rounded-tl-sm bg-muted px-3 py-2">
-                <p className="text-xs font-bold text-foreground">{c.author_name}</p>
-                <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{c.body}</p>
-              </div>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4">
+          {comments.isLoading && <Loader2 className="mx-auto h-6 w-6 animate-spin text-gold-deep" />}
+          {!comments.isLoading && topLevel.length === 0 && (
+            <div className="py-10 text-center">
+              <MessageCircle className="mx-auto mb-2 h-8 w-8 text-gray-300" />
+              <p className="text-sm font-semibold text-gray-700">No comments yet</p>
+              <p className="mt-1 text-xs text-gray-500">Be the first to ask or share with your class.</p>
             </div>
-            {repliesFor(c.id).map((r) => (
-              <div key={r.id} className="ml-10 flex items-start gap-2.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold-deep text-primary-foreground">
-                  <GraduationCap className="h-4 w-4" />
+          )}
+          {topLevel.map((c) => (
+            <div key={c.id} className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5E8D1] text-sm font-extrabold text-[#96652B]">
+                  {(c.author_name || "S").slice(0, 1).toUpperCase()}
                 </span>
-                <div className="min-w-0 flex-1 rounded-xl rounded-tl-sm border border-gold/30 bg-gold/10 px-3 py-2">
-                  <p className="text-xs font-bold text-gold-deep">{r.author_name}</p>
-                  <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{r.body}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-extrabold text-[#242424]">{c.author_name}</p>
+                    <span className="text-[11px] text-gray-400">{new Date(c.created_at).toLocaleString()}</span>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[#303030] [overflow-wrap:anywhere]">{c.body}</p>
+                  <div className="mt-2 flex items-center gap-4 text-xs font-semibold text-gray-500">
+                    <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> Reply</span>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        ))}
-        {teacherTyping && (
-          <p className="flex items-center gap-2 pl-12 text-xs text-gold-deep">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Teacher is replying…
-          </p>
-        )}
-      </div>
+              {repliesFor(c.id).map((r) => (
+                <div key={r.id} className="ml-8 flex items-start gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold-deep text-primary-foreground">
+                    <GraduationCap className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1 rounded-2xl bg-[#F6F6F6] px-3.5 py-3">
+                    <p className="text-xs font-extrabold text-[#8B612F]">{r.author_name}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[#303030] [overflow-wrap:anywhere]">{r.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+          {teacherTyping && (
+            <p className="flex items-center gap-2 pl-12 text-xs font-medium text-gold-deep">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Teacher is replying…
+            </p>
+          )}
+        </div>
 
-      <div className="flex items-center gap-2 border-t border-gold/20 bg-card/60 px-3 py-3">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void post();
-            }
-          }}
-          maxLength={1000}
-          placeholder="अपना कॉमेंट लिखें…"
-          className="h-11 min-w-0 flex-1 rounded-full border border-gold/30 bg-cream px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-gold-deep"
-        />
-        <button
-          type="button"
-          aria-label="Post comment"
-          onClick={() => void post()}
-          disabled={posting || !text.trim()}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold-deep text-primary-foreground shadow-md disabled:opacity-50"
+        <form
+          className="shrink-0 border-t border-gray-100 bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3"
+          onSubmit={(e) => { e.preventDefault(); void post(); }}
         >
-          {posting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-        </button>
-      </div>
-    </section>
+          <div className="flex items-end gap-2 rounded-2xl border border-gray-200 bg-[#FAFAFA] p-2 shadow-inner">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={1000}
+              rows={2}
+              placeholder="Add a comment…"
+              className="max-h-28 min-h-12 min-w-0 flex-1 resize-y bg-transparent px-2 py-2 text-sm text-[#242424] outline-none placeholder:text-gray-400"
+            />
+            <button
+              type="submit"
+              aria-label="Post comment"
+              disabled={posting || !text.trim()}
+              className="mb-1 flex h-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#A96C20] to-[#C18A3C] px-4 text-sm font-bold text-white shadow-md transition hover:brightness-105 disabled:opacity-45"
+            >
+              {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 
@@ -426,6 +442,7 @@ function LessonPage() {
   const [quality, setQuality] = useState(0); // 0 = auto/source
   const [cachedUrl, setCachedUrl] = useState<string | null>(null);
   const [savedOffline, setSavedOffline] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [showPolls, setShowPolls] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
@@ -663,12 +680,12 @@ function LessonPage() {
   const playerElement = l.video_url ? (
     <div
       ref={playerRef}
-      className={`relative overflow-hidden rounded-2xl bg-black shadow-lg ${
+      className={`relative w-full overflow-hidden rounded-none bg-black shadow-lg ${
         fullscreen ? "flex h-full w-full items-center justify-center" : ""
       }`}
     >
       {embed ? (
-        <div className="aspect-video w-full overflow-hidden bg-black">
+        <div className="aspect-[16/10] w-full overflow-hidden bg-black">
           <iframe
             src={embed}
             title={l.title}
@@ -860,10 +877,10 @@ function LessonPage() {
 
   return (
     <StudentShell>
-      <div className="mx-auto max-w-5xl space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4 bg-white">
         {playerElement}
 
-        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gold/20 bg-card/80 px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
           {courseId && <Link to="/courses/$courseId" params={{ courseId }} className="text-gold-deep hover:underline">{l.chapters?.subjects?.courses?.title ?? "Course"}</Link>}
           <span>/</span><span>{l.chapters?.subjects?.name}</span><span>/</span><span>{l.chapters?.name}</span>
         </div>
@@ -875,7 +892,7 @@ function LessonPage() {
         )}
 
         {/* Title card */}
-        <div className="rounded-2xl border border-gold/30 bg-gradient-to-br from-[#FFF9EF] to-[#F4E6D1] p-4 shadow-[0_8px_24px_rgba(112,73,27,0.10)]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_6px_20px_rgba(0,0,0,0.06)]">
           <div className="flex items-start gap-3">
             <span className="mt-1 h-10 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-gold to-gold-deep" />
             <div className="min-w-0 flex-1">
@@ -902,55 +919,45 @@ function LessonPage() {
           </div>
         </div>
 
-        {/* Quick actions */}
+        {/* Premium quick actions */}
         <div className="grid grid-cols-4 gap-2.5">
-          <a
-            href="#lesson-discussion"
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-gold/30 bg-gradient-to-b from-[#FFFCF6] to-[#F5E9D7] px-2 py-4 text-center shadow-[0_5px_16px_rgba(112,73,27,0.10)] transition-all hover:-translate-y-0.5 hover:shadow-md"
+          <button
+            type="button"
+            onClick={() => setShowComments(true)}
+            className="flex flex-col items-center gap-2 rounded-2xl border border-[#E7D7BD] bg-white px-2 py-3.5 text-center shadow-[0_5px_16px_rgba(112,73,27,0.09)] transition active:scale-[0.98]"
           >
-            <MessageCircle className="h-6 w-6 text-gold-deep" />
-            <span className="text-[11px] font-extrabold uppercase tracking-wide text-gold-deep">Comments</span>
-          </a>
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#FFF8EA] to-[#EED8B4] text-[#98672E] shadow-inner"><MessageCircle className="h-5 w-5" /></span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#805A2D]">Comments</span>
+          </button>
           <button
             type="button"
             onClick={() => setShowPolls(true)}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-gold/30 bg-cream px-2 py-4 text-center shadow-sm hover:bg-gold/10"
+            className="flex flex-col items-center gap-2 rounded-2xl border border-[#E7D7BD] bg-white px-2 py-3.5 text-center shadow-[0_5px_16px_rgba(112,73,27,0.09)] transition active:scale-[0.98]"
           >
-            <BarChart3 className="h-6 w-6 text-gold-deep" />
-            <span className="text-[11px] font-extrabold uppercase tracking-wide text-gold-deep">Polls</span>
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#FFF8EA] to-[#EED8B4] text-[#98672E] shadow-inner"><BarChart3 className="h-5 w-5" /></span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#805A2D]">Polls</span>
           </button>
           <button
             type="button"
             onClick={() => void downloadVideo()}
             disabled={downloading}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-gold/30 bg-cream px-2 py-4 text-center shadow-sm hover:bg-gold/10 disabled:opacity-60"
+            className="flex flex-col items-center gap-2 rounded-2xl border border-[#E7D7BD] bg-white px-2 py-3.5 text-center shadow-[0_5px_16px_rgba(112,73,27,0.09)] transition active:scale-[0.98] disabled:opacity-60"
           >
-            {downloading ? (
-              <Loader2 className="h-6 w-6 animate-spin text-gold-deep" />
-            ) : (
-              <Download className="h-6 w-6 text-gold-deep" />
-            )}
-            <span className="text-[11px] font-extrabold uppercase tracking-wide text-gold-deep">
-              {savedOffline ? "Saved" : "Download"}
-            </span>
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#FFF8EA] to-[#EED8B4] text-[#98672E] shadow-inner">{downloading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#805A2D]">{savedOffline ? "Saved" : "Saved"}</span>
           </button>
           <button
             type="button"
             onClick={() => setShowReport(true)}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-gold/30 bg-cream px-2 py-4 text-center shadow-sm hover:bg-gold/10"
+            className="flex flex-col items-center gap-2 rounded-2xl border border-[#E7D7BD] bg-white px-2 py-3.5 text-center shadow-[0_5px_16px_rgba(112,73,27,0.09)] transition active:scale-[0.98]"
           >
-            <Flag className="h-6 w-6 text-gold-deep" />
-            <span className="text-[11px] font-extrabold uppercase tracking-wide text-gold-deep">Report</span>
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#FFF8EA] to-[#EED8B4] text-[#98672E] shadow-inner"><Flag className="h-5 w-5" /></span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#805A2D]">Report</span>
           </button>
         </div>
 
-        {/* Class discussion */}
-        <div id="lesson-discussion" className="scroll-mt-20">
-          <LessonDiscussion lessonId={lessonId} />
-        </div>
-
         {/* Lesson material */}
-        <section className="overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-sm">
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gold/20 px-4 py-3">
             <FileText className="h-4 w-4 text-gold-deep" />
             <p className="text-sm font-extrabold uppercase tracking-wide text-foreground">Lesson material</p>
@@ -1010,7 +1017,7 @@ function LessonPage() {
         </section>
 
         {l.description && (
-          <details className="rounded-2xl border border-gold/30 bg-cream p-4">
+          <details className="rounded-2xl border border-gray-200 bg-white p-4">
             <summary className="cursor-pointer text-sm font-bold">About this lesson</summary>
             <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{l.description}</p>
           </details>
@@ -1022,7 +1029,7 @@ function LessonPage() {
             type="button"
             disabled={!prev}
             onClick={() => prev && navigate({ to: "/lesson/$lessonId", params: { lessonId: prev } })}
-            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-gold/40 bg-cream text-sm font-extrabold uppercase tracking-wide text-gold-deep disabled:opacity-40"
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-gold/40 bg-white text-sm font-extrabold uppercase tracking-wide text-gold-deep disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" /> Previous
           </button>
@@ -1037,6 +1044,7 @@ function LessonPage() {
         </div>
       </div>
 
+      {showComments && <LessonDiscussion lessonId={lessonId} onClose={() => setShowComments(false)} />}
       {showPolls && <LessonPolls lessonId={lessonId} onClose={() => setShowPolls(false)} />}
       {showReport && <LessonReport lessonId={lessonId} onClose={() => setShowReport(false)} />}
     </StudentShell>

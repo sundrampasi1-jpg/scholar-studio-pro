@@ -266,7 +266,7 @@ export function StudentShell({
                     <User className="h-8 w-8" />
                   </div>
                   <div className="min-w-0">
-                    <SheetTitle className="truncate text-left text-lg">{user?.user_metadata?.full_name || user?.user_metadata?.name || "My Account"}</SheetTitle>
+                    <SheetTitle className="truncate text-left text-lg">{user?.user_metadata?.["full_name"] || user?.user_metadata?.["name"] || "My Account"}</SheetTitle>
                     <SheetDescription className="mt-1 break-all text-left">{user?.email || "JK Academy account"}</SheetDescription>
                   </div>
                 </div>

@@ -94,9 +94,12 @@ export const approveManualPayment = createServerFn({ method: "POST" })
       .eq("user_id", pay.user_id).eq("course_id", pay.course_id).maybeSingle();
     const base = existing?.expires_at && new Date(existing.expires_at) > now ? new Date(existing.expires_at) : now;
     const expiresAt = new Date(base.getTime() + days * 86400000).toISOString();
-    const { error: paymentError } = await supabaseAdmin.from("payments")
-      .update({ status: "paid", paid_at: now.toISOString() }).eq("id", pay.id).eq("status", "pending");
+    const { data: paymentUpdate, error: paymentError } = await supabaseAdmin.from("payments")
+      .update({ status: "paid", paid_at: now.toISOString() })
+      .eq("id", pay.id).eq("status", "pending").select("id").maybeSingle();
     if (paymentError) throw paymentError;
+    // Prevent concurrent admin approvals from granting duplicate renewal time.
+    if (!paymentUpdate) throw new Error("This payment was already processed.");
     const access = {
       user_id: pay.user_id, course_id: pay.course_id, batch_id: pay.batch_id,
       status: "active", purchased_at: now.toISOString(), expires_at: expiresAt,

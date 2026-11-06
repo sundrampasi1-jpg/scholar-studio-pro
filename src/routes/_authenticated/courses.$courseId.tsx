@@ -219,7 +219,7 @@ function CourseDetail() {
   }
 
   const c = course.data;
-  const isEnrolled = !!enrollment.data;
+  const isEnrolled = !!enrollment.data && (enrollment.data.expires_at == null || new Date(enrollment.data.expires_at) > new Date());
   const isFree = c.is_free || Number(c.price) === 0;
   const price = Number(c.price);
 
@@ -289,6 +289,7 @@ function CourseDetail() {
           {isEnrolled ? (
             <div className="surface-card p-4">
               <p className="text-sm font-medium">Your progress</p>
+              {enrollment.data?.expires_at && <p className="mt-1 text-xs text-muted-foreground">Access valid until {new Date(enrollment.data.expires_at).toLocaleDateString("en-IN")}</p>}
               <Progress value={progress.data?.percent ?? 0} className="mt-3" />
               <p className="mt-2 text-xs text-muted-foreground">
                 {progress.data?.completed ?? 0} of {progress.data?.total ?? 0} lessons completed

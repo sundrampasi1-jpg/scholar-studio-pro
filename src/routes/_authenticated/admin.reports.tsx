@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { FileText, Pencil, Trash2, Save, X, Clock } from "lucide-react";
+import { FileText, Pencil, Trash2, Save, X, Clock, MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({ component: AdminReportsPage });
 
@@ -15,6 +15,9 @@ function AdminReportsPage() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [teacherDrafts, setTeacherDrafts] = useState<Record<string, string>>({});
+  const [editCommentId, setEditCommentId] = useState<string | null>(null);
+  const [editCommentDraft, setEditCommentDraft] = useState("");
   const reports = useQuery({
     queryKey: ["admin-lesson-reports"],
     queryFn: async () => {
@@ -35,6 +38,47 @@ function AdminReportsPage() {
       return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? null }));
     },
   });
+
+  const comments = useQuery({
+    queryKey: ["admin-lesson-comments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("lesson_comments").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      const rows = data ?? [];
+      const ids = [...new Set(rows.map((row) => row.lesson_id))];
+      const { data: lessons } = ids.length ? await supabase.from("lessons").select("id,title").in("id", ids) : { data: [] };
+      const titles = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson.title]));
+      return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? "Lesson" }));
+    },
+  });
+  async function teacherReply(parent: { id: string; lesson_id: string }) {
+    const body = teacherDrafts[parent.id]?.trim();
+    const { data: auth } = await supabase.auth.getUser();
+    if (!body || !auth.user) return;
+    const { error } = await supabase.from("lesson_comments").insert({
+      lesson_id: parent.lesson_id, user_id: auth.user.id, parent_id: parent.id,
+      author_name: "Teacher", body, is_ai: false,
+    });
+    if (error) { toast.error(error.message); return; }
+    setTeacherDrafts((old) => ({ ...old, [parent.id]: "" }));
+    await queryClient.invalidateQueries({ queryKey: ["admin-lesson-comments"] });
+    toast.success("Teacher reply sent");
+  }
+  async function updateTeacherReply(id: string) {
+    const body = editCommentDraft.trim();
+    if (!body) return;
+    const { error } = await supabase.from("lesson_comments").update({ body }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    setEditCommentId(null); setEditCommentDraft("");
+    await queryClient.invalidateQueries({ queryKey: ["admin-lesson-comments"] });
+  }
+  async function removeTeacherReply(id: string) {
+    if (!window.confirm("Delete this Teacher reply?")) return;
+    const { error } = await supabase.from("lesson_comments").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    await queryClient.invalidateQueries({ queryKey: ["admin-lesson-comments"] });
+  }
+
   const saveReply = useMutation({
     mutationFn: async ({ id, reply }: { id: string; reply: string }) => {
       const value = reply.trim();
@@ -66,6 +110,26 @@ function AdminReportsPage() {
   return (
     <AdminShell title="Lesson Reports" subtitle="Review student reports and manage AI responses">
       <div className="min-w-0 space-y-4">
+        <section className="rounded-xl border bg-card p-4">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold"><MessageCircle className="h-4 w-4" />Lesson Comments & Teacher Replies</h2>
+          {comments.isLoading && <LoadingState />}
+          {comments.error && <ErrorState error={comments.error} onRetry={() => void comments.refetch()} />}
+          {!comments.isLoading && !comments.error && comments.data?.length === 0 && <EmptyState title="No lesson comments yet" />}
+          <div className="space-y-3">
+            {(comments.data ?? []).filter((item) => !item.parent_id).map((item) => <article key={item.id} className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">{item.lesson_title} · {item.author_name} · {dateText(item.created_at)}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm">{item.body}</p>
+              {(comments.data ?? []).filter((reply) => reply.parent_id === item.id).map((reply) => <div key={reply.id} className="mt-2 rounded-md bg-muted p-2">
+                <p className="text-xs font-semibold">{reply.is_ai ? "AI Teacher" : "Teacher"}</p>
+                {editCommentId === reply.id ? <div className="space-y-2"><Textarea value={editCommentDraft} onChange={(e) => setEditCommentDraft(e.target.value)} /><Button size="sm" onClick={() => void updateTeacherReply(reply.id)}>Save</Button></div> : <p className="whitespace-pre-wrap text-sm">{reply.body}</p>}
+                {!reply.is_ai && <div className="mt-2 flex gap-2"><Button size="sm" variant="outline" onClick={() => { setEditCommentId(reply.id); setEditCommentDraft(reply.body); }}>Edit</Button><Button size="sm" variant="destructive" onClick={() => void removeTeacherReply(reply.id)}>Delete</Button></div>}
+              </div>)}
+              <Textarea className="mt-3" rows={2} placeholder="Reply as Teacher…" value={teacherDrafts[item.id] ?? ""} onChange={(e) => setTeacherDrafts((old) => ({ ...old, [item.id]: e.target.value }))} />
+              <Button className="mt-2" size="sm" disabled={!teacherDrafts[item.id]?.trim()} onClick={() => void teacherReply(item)}>Send Teacher reply</Button>
+            </article>)}
+          </div>
+        </section>
+
         {reports.isLoading && <LoadingState />}
         {reports.error && <ErrorState error={reports.error} onRetry={() => void reports.refetch()} />}
         {!reports.isLoading && !reports.error && reports.data?.length === 0 && <EmptyState title="No lesson reports" description="Student lesson reports will appear here." />}

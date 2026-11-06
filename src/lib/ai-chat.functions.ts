@@ -256,14 +256,16 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
     const key = process.env["GEMINI_API_KEY"];
 
     if (!reportId) return { ok: false as const, error: "Report missing." };
-    if (!key) return { ok: false as const, error: "AI configured nahi hai." };
+    if (!key) return { ok: false as const, error: "AI configured nahi hai. Admin ko GEMINI_API_KEY configure karni hogi." };
 
-    const { data: report, error } = await supabase
+    const { data: staff, error: staffError } = await supabase.rpc("is_staff", { _user_id: userId });
+    if (staffError) throw staffError;
+    let reportQuery = supabase
       .from("lesson_reports")
       .select("id, lesson_id, user_id, reason, details, ai_reply")
-      .eq("id", reportId)
-      .eq("user_id", userId)
-      .maybeSingle();
+      .eq("id", reportId);
+    if (!staff) reportQuery = reportQuery.eq("user_id", userId);
+    const { data: report, error } = await reportQuery.maybeSingle();
 
     if (error) throw error;
     if (!report) return { ok: false as const, error: "Report not found." };
@@ -301,7 +303,7 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
       .from("lesson_reports")
       .update({ ai_reply: reply, ai_replied_at: new Date().toISOString() })
       .eq("id", reportId)
-      .eq("user_id", userId)
+      .eq("user_id", report.user_id)
       .select("id")
       .maybeSingle();
 

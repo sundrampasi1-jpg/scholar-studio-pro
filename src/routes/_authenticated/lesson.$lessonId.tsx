@@ -343,7 +343,7 @@ const REPORT_REASONS = [
 function LessonReport({ lessonId, onClose }: { lessonId: string; onClose: () => void }) {
   const { user } = useAuth();
   const askReportAi = useServerFn(replyLessonReportAi);
-  const [reason, setReason] = useState(REPORT_REASONS[0]);
+  const [reason, setReason] = useState<string>(REPORT_REASONS[0] ?? "Other");
   const [details, setDetails] = useState("");
   const [sending, setSending] = useState(false);
 

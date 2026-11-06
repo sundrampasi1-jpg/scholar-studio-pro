@@ -944,7 +944,7 @@ function LessonPage() {
             className="flex flex-col items-center gap-2 rounded-2xl border border-[#E7D7BD] bg-white px-2 py-3.5 text-center shadow-[0_5px_16px_rgba(112,73,27,0.09)] transition active:scale-[0.98] disabled:opacity-60"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#FFF8EA] to-[#EED8B4] text-[#98672E] shadow-inner">{downloading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}</span>
-            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#805A2D]">{savedOffline ? "Saved" : "Saved"}</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#805A2D]">{savedOffline ? "Saved" : "Download"}</span>
           </button>
           <button
             type="button"

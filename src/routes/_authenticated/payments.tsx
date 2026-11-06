@@ -30,13 +30,18 @@ function PaymentsPage() {
     queryKey: ["my-payments", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("id, amount, status, provider_ref, created_at, course_id, courses(title)")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
+      const [{ data, error }, { data: enrollments, error: enrollmentError }] = await Promise.all([
+        supabase.from("payments")
+          .select("id, amount, status, provider_ref, created_at, paid_at, course_id, batch_id, courses(title)")
+          .eq("user_id", user!.id).order("created_at", { ascending: false }),
+        supabase.from("enrollments")
+          .select("course_id, purchased_at, expires_at, renewal_count, status")
+          .eq("user_id", user!.id),
+      ]);
       if (error) throw error;
-      return data;
+      if (enrollmentError) throw enrollmentError;
+      const access = new Map((enrollments ?? []).map((item) => [item.course_id, item]));
+      return (data ?? []).map((payment) => ({ ...payment, access: payment.course_id ? access.get(payment.course_id) ?? null : null }));
     },
   });
 
@@ -64,10 +69,19 @@ function PaymentsPage() {
                   ) : (
                     <p className="font-medium">Course</p>
                   )}
-                  <p className="text-xs text-muted-foreground">{formatDateTime(p.created_at)}</p>
+                  <p className="text-xs text-muted-foreground">Paid: {p.paid_at ? formatDateTime(p.paid_at) : "—"} · Submitted: {formatDateTime(p.created_at)}</p>
+                  {p.access && <p className="mt-1 text-xs text-muted-foreground">
+                    Purchased: {p.access.purchased_at ? formatDateTime(p.access.purchased_at) : "—"} · Expires: {p.access.expires_at ? new Date(p.access.expires_at).toLocaleDateString("en-IN") : "No expiry"}
+                    {p.access.expires_at && new Date(p.access.expires_at) <= new Date() ? " · Expired" : ""}
+                  </p>}
                 </div>
               </div>
-              <span className="text-lg font-extrabold tracking-tight text-[#172B3A]">₹{Number(p.amount).toFixed(0)}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-extrabold tracking-tight text-[#172B3A]">₹{Number(p.amount).toFixed(0)}</span>
+                {p.status === "paid" && p.course_id && p.access?.expires_at && new Date(p.access.expires_at) <= new Date() && (
+                  <Link to="/courses/$courseId" params={{ courseId: p.course_id }} className="text-xs font-bold text-primary underline">Renew</Link>
+                )}
+              </div>
               <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ring-1 ring-inset ring-current/10 ${statusClass[p.status] ?? "bg-muted"}`}>
                 {p.status}
               </span>

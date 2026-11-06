@@ -33,6 +33,9 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
     const { data: batch } = await supabaseAdmin.from("batches")
       .select("id").eq("course_id", course.id).eq("is_active", true)
       .order("created_at", { ascending: true }).limit(1).maybeSingle();
+    const { data: previousPayment } = await supabaseAdmin.from("payments")
+      .select("id").eq("user_id", context.userId).eq("course_id", course.id)
+      .eq("status", "paid").order("created_at", { ascending: false }).limit(1).maybeSingle();
     // Retire any earlier pending manual attempt for the same course so only one is awaiting review.
     await supabaseAdmin
       .from("payments")
@@ -51,6 +54,7 @@ export const submitManualUpiPayment = createServerFn({ method: "POST" })
       provider_ref: `upi_${data.upiId}`,
       screenshot_url: data.screenshotUrl,
       batch_id: batch?.id ?? null,
+      renewal_of: previousPayment?.id ?? null,
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };

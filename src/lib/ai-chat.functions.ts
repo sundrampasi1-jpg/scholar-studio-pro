@@ -298,7 +298,9 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
 
     const { createSupabaseAdminClientForUrl } = await import("@/integrations/supabase/client.server");
     // Write to the same Supabase project that authenticated this request.
-    const admin = createSupabaseAdminClientForUrl(process.env["SUPABASE_URL"]);
+    const projectUrl = process.env["SUPABASE_URL"];
+    if (!projectUrl) throw new Error("Missing SUPABASE_URL.");
+    const admin = createSupabaseAdminClientForUrl(projectUrl);
     const { data: updated, error: updateError } = await admin
       .from("lesson_reports")
       .update({ ai_reply: reply, ai_replied_at: new Date().toISOString() })

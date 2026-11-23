@@ -8,6 +8,9 @@ ALTER TABLE public.lesson_reports
 ALTER TABLE public.batches
   ADD COLUMN IF NOT EXISTS validity_days integer NOT NULL DEFAULT 365;
 
+UPDATE public.batches
+SET validity_days = GREATEST(1, LEAST(3650, COALESCE(validity_days, 365)));
+
 ALTER TABLE public.batches
   DROP CONSTRAINT IF EXISTS batches_validity_days_check;
 ALTER TABLE public.batches
@@ -18,6 +21,9 @@ ALTER TABLE public.enrollments
   ADD COLUMN IF NOT EXISTS purchased_at timestamptz,
   ADD COLUMN IF NOT EXISTS expires_at timestamptz,
   ADD COLUMN IF NOT EXISTS renewal_count integer NOT NULL DEFAULT 0;
+
+UPDATE public.enrollments
+SET renewal_count = GREATEST(0, COALESCE(renewal_count, 0));
 
 ALTER TABLE public.enrollments
   DROP CONSTRAINT IF EXISTS enrollments_renewal_count_check;

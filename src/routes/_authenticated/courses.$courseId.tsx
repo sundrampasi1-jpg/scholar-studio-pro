@@ -98,14 +98,64 @@ function CourseDetail() {
     queryKey: ["course-structure", courseId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("subjects")
-        .select(
-          "id, name, position, chapters(id, name, position, lessons(id, title, position, is_published, video_url, pdf_url, duration_minutes))",
-        )
+        .from("course_outline")
+        .select("*")
         .eq("course_id", courseId)
-        .order("position");
+        .order("subject_position")
+        .order("chapter_position")
+        .order("lesson_position");
       if (error) throw error;
-      return data;
+
+      type OutlineSubject = {
+        id: string;
+        name: string;
+        position: number;
+        chapters: {
+          id: string;
+          name: string;
+          position: number;
+          lessons: {
+            id: string;
+            title: string;
+            position: number;
+            is_published: boolean;
+            has_video: boolean;
+            has_pdf: boolean;
+          }[];
+        }[];
+      };
+      const subjects = new Map<string, OutlineSubject>();
+      for (const row of data ?? []) {
+        let subject = subjects.get(row.subject_id);
+        if (!subject) {
+          subject = {
+            id: row.subject_id,
+            name: row.subject_name,
+            position: row.subject_position,
+            chapters: [],
+          };
+          subjects.set(subject.id, subject);
+        }
+        let chapter = subject.chapters.find((item) => item.id === row.chapter_id);
+        if (!chapter) {
+          chapter = {
+            id: row.chapter_id,
+            name: row.chapter_name,
+            position: row.chapter_position,
+            lessons: [],
+          };
+          subject.chapters.push(chapter);
+        }
+        chapter.lessons.push({
+          id: row.lesson_id,
+          title: row.lesson_title,
+          position: row.lesson_position,
+          is_published: row.is_published,
+          has_video: row.has_video,
+          has_pdf: row.has_pdf,
+        });
+      }
+      return Array.from(subjects.values());
     },
   });
 
@@ -264,8 +314,8 @@ function CourseDetail() {
                                           <Circle className="h-4 w-4 text-muted-foreground" />
                                         )}
                                         <span className="flex-1">{l.title}</span>
-                                        {l.video_url && <PlayCircle className="h-4 w-4 text-primary" />}
-                                        {l.pdf_url && <FileText className="h-4 w-4 text-muted-foreground" />}
+                                        {l.has_video && <PlayCircle className="h-4 w-4 text-primary" />}
+                                        {l.has_pdf && <FileText className="h-4 w-4 text-muted-foreground" />}
                                       </Link>
                                     ) : (
                                       <span className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">

@@ -552,7 +552,7 @@ function LessonPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lessons")
-        .select("*, chapters(id, name, subjects(id, name, course_id, courses(id, title)))")
+        .select("*, chapters(id, name, subjects(id, name, course_id, courses(id, title, is_free, price)))")
         .eq("id", lessonId)
         .maybeSingle();
       if (error) throw error;
@@ -561,6 +561,33 @@ function LessonPage() {
   });
 
   const courseId = lesson.data?.chapters?.subjects?.course_id ?? null;
+
+  // Check the current entitlement before rendering lesson media. Staff and free courses
+  // retain their existing access; paid courses require an active, unexpired enrollment.
+  const courseAccess = useQuery({
+    queryKey: ["lesson-course-access", courseId, user?.id],
+    enabled: !!user && !!courseId,
+    queryFn: async () => {
+      const { data: isStaff, error: staffError } = await supabase.rpc("is_staff", {
+        _user_id: user!.id,
+      });
+      if (staffError) throw staffError;
+      if (isStaff) return true;
+
+      const course = lesson.data?.chapters?.subjects?.courses;
+      if (course?.is_free || Number(course?.price ?? 0) === 0) return true;
+
+      const { data: access, error } = await supabase
+        .from("enrollments")
+        .select("status, expires_at")
+        .eq("user_id", user!.id)
+        .eq("course_id", courseId!)
+        .maybeSingle();
+      if (error) throw error;
+      return !!access && access.status === "active" &&
+        (access.expires_at == null || new Date(access.expires_at).getTime() > Date.now());
+    },
+  });
 
   const siblings = useQuery({
     queryKey: ["lesson-order", courseId],
@@ -665,6 +692,32 @@ function LessonPage() {
   }
   if (!lesson.data) {
     return <StudentShell><EmptyState title="Lesson not found" /></StudentShell>;
+  }
+  if (courseAccess.isLoading) {
+    return <StudentShell><LoadingState /></StudentShell>;
+  }
+  if (courseAccess.error) {
+    return <StudentShell><ErrorState error={courseAccess.error} onRetry={() => void courseAccess.refetch()} /></StudentShell>;
+  }
+  if (!user || !courseId) {
+    return (
+      <StudentShell>
+        <EmptyState
+          title="Course access could not be verified"
+          description="Please sign in again and reopen this lesson."
+        />
+      </StudentShell>
+    );
+  }
+  if (courseAccess.data === false) {
+    return (
+      <StudentShell>
+        <EmptyState
+          title="Course access expired"
+          description="Your access to this course has ended. Renew the course to continue learning."
+        />
+      </StudentShell>
+    );
   }
 
   const l = lesson.data;

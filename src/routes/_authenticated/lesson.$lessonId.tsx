@@ -699,6 +699,16 @@ function LessonPage() {
   if (courseAccess.error) {
     return <StudentShell><ErrorState error={courseAccess.error} onRetry={() => void courseAccess.refetch()} /></StudentShell>;
   }
+  if (!user || !courseId) {
+    return (
+      <StudentShell>
+        <EmptyState
+          title="Course access could not be verified"
+          description="Please sign in again and reopen this lesson."
+        />
+      </StudentShell>
+    );
+  }
   if (courseAccess.data === false) {
     return (
       <StudentShell>

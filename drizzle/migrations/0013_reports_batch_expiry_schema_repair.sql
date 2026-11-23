@@ -118,3 +118,42 @@ USING (
       )
   )
 );
+
+
+-- Scheduled course/batch sessions are visible only to entitled students.
+-- Institute-wide sessions (no course or batch target) remain visible to all students.
+DROP POLICY IF EXISTS "live read" ON public.live_classes;
+DROP POLICY IF EXISTS "live read entitled" ON public.live_classes;
+
+CREATE POLICY "live read entitled" ON public.live_classes
+FOR SELECT TO authenticated
+USING (
+  (
+    batch_id IS NULL
+    AND (
+      course_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM public.courses c
+        WHERE c.id = live_classes.course_id AND (c.is_free OR c.price = 0)
+      )
+      OR EXISTS (
+        SELECT 1 FROM public.enrollments e
+        WHERE e.user_id = auth.uid()
+          AND e.course_id = live_classes.course_id
+          AND e.status = 'active'
+          AND (e.expires_at IS NULL OR e.expires_at > now())
+      )
+    )
+  )
+  OR (
+    batch_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.enrollments e
+      WHERE e.user_id = auth.uid()
+        AND e.batch_id = live_classes.batch_id
+        AND e.status = 'active'
+        AND (e.expires_at IS NULL OR e.expires_at > now())
+        AND (live_classes.course_id IS NULL OR e.course_id = live_classes.course_id)
+    )
+  )
+);

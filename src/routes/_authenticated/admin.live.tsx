@@ -24,6 +24,7 @@ type Live = {
   title: string;
   description: string | null;
   course_id: string | null;
+  batch_id: string | null;
   teacher_name: string | null;
   scheduled_at: string;
   duration_minutes: number;
@@ -43,6 +44,20 @@ function AdminLive() {
     queryKey: ["admin-course-options"],
     queryFn: async () => (await supabase.from("courses").select("id, title").order("title")).data ?? [],
   });
+  const batches = useQuery({
+    queryKey: ["admin-live-batch-options", edit?.course_id],
+    enabled: !!edit?.course_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("batches")
+        .select("id, name")
+        .eq("course_id", edit!.course_id!)
+        .eq("is_active", true)
+        .order("created_at");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
   const lives = useQuery({
     queryKey: ["admin-live"],
     queryFn: async () => {
@@ -58,6 +73,7 @@ function AdminLive() {
       title: edit.title.trim(),
       description: edit.description || null,
       course_id: edit.course_id || null,
+      batch_id: edit.batch_id || null,
       teacher_name: edit.teacher_name || null,
       scheduled_at: new Date(edit.scheduled_at).toISOString(),
       duration_minutes: Number(edit.duration_minutes) || 60,
@@ -82,7 +98,7 @@ function AdminLive() {
       title="Live classes"
       subtitle="Scheduled classes appear on the students' Live page"
       actions={
-        <Button onClick={() => setEdit({ title: "", description: "", course_id: "", teacher_name: "", scheduled_at: toLocal(new Date(Date.now() + 3600000).toISOString()), duration_minutes: 60, join_url: "", recording_url: "" })}>
+        <Button onClick={() => setEdit({ title: "", description: "", course_id: "", teacher_name: "", scheduled_at: toLocal(new Date(Date.now() + 3600000).toISOString()), duration_minutes: 60, join_url: "", recording_url: "", batch_id: "" })}>
           <Plus className="mr-1.5 h-4 w-4" /> Schedule class
         </Button>
       }
@@ -113,9 +129,19 @@ function AdminLive() {
             <div className="space-y-3">
               <Field label="Title"><Input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></Field>
               <Field label="Course">
-                <NativeSelect value={edit.course_id ?? ""} onChange={(e) => setEdit({ ...edit, course_id: e.target.value })}>
+                <NativeSelect value={edit.course_id ?? ""} onChange={(e) => setEdit({ ...edit, course_id: e.target.value, batch_id: "" })}>
                   <option value="">All students</option>
                   {courses.data?.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </NativeSelect>
+              </Field>
+              <Field label="Batch">
+                <NativeSelect
+                  value={edit.batch_id ?? ""}
+                  disabled={!edit.course_id}
+                  onChange={(e) => setEdit({ ...edit, batch_id: e.target.value })}
+                >
+                  <option value="">All batches in this course</option>
+                  {batches.data?.map((batch) => <option key={batch.id} value={batch.id}>{batch.name}</option>)}
                 </NativeSelect>
               </Field>
               <Field label="Teacher"><Input value={edit.teacher_name ?? ""} onChange={(e) => setEdit({ ...edit, teacher_name: e.target.value })} /></Field>

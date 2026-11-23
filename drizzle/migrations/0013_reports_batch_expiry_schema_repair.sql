@@ -33,6 +33,7 @@ ALTER TABLE public.enrollments
 
 ALTER TABLE public.payments
   ADD COLUMN IF NOT EXISTS paid_at timestamptz,
+  ADD COLUMN IF NOT EXISTS batch_id uuid REFERENCES public.batches(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS renewal_of uuid REFERENCES public.payments(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS enrollments_user_course_expiry_idx
@@ -267,6 +268,24 @@ WITH CHECK (
     AND EXISTS (
       SELECT 1 FROM public.courses c
       WHERE c.id = enrollments.course_id AND (c.is_free OR c.price = 0)
+    )
+  )
+);
+
+
+-- Students may reply only to their own doubts; staff may reply to any doubt.
+DROP POLICY IF EXISTS "replies insert" ON public.doubt_replies;
+CREATE POLICY "replies insert own doubt or staff" ON public.doubt_replies
+FOR INSERT TO authenticated
+WITH CHECK (
+  user_id = auth.uid()
+  AND (
+    public.is_staff(auth.uid())
+    OR EXISTS (
+      SELECT 1
+      FROM public.doubts d
+      WHERE d.id = doubt_replies.doubt_id
+        AND d.user_id = auth.uid()
     )
   )
 );

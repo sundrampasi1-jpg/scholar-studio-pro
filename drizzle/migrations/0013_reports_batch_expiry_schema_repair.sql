@@ -67,7 +67,9 @@ SELECT
   l.id AS lesson_id,
   l.title AS lesson_title,
   l.position AS lesson_position,
-  l.is_published
+  l.is_published,
+  (l.video_url IS NOT NULL) AS has_video,
+  (l.pdf_url IS NOT NULL) AS has_pdf
 FROM public.subjects s
 JOIN public.chapters ch ON ch.subject_id = s.id
 JOIN public.lessons l ON l.chapter_id = ch.id

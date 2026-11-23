@@ -250,3 +250,20 @@ USING (
       )
   )
 );
+
+
+-- Prevent client-side self-enrollment into paid courses. Verified payment handlers use
+-- the server-only service role; students may self-enroll only in free courses.
+DROP POLICY IF EXISTS "enroll insert own" ON public.enrollments;
+CREATE POLICY "enroll insert own free or staff" ON public.enrollments
+FOR INSERT TO authenticated
+WITH CHECK (
+  public.is_staff(auth.uid())
+  OR (
+    user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.courses c
+      WHERE c.id = enrollments.course_id AND (c.is_free OR c.price = 0)
+    )
+  )
+);

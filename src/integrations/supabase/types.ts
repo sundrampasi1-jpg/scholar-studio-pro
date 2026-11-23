@@ -133,6 +133,7 @@ export type Database = {
           is_active: boolean
           name: string
           start_date: string | null
+          validity_days: number
         }
         Insert: {
           course_id: string
@@ -142,6 +143,7 @@ export type Database = {
           is_active?: boolean
           name: string
           start_date?: string | null
+          validity_days?: number
         }
         Update: {
           course_id?: string
@@ -151,6 +153,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           start_date?: string | null
+          validity_days?: number
         }
         Relationships: [
           {
@@ -379,7 +382,10 @@ export type Database = {
           batch_id: string | null
           course_id: string
           created_at: string
+          expires_at: string | null
           id: string
+          purchased_at: string | null
+          renewal_count: number
           status: string
           user_id: string
         }
@@ -387,7 +393,10 @@ export type Database = {
           batch_id?: string | null
           course_id: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          purchased_at?: string | null
+          renewal_count?: number
           status?: string
           user_id: string
         }
@@ -395,7 +404,10 @@ export type Database = {
           batch_id?: string | null
           course_id?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          purchased_at?: string | null
+          renewal_count?: number
           status?: string
           user_id?: string
         }
@@ -608,6 +620,8 @@ export type Database = {
       }
       lesson_reports: {
         Row: {
+          ai_replied_at: string | null
+          ai_reply: string | null
           created_at: string
           details: string | null
           id: string
@@ -617,6 +631,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_replied_at?: string | null
+          ai_reply?: string | null
           created_at?: string
           details?: string | null
           id?: string
@@ -626,6 +642,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_replied_at?: string | null
+          ai_reply?: string | null
           created_at?: string
           details?: string | null
           id?: string
@@ -857,8 +875,10 @@ export type Database = {
           created_at: string
           discount: number
           id: string
+          paid_at: string | null
           provider: string
           provider_ref: string | null
+          renewal_of: string | null
           screenshot_url: string | null
           status: string
           user_id: string
@@ -870,8 +890,10 @@ export type Database = {
           created_at?: string
           discount?: number
           id?: string
+          paid_at?: string | null
           provider?: string
           provider_ref?: string | null
+          renewal_of?: string | null
           screenshot_url?: string | null
           status?: string
           user_id: string
@@ -883,8 +905,10 @@ export type Database = {
           created_at?: string
           discount?: number
           id?: string
+          paid_at?: string | null
           provider?: string
           provider_ref?: string | null
+          renewal_of?: string | null
           screenshot_url?: string | null
           status?: string
           user_id?: string

@@ -77,9 +77,10 @@ SELECT
   (l.video_url IS NOT NULL) AS has_video,
   (l.pdf_url IS NOT NULL) AS has_pdf
 FROM public.subjects s
+JOIN public.courses c ON c.id = s.course_id
 JOIN public.chapters ch ON ch.subject_id = s.id
 JOIN public.lessons l ON l.chapter_id = ch.id
-WHERE l.is_published = true;
+WHERE c.is_published = true AND l.is_published = true;
 
 REVOKE ALL ON public.course_outline FROM PUBLIC;
 GRANT SELECT ON public.course_outline TO anon, authenticated;
@@ -231,6 +232,7 @@ USING (
     SELECT 1
     FROM public.tests t
     WHERE t.id = questions.test_id
+      AND t.is_published = true
       AND (
         t.course_id IS NULL
         OR EXISTS (

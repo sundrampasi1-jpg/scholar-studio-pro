@@ -61,7 +61,7 @@ function AdminLive() {
   const lives = useQuery({
     queryKey: ["admin-live"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("live_classes").select("*, courses(title)").order("scheduled_at", { ascending: false });
+      const { data, error } = await supabase.from("live_classes").select("*, courses(title), batches(name)").order("scheduled_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -111,7 +111,7 @@ function AdminLive() {
               <div key={l.id} className="surface-card flex flex-wrap items-center gap-2 p-3 text-sm">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{l.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}{l.batches?.name ? ` · ${l.batches.name}` : ""}</p>
                 </div>
                 <Badge variant={st === "live" ? "destructive" : st === "upcoming" ? "default" : "secondary"}>{st}</Badge>
                 <Button size="icon" variant="ghost" onClick={() => setEdit({ ...l, scheduled_at: toLocal(l.scheduled_at) })} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>

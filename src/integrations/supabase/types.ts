@@ -1252,7 +1252,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      course_outline: {
+        Row: {
+          chapter_id: string
+          chapter_name: string
+          chapter_position: number
+          course_id: string
+          has_pdf: boolean
+          has_video: boolean
+          is_published: boolean
+          lesson_id: string
+          lesson_position: number
+          lesson_title: string
+          subject_id: string
+          subject_name: string
+          subject_position: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

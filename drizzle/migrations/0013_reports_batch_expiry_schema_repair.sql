@@ -163,3 +163,87 @@ USING (
     )
   )
 );
+
+
+-- Apply the same paid-course expiry rule to course notes, tests, and test questions.
+-- Unassigned resources and free-course resources retain their previous visibility.
+DROP POLICY IF EXISTS "notes read" ON public.notes;
+CREATE POLICY "notes read entitled" ON public.notes
+FOR SELECT TO authenticated
+USING (
+  COALESCE(
+    notes.course_id,
+    (SELECT s.course_id FROM public.subjects s WHERE s.id = notes.subject_id),
+    (SELECT s.course_id FROM public.chapters ch JOIN public.subjects s ON s.id = ch.subject_id WHERE ch.id = notes.chapter_id),
+    (SELECT s.course_id FROM public.lessons l JOIN public.chapters ch ON ch.id = l.chapter_id JOIN public.subjects s ON s.id = ch.subject_id WHERE l.id = notes.lesson_id)
+  ) IS NULL
+  OR EXISTS (
+    SELECT 1
+    FROM public.courses c
+    WHERE c.id = COALESCE(
+      notes.course_id,
+      (SELECT s.course_id FROM public.subjects s WHERE s.id = notes.subject_id),
+      (SELECT s.course_id FROM public.chapters ch JOIN public.subjects s ON s.id = ch.subject_id WHERE ch.id = notes.chapter_id),
+      (SELECT s.course_id FROM public.lessons l JOIN public.chapters ch ON ch.id = l.chapter_id JOIN public.subjects s ON s.id = ch.subject_id WHERE l.id = notes.lesson_id)
+    )
+    AND (
+      c.is_free OR c.price = 0
+      OR EXISTS (
+        SELECT 1 FROM public.enrollments e
+        WHERE e.user_id = auth.uid()
+          AND e.course_id = c.id
+          AND e.status = 'active'
+          AND (e.expires_at IS NULL OR e.expires_at > now())
+      )
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "tests read" ON public.tests;
+CREATE POLICY "tests read entitled" ON public.tests
+FOR SELECT TO authenticated
+USING (
+  tests.course_id IS NULL
+  OR EXISTS (
+    SELECT 1 FROM public.courses c
+    WHERE c.id = tests.course_id
+      AND (
+        c.is_free OR c.price = 0
+        OR EXISTS (
+          SELECT 1 FROM public.enrollments e
+          WHERE e.user_id = auth.uid()
+            AND e.course_id = c.id
+            AND e.status = 'active'
+            AND (e.expires_at IS NULL OR e.expires_at > now())
+        )
+      )
+  )
+);
+
+DROP POLICY IF EXISTS "questions read" ON public.questions;
+CREATE POLICY "questions read entitled" ON public.questions
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.tests t
+    WHERE t.id = questions.test_id
+      AND (
+        t.course_id IS NULL
+        OR EXISTS (
+          SELECT 1 FROM public.courses c
+          WHERE c.id = t.course_id
+            AND (
+              c.is_free OR c.price = 0
+              OR EXISTS (
+                SELECT 1 FROM public.enrollments e
+                WHERE e.user_id = auth.uid()
+                  AND e.course_id = c.id
+                  AND e.status = 'active'
+                  AND (e.expires_at IS NULL OR e.expires_at > now())
+              )
+            )
+        )
+      )
+  )
+);

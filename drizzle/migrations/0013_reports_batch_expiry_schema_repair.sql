@@ -203,8 +203,10 @@ DROP POLICY IF EXISTS "tests read" ON public.tests;
 CREATE POLICY "tests read entitled" ON public.tests
 FOR SELECT TO authenticated
 USING (
-  tests.course_id IS NULL
-  OR EXISTS (
+  tests.is_published
+  AND (
+    tests.course_id IS NULL
+    OR EXISTS (
     SELECT 1 FROM public.courses c
     WHERE c.id = tests.course_id
       AND (
@@ -217,6 +219,7 @@ USING (
             AND (e.expires_at IS NULL OR e.expires_at > now())
         )
       )
+    )
   )
 );
 

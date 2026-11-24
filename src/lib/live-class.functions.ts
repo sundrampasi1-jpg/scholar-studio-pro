@@ -1,14 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-async function requireAdmin(userId: string, supabase: { rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> }) {
+async function requireAdmin(userId: string, supabase: SupabaseClient<Database>) {
   const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (error || !data) throw new Error("Only the institute admin can control a live class.");
   return true;
 }
 
-async function getRecipients(supabaseAdmin: any, liveClass: { batch_id: string | null; course_id: string | null }) {
+async function getRecipients(supabaseAdmin: SupabaseClient<Database>, liveClass: { batch_id: string | null; course_id: string | null }) {
   const now = new Date().toISOString();
   let query = supabaseAdmin.from("enrollments").select("user_id").eq("status", "active").or("expires_at.gt." + now + ",expires_at.is.null");
   if (liveClass.batch_id) query = query.eq("batch_id", liveClass.batch_id);

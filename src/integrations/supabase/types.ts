@@ -698,10 +698,14 @@ export type Database = {
           created_at: string
           description: string | null
           duration_minutes: number
+          ended_at: string | null
           id: string
           join_url: string | null
+          live_status: string
           recording_url: string | null
+          room_name: string | null
           scheduled_at: string
+          started_at: string | null
           teacher_id: string | null
           teacher_name: string | null
           title: string
@@ -712,10 +716,14 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_minutes?: number
+          ended_at?: string | null
           id?: string
           join_url?: string | null
+          live_status?: string
           recording_url?: string | null
+          room_name?: string | null
           scheduled_at: string
+          started_at?: string | null
           teacher_id?: string | null
           teacher_name?: string | null
           title: string
@@ -726,10 +734,14 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_minutes?: number
+          ended_at?: string | null
           id?: string
           join_url?: string | null
+          live_status?: string
           recording_url?: string | null
+          room_name?: string | null
           scheduled_at?: string
+          started_at?: string | null
           teacher_id?: string | null
           teacher_name?: string | null
           title?: string
@@ -747,6 +759,51 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_class_comments: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_teacher_reply: boolean
+          live_class_id: string
+          parent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_teacher_reply?: boolean
+          live_class_id: string
+          parent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_teacher_reply?: boolean
+          live_class_id?: string
+          parent_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_class_comments_live_class_id_fkey"
+            columns: ["live_class_id"]
+            isOneToOne: false
+            referencedRelation: "live_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_class_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "live_class_comments"
             referencedColumns: ["id"]
           },
         ]

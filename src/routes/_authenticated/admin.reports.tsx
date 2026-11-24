@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { FileText, Pencil, Trash2, Save, X, Clock, MessageCircle, Flag } from "lucide-react";
+import { FileText, Pencil, Trash2, Save, X, Clock, MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({ component: AdminReportsPage });
 
@@ -55,10 +55,12 @@ function AdminReportsPage() {
       const rows = data ?? [];
       const lessonIds = [...new Set(rows.map((row) => row.lesson_id).filter(Boolean))];
       const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))];
-      const [{ data: lessons }, { data: profiles }] = await Promise.all([
-        lessonIds.length ? supabase.from("lessons").select("id, title").in("id", lessonIds) : Promise.resolve({ data: [] }),
-        userIds.length ? supabase.from("profiles").select("id, full_name").in("id", userIds) : Promise.resolve({ data: [] }),
-      ]);
+      const { data: lessons } = lessonIds.length
+        ? await supabase.from("lessons").select("id, title").in("id", lessonIds)
+        : { data: [] };
+      const { data: profiles } = userIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", userIds)
+        : { data: [] };
       const titles = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson.title]));
       const names = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]));
       return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? null, student_name: names.get(row.user_id) ?? "Student" }));

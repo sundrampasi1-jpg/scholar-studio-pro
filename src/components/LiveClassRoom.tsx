@@ -65,7 +65,7 @@ export function LiveClassRoom({ liveClassId, mode }: { liveClassId: string; mode
           const camera = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
           if (camera) {
             const element = camera.attach();
-            element.playsInline = true;
+            if (element instanceof HTMLVideoElement) element.playsInline = true;
             element.autoplay = true;
             element.className = "h-full w-full rounded-xl bg-black object-contain";
             videoRef.current.appendChild(element);

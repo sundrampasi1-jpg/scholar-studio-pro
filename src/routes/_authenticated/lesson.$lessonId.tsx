@@ -878,7 +878,7 @@ function LessonPage() {
   return (
     <StudentShell>
       <div className="mx-auto max-w-5xl space-y-4 bg-white">
-        {playerElement}
+        {playerElement && <div className="-mx-4 w-[calc(100%+2rem)]">{playerElement}</div>}
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
           {courseId && <Link to="/courses/$courseId" params={{ courseId }} className="text-gold-deep hover:underline">{l.chapters?.subjects?.courses?.title ?? "Course"}</Link>}
@@ -957,7 +957,7 @@ function LessonPage() {
         </div>
 
         {/* Lesson material */}
-        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section className="-mx-4 w-[calc(100%+2rem)] overflow-hidden rounded-none border-x-0 border-y border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gold/20 px-4 py-3">
             <FileText className="h-4 w-4 text-gold-deep" />
             <p className="text-sm font-extrabold uppercase tracking-wide text-foreground">Lesson material</p>
@@ -980,8 +980,8 @@ function LessonPage() {
                   <ChevronDown className={`h-5 w-5 shrink-0 text-gold-deep transition-transform ${showPdf ? "rotate-180" : ""}`} />
                 </button>
                 {showPdf && (
-                  <div className="px-4 pb-4">
-                    <div className="mb-2 flex justify-end">
+                  <div className="pb-0">
+                    <div className="mb-2 flex justify-end px-4">
                       <button
                         type="button"
                         onClick={() => downloadFile(l.pdf_url!, l.title)}
@@ -992,7 +992,7 @@ function LessonPage() {
                     </div>
                     <PdfViewer
                       url={l.pdf_url}
-                      className="max-h-[55vh] overflow-y-auto rounded-lg border border-gold/30 bg-surface p-2"
+                      className="max-h-[75vh] w-full overflow-y-auto bg-surface"
                     />
                   </div>
                 )}

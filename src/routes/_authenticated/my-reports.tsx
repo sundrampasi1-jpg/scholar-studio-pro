@@ -9,7 +9,7 @@ import { replyLessonReportAi } from "@/lib/ai-chat.functions";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { FileText, Clock, MessageCircle, CheckCircle2 } from "lucide-react";
+import { FileText, Clock, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/my-reports")({
   component: MyReportsPage,

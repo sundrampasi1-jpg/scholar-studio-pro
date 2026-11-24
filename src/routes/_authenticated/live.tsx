@@ -7,6 +7,8 @@ import { formatDateTime, liveStatus } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { LiveClassRoom } from "@/components/LiveClassRoom";
+import { LiveClassChat } from "@/components/LiveClassChat";
 
 export const Route = createFileRoute("/_authenticated/live")({
   head: () => ({
@@ -34,11 +36,14 @@ function LivePage() {
     },
   });
 
-  const all = (live.data ?? []).map((l) => ({ ...l, status: liveStatus(l.scheduled_at, l.duration_minutes) }));
+  const all = (live.data ?? []).map((l) => ({
+    ...l,
+    status: l.live_status === "live" ? "live" : l.live_status === "ended" ? "completed" : liveStatus(l.scheduled_at, l.duration_minutes),
+  }));
   const groups = {
-    live: all.filter((l) => l.status === "live"),
-    upcoming: all.filter((l) => l.status === "upcoming"),
-    completed: all.filter((l) => l.status === "completed").reverse(),
+    live: all.filter((l) => l.live_status === "live" || (l.status === "live" && !!l.join_url)),
+    upcoming: all.filter((l) => l.live_status !== "ended" && l.status === "upcoming"),
+    completed: all.filter((l) => l.live_status === "ended" || l.status === "completed").reverse(),
   };
 
   function List({ items }: { items: typeof all }) {
@@ -59,13 +64,16 @@ function LivePage() {
               {l.description && <p className="mt-1 text-sm text-muted-foreground">{l.description}</p>}
             </div>
             <div className="flex gap-2">
-              {l.status !== "completed" && l.join_url && (
-                <Button asChild size="sm" variant={l.status === "live" ? "default" : "outline"}>
-                  <a href={l.join_url} target="_blank" rel="noreferrer">
-                    {l.status === "live" ? "Join now" : "Join link"}
-                  </a>
+              {l.live_status === "live" ? (
+                <div className="mt-3 w-full space-y-3">
+                  <LiveClassRoom liveClassId={l.id} mode="viewer" />
+                  <LiveClassChat liveClassId={l.id} mode="student" />
+                </div>
+              ) : l.status !== "completed" && l.join_url ? (
+                <Button asChild size="sm" variant="outline">
+                  <a href={l.join_url} target="_blank" rel="noreferrer">Join external class</a>
                 </Button>
-              )}
+              ) : null}
               {l.recording_url && (
                 <Button asChild size="sm" variant="outline">
                   <a href={l.recording_url} target="_blank" rel="noreferrer">

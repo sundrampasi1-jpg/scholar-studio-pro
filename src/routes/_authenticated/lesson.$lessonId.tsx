@@ -15,7 +15,7 @@ import { fetchCourseLessonIds } from "@/lib/queries";
 import {
   BarChart3, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download,
   FileText, Flag, GraduationCap, HelpCircle, Loader2, Maximize, MessageCircle,
-  Minimize, Pause, Play, Rewind, FastForward, Send, Settings, X,
+  Minimize, Pause, Play, Send, Settings, X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/lesson/$lessonId")({
@@ -740,30 +740,6 @@ function LessonPage() {
               <Play className="ml-1 h-8 w-8 fill-white text-white" />
             </button>
           )}
-
-          {/* Skip buttons */}
-          <div className="absolute inset-y-0 left-0 flex items-center pl-2">
-            <button
-              type="button"
-              onClick={() => seek(-10)}
-              aria-label="Back 10 seconds"
-              className="flex flex-col items-center rounded-full bg-black/55 p-2.5 text-white backdrop-blur-sm"
-            >
-              <Rewind className="h-5 w-5" />
-              <span className="text-[9px] font-semibold">10s</span>
-            </button>
-          </div>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-            <button
-              type="button"
-              onClick={() => seek(10)}
-              aria-label="Forward 10 seconds"
-              className="flex flex-col items-center rounded-full bg-black/55 p-2.5 text-white backdrop-blur-sm"
-            >
-              <FastForward className="h-5 w-5" />
-              <span className="text-[9px] font-semibold">10s</span>
-            </button>
-          </div>
 
           {/* Top-right: fullscreen + settings */}
           <div className="absolute right-2 top-2 flex items-center gap-1.5">

@@ -219,7 +219,7 @@ function CourseDetail() {
   }
 
   const c = course.data;
-  const isEnrolled = !!enrollment.data && (enrollment.data.expires_at == null || new Date(enrollment.data.expires_at) > new Date());
+  const isEnrolled = !!enrollment.data && !!enrollment.data.expires_at && new Date(enrollment.data.expires_at) > new Date();
   const isFree = c.is_free || Number(c.price) === 0;
   const price = Number(c.price);
 

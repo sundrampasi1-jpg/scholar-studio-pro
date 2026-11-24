@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { FileText, Pencil, Trash2, Save, X, Clock, MessageCircle } from "lucide-react";
+import { LiveClassChat } from "@/components/LiveClassChat";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({ component: AdminReportsPage });
 
@@ -65,6 +66,17 @@ function AdminReportsPage() {
       const titles = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson.title]));
       const names = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]));
       return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? null, student_name: names.get(row.user_id) ?? "Student" }));
+    },
+  });
+
+  const liveQuestionClasses = useQuery({
+    queryKey: ["admin-live-question-classes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("live_classes")
+        .select("id, title, scheduled_at, live_status")
+        .order("scheduled_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
@@ -159,9 +171,10 @@ function AdminReportsPage() {
     <AdminShell title="Lesson Reports" subtitle="Student reports, comments and teacher/AI replies">
       <div className="min-w-0 space-y-5">
         <Tabs defaultValue="reports" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="reports">My Reports</TabsTrigger>
             <TabsTrigger value="comments">Lesson Comments</TabsTrigger>
+            <TabsTrigger value="live-questions">Live Class Questions</TabsTrigger>
           </TabsList>
           <TabsContent value="comments" className="mt-4">
         <section className="rounded-2xl border bg-card p-4 shadow-sm">
@@ -188,6 +201,23 @@ function AdminReportsPage() {
             </article>)}
           </div>
         </section>
+          </TabsContent>
+          <TabsContent value="live-questions" className="mt-4">
+            <section className="space-y-3">
+              <h2 className="font-semibold">Live Class Questions</h2>
+              {liveQuestionClasses.isLoading && <LoadingState />}
+              {liveQuestionClasses.error && <ErrorState error={liveQuestionClasses.error} onRetry={() => void liveQuestionClasses.refetch()} />}
+              {!liveQuestionClasses.isLoading && !liveQuestionClasses.error && liveQuestionClasses.data?.length === 0 && <EmptyState title="No live classes yet" />}
+              {(liveQuestionClasses.data ?? []).map((item) => (
+                <article key={item.id} className="rounded-2xl border bg-card p-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="font-bold">{item.title}</h3>
+                    <span className="text-xs text-muted-foreground">{item.live_status === "live" ? "LIVE NOW" : dateText(item.scheduled_at)}</span>
+                  </div>
+                  <LiveClassChat liveClassId={item.id} mode="admin" />
+                </article>
+              ))}
+            </section>
           </TabsContent>
           <TabsContent value="reports" className="mt-4">
         <section className="space-y-3">

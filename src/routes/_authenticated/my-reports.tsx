@@ -8,7 +8,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { replyLessonReportAi } from "@/lib/ai-chat.functions";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Clock, MessageCircle, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/my-reports")({
@@ -20,6 +20,13 @@ function MyReportsPage() {
   const queryClient = useQueryClient();
   const askReportAi = useServerFn(replyLessonReportAi);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const attemptedAutoReplies = useRef(new Set<string>());
+  const isGenericReply = (value: string | null) => {
+    const reply = (value ?? "").trim().toLowerCase();
+    return /^(hello[!.]?\s*)?thank you for reaching out/.test(reply)
+      || reply.includes("your report has been received")
+      || reply.includes("thank you for contacting jk academy");
+  };
   async function retryAi(reportId: string) {
     if (retryingId) return;
     setRetryingId(reportId);
@@ -55,6 +62,17 @@ function MyReportsPage() {
       return rows.map((row) => ({ ...row, lesson_title: titles.get(row.lesson_id) ?? null }));
     },
   });
+
+  useEffect(() => {
+    if (!reports.data || retryingId) return;
+    const pending = reports.data.find((report) =>
+      (!report.ai_reply || isGenericReply(report.ai_reply)) &&
+      !attemptedAutoReplies.current.has(report.id)
+    );
+    if (!pending) return;
+    attemptedAutoReplies.current.add(pending.id);
+    void retryAi(pending.id);
+  }, [reports.data, retryingId]);
 
   const dateText = (value: string) =>
     new Date(value).toLocaleString("en-IN", {
@@ -136,14 +154,11 @@ function MyReportsPage() {
                 </p>
 
                 <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:bg-emerald-950/20">
-                  <div className="flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4 text-emerald-700" />
-                    <p className="text-sm font-extrabold text-emerald-800 dark:text-emerald-200">
-                      JK Academy Support — Solution
-                    </p>
-                  </div>
+                  <p className="text-sm font-extrabold text-emerald-800 dark:text-emerald-200">
+                    Solution
+                  </p>
 
-                  {report.ai_reply ? (
+                  {report.ai_reply && !isGenericReply(report.ai_reply) ? (
                     <>
                       <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
                         {report.ai_reply}
@@ -156,8 +171,12 @@ function MyReportsPage() {
                     </>
                   ) : (
                     <div className="mt-2 space-y-2">
-                      <p className="text-sm text-muted-foreground">Your report has been received. A practical solution will appear here shortly.</p>
-                      <Button size="sm" variant="outline" disabled={!!retryingId} onClick={() => void retryAi(report.id)}>{retryingId === report.id ? "Generating…" : "Try AI response again"}</Button>
+                      <p className="text-sm text-muted-foreground">
+                        {retryingId === report.id ? "Solution is being prepared…" : "Solution is not available yet."}
+                      </p>
+                      {retryingId !== report.id && (
+                        <Button size="sm" variant="outline" disabled={!!retryingId} onClick={() => void retryAi(report.id)}>Try again</Button>
+                      )}
                     </div>
                   )}
                 </div>

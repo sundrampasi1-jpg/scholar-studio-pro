@@ -15,7 +15,7 @@ import { fetchCourseLessonIds } from "@/lib/queries";
 import {
   BarChart3, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download,
   FileText, Flag, GraduationCap, HelpCircle, Loader2, Maximize, MessageCircle,
-  Minimize, Pause, Play, Send, Settings, X,
+  Minimize, Pause, Play, Rewind, FastForward, Send, Settings, X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/lesson/$lessonId")({
@@ -439,7 +439,6 @@ function LessonPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [nativeH, setNativeH] = useState(0);
-  const [nativeW, setNativeW] = useState(0);
   const [quality, setQuality] = useState(0); // 0 = auto/source
   const [cachedUrl, setCachedUrl] = useState<string | null>(null);
   const [savedOffline, setSavedOffline] = useState(false);
@@ -696,10 +695,7 @@ function LessonPage() {
           />
         </div>
       ) : (
-        <div
-          className={`relative w-full ${fullscreen ? "h-full" : ""}`}
-          style={!fullscreen ? { aspectRatio: nativeW > 0 && nativeH > 0 ? `${nativeW} / ${nativeH}` : "16 / 9" } : undefined}
-        >
+        <div className={`relative ${fullscreen ? "h-full w-full" : "aspect-video w-full"}`}>
           {videoSrc ? (
             <video
               ref={videoRef}
@@ -715,7 +711,6 @@ function LessonPage() {
                 setDuration(el.duration || 0);
                 el.playbackRate = speed;
                 setNativeH(el.videoHeight || 0);
-                setNativeW(el.videoWidth || 0);
                 if (quality) applyQuality(quality);
               }}
               onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
@@ -729,38 +724,44 @@ function LessonPage() {
             </div>
           )}
 
-          {/* Invisible side tap zones; leave the top and bottom player controls clear. */}
-          {videoSrc && (
-            <>
-              <button
-                type="button"
-                aria-label="Back 10 seconds"
-                onClick={(event) => { event.stopPropagation(); seek(-10); }}
-                className="absolute bottom-16 left-0 top-12 z-10 w-1/3 touch-manipulation bg-transparent"
-              />
-              <button
-                type="button"
-                aria-label="Forward 10 seconds"
-                onClick={(event) => { event.stopPropagation(); seek(10); }}
-                className="absolute bottom-16 right-0 top-12 z-10 w-1/3 touch-manipulation bg-transparent"
-              />
-            </>
-          )}
-
           {/* Center play */}
           {!playing && (
             <button
               type="button"
               onClick={togglePlay}
               aria-label="Play video"
-              className="absolute inset-0 z-20 m-auto flex h-16 w-16 items-center justify-center rounded-full bg-black/55 shadow-xl backdrop-blur-sm"
+              className="absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full bg-black/55 shadow-xl backdrop-blur-sm"
             >
               <Play className="ml-1 h-8 w-8 fill-white text-white" />
             </button>
           )}
 
+          {/* Skip buttons */}
+          <div className="absolute inset-y-0 left-0 flex items-center pl-2">
+            <button
+              type="button"
+              onClick={() => seek(-10)}
+              aria-label="Back 10 seconds"
+              className="flex flex-col items-center rounded-full bg-black/55 p-2.5 text-white backdrop-blur-sm"
+            >
+              <Rewind className="h-5 w-5" />
+              <span className="text-[9px] font-semibold">10s</span>
+            </button>
+          </div>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+            <button
+              type="button"
+              onClick={() => seek(10)}
+              aria-label="Forward 10 seconds"
+              className="flex flex-col items-center rounded-full bg-black/55 p-2.5 text-white backdrop-blur-sm"
+            >
+              <FastForward className="h-5 w-5" />
+              <span className="text-[9px] font-semibold">10s</span>
+            </button>
+          </div>
+
           {/* Top-right: fullscreen + settings */}
-          <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
+          <div className="absolute right-2 top-2 flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => void toggleFullscreen()}
@@ -841,7 +842,7 @@ function LessonPage() {
           )}
 
           {/* Bottom bar */}
-          <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 pb-2.5 pt-8">
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 pb-2.5 pt-8">
             <input
               aria-label="Video progress"
               type="range"
@@ -876,8 +877,8 @@ function LessonPage() {
 
   return (
     <StudentShell>
-      <div className="w-full min-w-0 space-y-4 bg-white">
-        {playerElement && <div className="w-full">{playerElement}</div>}
+      <div className="mx-auto max-w-5xl space-y-4 bg-white">
+        {playerElement && <div className="-mx-4 w-[calc(100%+2rem)]">{playerElement}</div>}
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
           {courseId && <Link to="/courses/$courseId" params={{ courseId }} className="text-gold-deep hover:underline">{l.chapters?.subjects?.courses?.title ?? "Course"}</Link>}
@@ -956,7 +957,7 @@ function LessonPage() {
         </div>
 
         {/* Lesson material */}
-        <section className="w-full min-w-0 overflow-hidden rounded-none border-y border-gray-200 bg-white shadow-sm">
+        <section className="-mx-4 w-[calc(100%+2rem)] overflow-hidden rounded-none border-x-0 border-y border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gold/20 px-4 py-3">
             <FileText className="h-4 w-4 text-gold-deep" />
             <p className="text-sm font-extrabold uppercase tracking-wide text-foreground">Lesson material</p>

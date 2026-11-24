@@ -43,8 +43,19 @@ async function gemini(model: string, body: unknown, key: string) {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    console.error("Gemini error", res.status, await res.text());
-    throw new Error(res.status === 429 ? "AI abhi busy hai, thodi der baad try karein." : "AI reply nahi de paya.");
+    const raw = await res.text();
+    let detail = raw;
+    try {
+      const parsed = JSON.parse(raw) as { error?: { message?: string; status?: string } };
+      detail = parsed.error?.message || parsed.error?.status || raw;
+    } catch {
+      // Keep the original response text when the provider does not return JSON.
+    }
+    const safeDetail = detail.replace(/https?:\\/\\/[^\\s]+/g, "[provider URL]").slice(0, 500);
+    console.error("Gemini API request failed", { model, status: res.status, detail: safeDetail });
+    throw new Error(res.status === 429
+      ? "AI service is busy (429). Please try again shortly."
+      : `AI service error (${res.status}): ${safeDetail || "No error details returned"}`);
   }
   return (await res.json()) as { candidates?: { content?: { parts?: { text?: string; inlineData?: { data: string; mimeType?: string } }[] } }[] };
 }

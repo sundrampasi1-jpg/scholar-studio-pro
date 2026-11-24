@@ -52,7 +52,7 @@ export async function fetchCourseProgress(userId: string, courseId: string): Pro
 export async function fetchMyEnrollments(userId: string) {
   const { data, error } = await supabase
     .from("enrollments")
-    .select("id, status, created_at, course_id, courses(id, title, description, thumbnail_url, price, is_free)")
+    .select("id, status, created_at, course_id, batch_id, expires_at, courses(id, title, description, thumbnail_url, price, is_free), batches(name)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;

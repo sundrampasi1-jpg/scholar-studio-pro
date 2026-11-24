@@ -24,6 +24,7 @@ type Live = {
   title: string;
   description: string | null;
   course_id: string | null;
+  batch_id: string | null;
   teacher_name: string | null;
   scheduled_at: string;
   duration_minutes: number;
@@ -43,10 +44,14 @@ function AdminLive() {
     queryKey: ["admin-course-options"],
     queryFn: async () => (await supabase.from("courses").select("id, title").order("title")).data ?? [],
   });
+  const batches = useQuery({
+    queryKey: ["admin-live-batch-options"],
+    queryFn: async () => (await supabase.from("batches").select("id, name, course_id").eq("is_active", true).order("name")).data ?? [],
+  });
   const lives = useQuery({
     queryKey: ["admin-live"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("live_classes").select("*, courses(title)").order("scheduled_at", { ascending: false });
+      const { data, error } = await supabase.from("live_classes").select("*, courses(title), batches(name)").order("scheduled_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -58,6 +63,7 @@ function AdminLive() {
       title: edit.title.trim(),
       description: edit.description || null,
       course_id: edit.course_id || null,
+      batch_id: edit.batch_id || null,
       teacher_name: edit.teacher_name || null,
       scheduled_at: new Date(edit.scheduled_at).toISOString(),
       duration_minutes: Number(edit.duration_minutes) || 60,
@@ -68,7 +74,15 @@ function AdminLive() {
       ? await run(supabase.from("live_classes").update(row).eq("id", edit.id))
       : await run(supabase.from("live_classes").insert(row));
     if (ok) {
-      if (!edit.id) await notifyAll(supabase, `Live class scheduled: ${row.title} (${formatDateTime(row.scheduled_at)})`, "live", "/live");
+      if (!edit.id) {
+        const message = `Live class scheduled: ${row.title} (${formatDateTime(row.scheduled_at)})`;
+        if (row.batch_id) {
+          const { data: enrolled } = await supabase.from("enrollments").select("user_id").eq("batch_id", row.batch_id).eq("status", "active").gt("expires_at", new Date().toISOString());
+          if (enrolled?.length) await supabase.from("notifications").insert(enrolled.map((student) => ({ user_id: student.user_id, title: "New batch live class", body: message, type: "live", link: "/live" })));
+        } else {
+          await notifyAll(supabase, message, "live", "/live");
+        }
+      }
       setEdit(null);
       qc.invalidateQueries({ queryKey: ["admin-live"] });
     }
@@ -82,7 +96,7 @@ function AdminLive() {
       title="Live classes"
       subtitle="Scheduled classes appear on the students' Live page"
       actions={
-        <Button onClick={() => setEdit({ title: "", description: "", course_id: "", teacher_name: "", scheduled_at: toLocal(new Date(Date.now() + 3600000).toISOString()), duration_minutes: 60, join_url: "", recording_url: "" })}>
+        <Button onClick={() => setEdit({ title: "", description: "", course_id: "", batch_id: "", teacher_name: "", scheduled_at: toLocal(new Date(Date.now() + 3600000).toISOString()), duration_minutes: 60, join_url: "", recording_url: "" })}>
           <Plus className="mr-1.5 h-4 w-4" /> Schedule class
         </Button>
       }
@@ -95,7 +109,7 @@ function AdminLive() {
               <div key={l.id} className="surface-card flex flex-wrap items-center gap-2 p-3 text-sm">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{l.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}{l.batches?.name ? ` · ${l.batches.name}` : ""}</p>
                 </div>
                 <Badge variant={st === "live" ? "destructive" : st === "upcoming" ? "default" : "secondary"}>{st}</Badge>
                 <Button size="icon" variant="ghost" onClick={() => setEdit({ ...l, scheduled_at: toLocal(l.scheduled_at) })} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
@@ -114,8 +128,14 @@ function AdminLive() {
               <Field label="Title"><Input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></Field>
               <Field label="Course">
                 <NativeSelect value={edit.course_id ?? ""} onChange={(e) => setEdit({ ...edit, course_id: e.target.value })}>
-                  <option value="">All students</option>
+                  <option value="">All courses</option>
                   {courses.data?.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </NativeSelect>
+              </Field>
+              <Field label="Batch (optional — restricts class to this batch)">
+                <NativeSelect value={edit.batch_id ?? ""} onChange={(e) => setEdit({ ...edit, batch_id: e.target.value })}>
+                  <option value="">All eligible students in course</option>
+                  {batches.data?.filter((b) => !edit.course_id || b.course_id === edit.course_id).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </NativeSelect>
               </Field>
               <Field label="Teacher"><Input value={edit.teacher_name ?? ""} onChange={(e) => setEdit({ ...edit, teacher_name: e.target.value })} /></Field>

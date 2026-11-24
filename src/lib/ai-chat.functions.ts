@@ -291,7 +291,7 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
       {
         systemInstruction: { parts: [{ text: LESSON_REPORT_SYSTEM }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.35, maxOutputTokens: 300 },
+        generationConfig: { temperature: 0.35, maxOutputTokens: 800 },
       },
       key,
     );

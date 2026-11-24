@@ -46,12 +46,12 @@ function AdminLive() {
   });
   const batches = useQuery({
     queryKey: ["admin-live-batch-options"],
-    queryFn: async () => (await supabase.from("batches").select("id, name, course_id").eq("is_active", true).order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("batches").select("id, name, course_id, validity_days").eq("is_active", true).order("name")).data ?? [],
   });
   const lives = useQuery({
     queryKey: ["admin-live"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("live_classes").select("*, courses(title), batches(name)").order("scheduled_at", { ascending: false });
+      const { data, error } = await supabase.from("live_classes").select("*, courses(title), batches(name, validity_days)").order("scheduled_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -109,7 +109,7 @@ function AdminLive() {
               <div key={l.id} className="surface-card flex flex-wrap items-center gap-2 p-3 text-sm">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{l.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}{l.batches?.name ? ` · ${l.batches.name}` : ""}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}{l.batches?.name ? ` · Batch: ${l.batches.name} (${l.batches.validity_days} days validity)` : ""}</p>
                 </div>
                 <Badge variant={st === "live" ? "destructive" : st === "upcoming" ? "default" : "secondary"}>{st}</Badge>
                 <Button size="icon" variant="ghost" onClick={() => setEdit({ ...l, scheduled_at: toLocal(l.scheduled_at) })} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
@@ -135,7 +135,7 @@ function AdminLive() {
               <Field label="Batch (optional — restricts class to this batch)">
                 <NativeSelect value={edit.batch_id ?? ""} onChange={(e) => { const selected = batches.data?.find((b) => b.id === e.target.value); setEdit({ ...edit, batch_id: e.target.value, course_id: selected?.course_id ?? edit.course_id }); }}>
                   <option value="">All eligible students in course</option>
-                  {batches.data?.filter((b) => !edit.course_id || b.course_id === edit.course_id).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  {batches.data?.filter((b) => !edit.course_id || b.course_id === edit.course_id).map((b) => <option key={b.id} value={b.id}>{b.name} · {b.validity_days} days access</option>)}
                 </NativeSelect>
               </Field>
               <Field label="Teacher"><Input value={edit.teacher_name ?? ""} onChange={(e) => setEdit({ ...edit, teacher_name: e.target.value })} /></Field>

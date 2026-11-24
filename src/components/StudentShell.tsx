@@ -209,7 +209,7 @@ export function StudentShell({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface pb-20 md:pb-0">
+    <div className={`flex min-h-screen flex-col pb-20 md:pb-0 ${location.pathname.startsWith("/lesson/") ? "bg-white" : "bg-surface"}`}>
       <header className="fixed top-0 left-0 right-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <Link to="/dashboard">
@@ -290,7 +290,7 @@ export function StudentShell({
 
       <main
         ref={mainRef}
-        className={`mx-auto w-full flex-1 py-6 pt-20 ${location.pathname.startsWith("/lesson/") ? "max-w-none px-0" : "max-w-6xl px-4"}`}
+        className={`mx-auto w-full flex-1 ${location.pathname.startsWith("/lesson/") ? "max-w-none px-0 pt-16 pb-20" : "max-w-6xl px-4 py-6 pt-20"}`}
         style={{
           transform: `translateX(${swipeDrag}px)`,
           transition: swipeDrag === 0 ? "transform 180ms ease-out" : "none",

@@ -26,7 +26,7 @@ function MyReportsPage() {
     try {
       const result = await askReportAi({ data: { reportId } });
       if (!result.ok && "error" in result && result.error) toast.error(result.error);
-      else { toast.success("AI response checked"); await queryClient.invalidateQueries({ queryKey: ["my-lesson-reports", user?.id] }); }
+      else { toast.success("Support response checked"); await queryClient.invalidateQueries({ queryKey: ["my-lesson-reports", user?.id] }); }
     } catch (error) { toast.error(error instanceof Error ? error.message : "AI reply could not be generated."); }
     finally { setRetryingId(null); }
   }
@@ -98,7 +98,7 @@ function MyReportsPage() {
             return (
               <article
                 key={report.id}
-                className="min-w-0 overflow-hidden rounded-2xl border border-gold/30 bg-cream p-4 shadow-sm"
+                className="min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:bg-amber-950/10"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -115,7 +115,7 @@ function MyReportsPage() {
                   </span>
                 </div>
 
-                <div className="mt-4 rounded-xl border border-border bg-background p-3">
+                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 dark:bg-rose-950/20">
                   <p className="text-xs font-bold text-muted-foreground">
                     PROBLEM
                   </p>
@@ -135,11 +135,11 @@ function MyReportsPage() {
                   Submitted: {dateText(report.created_at)}
                 </p>
 
-                <div className="mt-4 rounded-xl border border-gold/30 bg-gold/10 p-3">
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:bg-emerald-950/20">
                   <div className="flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4 text-gold-deep" />
-                    <p className="text-sm font-extrabold text-gold-deep">
-                      JK Academy AI Response
+                    <MessageCircle className="h-4 w-4 text-emerald-700" />
+                    <p className="text-sm font-extrabold text-emerald-800 dark:text-emerald-200">
+                      JK Academy Support — Solution
                     </p>
                   </div>
 
@@ -156,7 +156,7 @@ function MyReportsPage() {
                     </>
                   ) : (
                     <div className="mt-2 space-y-2">
-                      <p className="text-sm text-muted-foreground">Your report has been received. The response will appear here when available.</p>
+                      <p className="text-sm text-muted-foreground">Your report has been received. A practical solution will appear here shortly.</p>
                       <Button size="sm" variant="outline" disabled={!!retryingId} onClick={() => void retryAi(report.id)}>{retryingId === report.id ? "Generating…" : "Try AI response again"}</Button>
                     </div>
                   )}

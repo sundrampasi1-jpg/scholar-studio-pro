@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { AdminShell } from "@/components/AdminShell";
 import { MediaInput } from "@/components/MediaInput";
@@ -203,6 +203,73 @@ function CourseContent({ course }: { course: Course }) {
       }));
     },
   });
+
+  const [gsSeeded, setGsSeeded] = useState(false);
+
+  useEffect(() => {
+    if (gsSeeded || batches.isLoading || tree.isLoading || !tree.data) return;
+    const foundationBatch = (course.title + " " + (batches.data ?? []).map((batch) => batch.name).join(" "))
+      .toLowerCase().includes("foundation");
+    if (!foundationBatch) {
+      setGsSeeded(true);
+      return;
+    }
+    let cancelled = false;
+    const setupGsSubjects = async () => {
+      const definitions = [
+        { name: "History", topics: ["Ancient History", "Medieval History", "Modern Indian History", "World History"] },
+        { name: "Geography", topics: ["Physical Geography", "World Geography", "Indian Geography", "Human Geography"] },
+        { name: "Indian Polity & Constitution", topics: ["Constitution", "Political System", "Governance", "Local Government"] },
+        { name: "Indian Economy", topics: ["Basic Concepts", "Budget & Taxation", "Banking", "Agriculture & Infrastructure"] },
+        { name: "Environment & Ecology", topics: ["Ecology", "Biodiversity", "Climate Change", "Environmental Conservation"] },
+        { name: "General Science & Technology", topics: ["Physics", "Chemistry", "Biology", "Space & Information Technology"] },
+        { name: "Art & Culture", topics: ["Architecture", "Literature", "Music & Dance", "Heritage & Traditions"] },
+        { name: "Indian Society", topics: ["Social Issues", "Population", "Women & Development", "Poverty & Inclusion"] },
+        { name: "International Relations", topics: ["India & Neighbouring Countries", "Bilateral Relations", "International Organisations"] },
+        { name: "Internal Security", topics: ["Security Challenges", "Cyber Security", "Border Management"] },
+        { name: "Disaster Management", topics: ["Types of Disasters", "Disaster Mitigation", "Preparedness & Response"] },
+        { name: "Ethics, Integrity & Aptitude", topics: ["Ethics & Human Values", "Attitude", "Aptitude", "Case Studies"] },
+        { name: "Current Affairs", topics: ["National Affairs", "International Affairs", "Government Schemes", "Reports & Indices"] },
+        { name: "Uttar Pradesh Special", topics: ["UP History & Culture", "UP Geography", "UP Economy", "UP Administration"] },
+      ];
+      const existingSubjects = new Map((tree.data ?? []).map((subject) => [subject.name.trim().toLowerCase(), subject.id]));
+      let changed = false;
+      for (const definition of definitions) {
+        let subjectId = existingSubjects.get(definition.name.toLowerCase());
+        if (!subjectId) {
+          const { data, error } = await supabase.from("subjects")
+            .insert({ course_id: course.id, name: definition.name, position: existingSubjects.size })
+            .select("id").single();
+          if (error) throw error;
+          subjectId = data.id;
+          existingSubjects.set(definition.name.toLowerCase(), subjectId);
+          changed = true;
+        }
+        const { data: chapters, error: chapterError } = await supabase.from("chapters")
+          .select("name").eq("subject_id", subjectId);
+        if (chapterError) throw chapterError;
+        const existingTopics = new Set((chapters ?? []).map((chapter) => chapter.name.trim().toLowerCase()));
+        const missingTopics = definition.topics
+          .filter((topic) => !existingTopics.has(topic.toLowerCase()))
+          .map((name, index) => ({ subject_id: subjectId, name, position: (chapters?.length ?? 0) + index }));
+        if (missingTopics.length) {
+          const { error } = await supabase.from("chapters").insert(missingTopics);
+          if (error) throw error;
+          changed = true;
+        }
+      }
+      if (!cancelled) {
+        setGsSeeded(true);
+        if (changed) refresh();
+      }
+    };
+    void setupGsSubjects().catch((error) => {
+      console.error("Could not set up Foundation GS subjects:", error);
+      if (!cancelled) setGsSeeded(true);
+    });
+    return () => { cancelled = true; };
+  }, [gsSeeded, batches.isLoading, batches.data, tree.isLoading, tree.data, course.id, course.title]);
+
   const refresh = () => qc.invalidateQueries({ queryKey: key });
 
   async function addSubject() {

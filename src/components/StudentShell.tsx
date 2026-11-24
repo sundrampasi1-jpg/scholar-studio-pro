@@ -290,9 +290,9 @@ export function StudentShell({
 
       <main
         ref={mainRef}
-        className={`flex-1 min-w-0 ${location.pathname.startsWith("/lesson/") ? "relative w-screen max-w-none overflow-x-clip bg-white px-0 pt-16 pb-20" : "mx-auto w-full max-w-6xl px-4 py-6 pt-20"}`}
+        className={`flex-1 ${location.pathname.startsWith("/lesson/") ? "relative left-1/2 w-screen min-w-0 max-w-none -translate-x-1/2 overflow-x-clip bg-white px-0 pt-16 pb-20" : "mx-auto w-full max-w-6xl px-4 py-6 pt-20"}`}
         style={{
-          ...(location.pathname.startsWith("/lesson/") ? { width: "100vw", maxWidth: "100vw", marginLeft: "calc(50% - 50vw)", transform: "none" } : { transform: `translateX(${swipeDrag}px)` }),
+          transform: location.pathname.startsWith("/lesson/") ? undefined : `translateX(${swipeDrag}px)`,
           transition: swipeDrag === 0 ? "transform 180ms ease-out" : "none",
         }}
       >
@@ -327,4 +327,4 @@ export function StudentShell({
       </nav>
     </div>
   );
-            }
+}

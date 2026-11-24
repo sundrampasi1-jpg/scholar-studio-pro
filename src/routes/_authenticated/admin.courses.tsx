@@ -248,7 +248,7 @@ function CourseContent({ course }: { course: Course }) {
   return (
     <div className="mt-6 space-y-4">
       <section className="surface-card p-4">
-        <h2 className="font-semibold">Batch validity & access period</h2>
+        <h2 className="font-semibold">Batch expiry & access validity</h2>
         <p className="mt-1 text-xs text-muted-foreground">New verified purchases and renewals use the batch validity. Default is 365 days.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Input className="max-w-xs" placeholder="New batch name" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
@@ -258,7 +258,7 @@ function CourseContent({ course }: { course: Course }) {
           <div className="mt-3 space-y-2">
             {batches.data.map((batch) => <div key={batch.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
               <span className="min-w-0 flex-1 text-sm font-medium">{batch.name} {batch.is_active ? "" : "(inactive)"}</span>
-              <Input className="w-24" type="number" min={1} max={3650} value={validityDrafts[batch.id] ?? String(batch.validity_days)} onChange={(e) => setValidityDrafts((old) => ({ ...old, [batch.id]: e.target.value }))} />
+              <label className="flex items-center gap-2 text-xs text-muted-foreground"><Input aria-label={`Validity days for ${batch.name}`} className="w-24" type="number" min={1} max={3650} value={validityDrafts[batch.id] ?? String(batch.validity_days)} onChange={(e) => setValidityDrafts((old) => ({ ...old, [batch.id]: e.target.value }))} /> days</label>
               <span className="text-xs text-muted-foreground">days</span>
               <Button size="sm" variant="outline" onClick={() => void saveBatchValidity(batch.id, batch.validity_days)}>Save</Button>
             </div>)}

@@ -439,6 +439,7 @@ function LessonPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [nativeH, setNativeH] = useState(0);
+  const [nativeW, setNativeW] = useState(0);
   const [quality, setQuality] = useState(0); // 0 = auto/source
   const [cachedUrl, setCachedUrl] = useState<string | null>(null);
   const [savedOffline, setSavedOffline] = useState(false);
@@ -695,7 +696,10 @@ function LessonPage() {
           />
         </div>
       ) : (
-        <div className={`relative ${fullscreen ? "h-full w-full" : "aspect-video w-full"}`}>
+        <div
+          className={`relative w-full ${fullscreen ? "h-full" : ""}`}
+          style={!fullscreen ? { aspectRatio: nativeW > 0 && nativeH > 0 ? `${nativeW} / ${nativeH}` : "16 / 9" } : undefined}
+        >
           {videoSrc ? (
             <video
               ref={videoRef}
@@ -711,6 +715,7 @@ function LessonPage() {
                 setDuration(el.duration || 0);
                 el.playbackRate = speed;
                 setNativeH(el.videoHeight || 0);
+                setNativeW(el.videoWidth || 0);
                 if (quality) applyQuality(quality);
               }}
               onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}

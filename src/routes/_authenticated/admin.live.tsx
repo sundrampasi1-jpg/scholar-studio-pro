@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { AdminShell } from "@/components/AdminShell";
 import { MediaInput } from "@/components/MediaInput";
@@ -13,6 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, NativeSelect, run, confirmDelete, notifyAll } from "@/lib/admin-ui";
 import { formatDateTime, liveStatus } from "@/lib/queries";
+import { LiveClassRoom } from "@/components/LiveClassRoom";
+import { LiveClassChat } from "@/components/LiveClassChat";
+import { startLiveClass, endLiveClass } from "@/lib/live-class.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/live")({
   head: () => ({ meta: [{ title: "Live classes — JK Academy Admin" }, { name: "description", content: "Schedule live classes and add recordings." }] }),
@@ -39,7 +44,39 @@ function toLocal(iso: string) {
 
 function AdminLive() {
   const qc = useQueryClient();
+  const startLive = useServerFn(startLiveClass);
+  const finishLive = useServerFn(endLiveClass);
   const [edit, setEdit] = useState<Live | null>(null);
+  const [activeHostId, setActiveHostId] = useState<string | null>(null);
+  const [busyLiveId, setBusyLiveId] = useState<string | null>(null);
+
+  async function startCameraLive(id: string) {
+    setBusyLiveId(id);
+    try {
+      await startLive({ data: { liveClassId: id } });
+      setActiveHostId(id);
+      await qc.invalidateQueries({ queryKey: ["admin-live"] });
+      toast.success("Live class started. Camera studio is opening.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not start live class.");
+    } finally {
+      setBusyLiveId(null);
+    }
+  }
+
+  async function stopCameraLive(id: string) {
+    setBusyLiveId(id);
+    try {
+      await finishLive({ data: { liveClassId: id } });
+      setActiveHostId(null);
+      await qc.invalidateQueries({ queryKey: ["admin-live"] });
+      toast.success("Live class ended.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not end live class.");
+    } finally {
+      setBusyLiveId(null);
+    }
+  }
   const courses = useQuery({
     queryKey: ["admin-course-options"],
     queryFn: async () => (await supabase.from("courses").select("id, title").order("title")).data ?? [],
@@ -104,16 +141,37 @@ function AdminLive() {
       {lives.isLoading ? <LoadingState /> : !lives.data?.length ? <EmptyState title="No live classes yet" /> : (
         <div className="grid gap-2">
           {lives.data.map((l) => {
-            const st = liveStatus(l.scheduled_at, l.duration_minutes);
+            const st = l.live_status === "live" ? "live" : l.live_status === "ended" ? "completed" : liveStatus(l.scheduled_at, l.duration_minutes);
             return (
-              <div key={l.id} className="surface-card flex flex-wrap items-center gap-2 p-3 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{l.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}{l.batches?.name ? ` · Batch: ${l.batches.name} (${l.batches.validity_days} days validity)` : ""}</p>
+              <div key={l.id} className="surface-card rounded-2xl p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{l.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.courses?.title ?? "All students"}
+                      {l.batches?.name ? " · Batch: " + l.batches.name + " · " + l.batches.validity_days + " days validity" : ""}
+                    </p>
+                  </div>
+                  <Badge variant={st === "live" ? "destructive" : st === "upcoming" ? "default" : "secondary"}>{st === "live" ? "LIVE NOW" : st}</Badge>
+                  {l.live_status === "live" ? (
+                    <>
+                      {activeHostId !== l.id && <Button size="sm" variant="outline" onClick={() => setActiveHostId(l.id)}>Open studio</Button>}
+                      <Button size="sm" variant="destructive" disabled={busyLiveId === l.id} onClick={() => void stopCameraLive(l.id)}>End live</Button>
+                    </>
+                  ) : l.live_status !== "ended" ? (
+                    <Button size="sm" onClick={() => void startCameraLive(l.id)} disabled={busyLiveId === l.id}>
+                      {busyLiveId === l.id ? "Starting…" : "Start camera live"}
+                    </Button>
+                  ) : null}
+                  <Button size="icon" variant="ghost" onClick={() => setEdit({ ...l, scheduled_at: toLocal(l.scheduled_at) })} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => del(l.id, l.title)} aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
                 </div>
-                <Badge variant={st === "live" ? "destructive" : st === "upcoming" ? "default" : "secondary"}>{st}</Badge>
-                <Button size="icon" variant="ghost" onClick={() => setEdit({ ...l, scheduled_at: toLocal(l.scheduled_at) })} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" onClick={() => del(l.id, l.title)} aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
+                {activeHostId === l.id && l.live_status === "live" && (
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                    <LiveClassRoom liveClassId={l.id} mode="host" />
+                    <LiveClassChat liveClassId={l.id} mode="admin" />
+                  </div>
+                )}
               </div>
             );
           })}

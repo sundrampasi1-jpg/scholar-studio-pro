@@ -9,7 +9,8 @@ async function requireAdmin(userId: string, supabase: { rpc: (name: string, args
 }
 
 async function getRecipients(supabaseAdmin: any, liveClass: { batch_id: string | null; course_id: string | null }) {
-  let query = supabaseAdmin.from("enrollments").select("user_id").eq("status", "active").gt("expires_at", new Date().toISOString());
+  const now = new Date().toISOString();
+  let query = supabaseAdmin.from("enrollments").select("user_id").eq("status", "active").or("expires_at.gt." + now + ",expires_at.is.null");
   if (liveClass.batch_id) query = query.eq("batch_id", liveClass.batch_id);
   else if (liveClass.course_id) query = query.eq("course_id", liveClass.course_id);
   const { data, error } = await query;
@@ -31,6 +32,9 @@ export const startLiveClass = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!liveClass) throw new Error("Live class not found.");
     if (liveClass.live_status === "live") throw new Error("This class is already live.");
+    if (!process.env["LIVEKIT_URL"] || !process.env["LIVEKIT_API_KEY"] || !process.env["LIVEKIT_API_SECRET"]) {
+      throw new Error("Live video is not connected yet. Add LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET in Lovable Secrets first.");
+    }
 
     const roomName = `jk-academy-${liveClass.id}`;
     const now = new Date().toISOString();

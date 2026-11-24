@@ -253,7 +253,7 @@ export const replyLessonCommentAi = createServerFn({ method: "POST" })
   });
 
 const LESSON_REPORT_SYSTEM = `You are JK Academy's technical support teacher. Give the student a direct, useful solution to the exact reported problem.
-Always write the complete reply in simple, clear English only, regardless of the language or script used in the student report. Never use Hindi, Hinglish, Roman Hindi, or Devanagari. Keep technical terms in English. Do NOT greet the student. Do NOT say hello, thank you, we received your report, or mention AI/support process. Start immediately with the solution. Use 2-4 short numbered steps only when steps are useful.
+Always write a complete, self-contained reply in simple, clear English only, regardless of the language or script used in the student report. Never use Hindi, Hinglish, Roman Hindi, or Devanagari. Keep technical terms in English. Do NOT greet the student. Do NOT say hello, thank you, we received your report, or mention AI/support process. Start immediately with the solution. Explain the full fix, including any necessary follow-up/check. Use 3-6 concise numbered steps when steps are useful. Do not stop mid-sentence or leave a step unfinished.
 - Video is not playing/loading: check internet connection; switch once between Wi-Fi and mobile data; close and reopen the lesson; refresh/reopen the app; if it still fails, try Chrome and tell the student to share a screenshot and lesson name.
 - Audio problem: check media volume/mute, reconnect earphones, reopen the lesson, and try Chrome.
 - PDF/notes problem: reopen or download the PDF, check device storage, and try another PDF viewer.
@@ -302,7 +302,7 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
       {
         systemInstruction: { parts: [{ text: LESSON_REPORT_SYSTEM }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.35, maxOutputTokens: 800 },
+        generationConfig: { temperature: 0.25, maxOutputTokens: 1600 },
       },
       key,
     );

@@ -59,7 +59,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     try {
       const page = await doc.getPage(pageNum);
       const base = page.getViewport({ scale: 1 });
-      const fitWidth = Math.min(host.parentElement?.clientWidth || window.innerWidth || 800, 1000) - 8;
+      const fitWidth = host.parentElement?.clientWidth || window.innerWidth || 800;
       const width = Math.max(200, fitWidth) * zoom;
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       const scale = width / base.width;
@@ -70,7 +70,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       canvas.style.width = Math.floor(width) + "px";
       canvas.style.maxWidth = zoom > 1 ? "none" : "100%";
       canvas.style.height = "auto";
-      canvas.className = "mx-auto block rounded border bg-card shadow-sm";
+      canvas.className = "mx-auto block bg-card";
       host.innerHTML = "";
       host.appendChild(canvas);
       await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp }).promise;
@@ -132,8 +132,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
           </button>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <div ref={containerRef} className="mx-auto">
+      <div className="w-full overflow-x-auto">
+        <div ref={containerRef} className="w-full">
           {state === "ready" &&
             Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
               <div
@@ -142,7 +142,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
                 ref={(el) => {
                   if (el) pageRefs.current.set(pageNum, el);
                 }}
-                className="mb-3 flex min-h-[300px] items-center justify-center"
+                className="flex min-h-0 w-full items-center justify-center"
               >
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>

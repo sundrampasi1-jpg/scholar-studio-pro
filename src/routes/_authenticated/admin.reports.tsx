@@ -188,9 +188,10 @@ function AdminReportsPage() {
             </article>)}
           </div>
         </section>
-
+          </TabsContent>
+          <TabsContent value="reports" className="mt-4">
         <section className="space-y-3">
-          <div className="flex items-center justify-between"><h2 className="font-semibold">My Reports / Student Reports</h2><span className="rounded-full bg-muted px-3 py-1 text-xs">{reports.data?.length ?? 0} reports</span></div>
+          <div className="flex items-center justify-between"><h2 className="font-semibold">Student Reports</h2><span className="rounded-full bg-muted px-3 py-1 text-xs">{reports.data?.length ?? 0} reports</span></div>
           {reports.isLoading && <LoadingState />}
           {reports.error && <ErrorState error={reports.error} onRetry={() => void reports.refetch()} />}
           {!reports.isLoading && !reports.error && reports.data?.length === 0 && <EmptyState title="No lesson reports" description="Student lesson reports will appear here." />}
@@ -209,6 +210,8 @@ function AdminReportsPage() {
             <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => { setEditingReportId(report.id); setReportReason(report.reason); setReportDetails(report.details ?? ""); }}><Pencil className="mr-1 h-3 w-3" /> Edit student report</Button><Button size="sm" variant="destructive" onClick={() => void deleteReport(report.id)}><Trash2 className="mr-1 h-3 w-3" /> Delete report</Button></div>
           </article>)}
         </section>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminShell>
   );

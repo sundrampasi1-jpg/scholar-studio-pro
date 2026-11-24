@@ -200,7 +200,24 @@ function Dashboard() {
               return (
                 <div key={enrollment.id} className="surface-card p-4 shadow-sm">
                   <h3 style={{ color: TEXT_PRIMARY }} className="font-semibold">{enrollment.courses?.title}</h3>
-                  <p style={{ color: TEXT_SECONDARY }} className="mt-1 text-xs">
+                  {enrollment.status === "suspended" ? (
+                    <div className="mt-2 inline-flex items-center rounded-lg border-2 border-red-700 bg-red-50 px-3 py-1.5 text-xs font-bold text-black">
+                      ACCESS PAUSED BY INSTITUTE
+                    </div>
+                  ) : enrollment.expires_at ? (
+                    <div className="mt-2 inline-flex items-center rounded-lg border-2 border-[#263238] bg-white px-3 py-1.5 text-xs font-bold text-black shadow-sm">
+                      BATCH EXPIRY: {new Date(enrollment.expires_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </div>
+                  ) : enrollment.courses?.is_free ? (
+                    <div className="mt-2 inline-flex items-center rounded-lg border-2 border-[#263238] bg-white px-3 py-1.5 text-xs font-bold text-black">
+                      NO EXPIRY · FREE COURSE
+                    </div>
+                  ) : (
+                    <div className="mt-2 inline-flex items-center rounded-lg border-2 border-amber-700 bg-amber-50 px-3 py-1.5 text-xs font-bold text-black">
+                      EXPIRY NOT SET · CONTACT ADMIN
+                    </div>
+                  )}
+                  <p style={{ color: TEXT_SECONDARY }} className="mt-2 text-xs">
                     {itemProgress ? itemProgress.completed + " of " + itemProgress.total + " lessons" : "Loading..."}
                   </p>
                   <Progress value={itemProgress ? itemProgress.percent : 0} className="mt-3" />

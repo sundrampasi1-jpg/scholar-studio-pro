@@ -220,7 +220,7 @@ function CourseDetail() {
 
   const c = course.data;
   const isFree = c.is_free || Number(c.price) === 0;
-  const isEnrolled = !!enrollment.data && (isFree || (!!enrollment.data.expires_at && new Date(enrollment.data.expires_at) > new Date()));
+  const isEnrolled = !!enrollment.data && (isFree || (enrollment.data.status === "active" && !!enrollment.data.expires_at && new Date(enrollment.data.expires_at) > new Date()));
   const price = Number(c.price);
 
   return (
@@ -289,7 +289,7 @@ function CourseDetail() {
           {isEnrolled ? (
             <div className="surface-card p-4">
               <p className="text-sm font-medium">Your progress</p>
-              {enrollment.data?.expires_at && <p className="mt-1 text-xs text-muted-foreground">Access valid until {new Date(enrollment.data.expires_at).toLocaleDateString("en-IN")}</p>}
+              {enrollment.data?.expires_at && <div className="mt-2 inline-flex rounded-lg border-2 border-[#263238] bg-white px-3 py-1.5 text-xs font-extrabold text-black">BATCH EXPIRY: {new Date(enrollment.data.expires_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>}
               <Progress value={progress.data?.percent ?? 0} className="mt-3" />
               <p className="mt-2 text-xs text-muted-foreground">
                 {progress.data?.completed ?? 0} of {progress.data?.total ?? 0} lessons completed

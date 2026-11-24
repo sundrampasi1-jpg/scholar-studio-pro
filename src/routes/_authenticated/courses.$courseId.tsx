@@ -232,52 +232,50 @@ function CourseDetail() {
           ) : (structure.data ?? []).length === 0 ? (
             <EmptyState title="Content coming soon" description="No subjects have been added yet." />
           ) : (
-            <Accordion type="multiple" className="surface-card divide-y px-4">
-              {(structure.data ?? []).map((s) => (
-                <AccordionItem key={s.id} value={s.id} className="border-b-0">
-                  <AccordionTrigger className="text-left font-medium">{s.name}</AccordionTrigger>
-                  <AccordionContent>
-                    {[...(s.chapters ?? [])]
-                      .sort((a, b) => a.position - b.position)
-                      .map((ch) => (
-                        <div key={ch.id} className="mb-4">
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {ch.name}
-                          </p>
-                          <ul className="space-y-1">
-                            {[...(ch.lessons ?? [])]
-                              .filter((l) => l.is_published)
-                              .sort((a, b) => a.position - b.position)
-                              .map((l) => {
-                                const done = completedIds.data?.includes(l.id);
-                                return (
-                                  <li key={l.id}>
-                                    {isEnrolled ? (
-                                      <Link
-                                        to="/lesson/$lessonId"
-                                        params={{ lessonId: l.id }}
-                                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
-                                      >
-                                        {done ? (
-                                          <CheckCircle2 className="h-4 w-4 text-success" />
-                                        ) : (
-                                          <Circle className="h-4 w-4 text-muted-foreground" />
-                                        )}
-                                        <span className="flex-1">{l.title}</span>
-                                        {l.video_url && <PlayCircle className="h-4 w-4 text-primary" />}
-                                        {l.pdf_url && <FileText className="h-4 w-4 text-muted-foreground" />}
-                                      </Link>
-                                    ) : (
-                                      <span className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
-                                        <Lock className="h-4 w-4" /> {l.title}
-                                      </span>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                          </ul>
-                        </div>
-                      ))}
+            <Accordion type="multiple" className="surface-card divide-y overflow-hidden rounded-2xl border px-4">
+              {(structure.data ?? []).map((subject) => (
+                <AccordionItem key={subject.id} value={subject.id} className="border-b-0">
+                  <AccordionTrigger className="py-4 text-left font-bold text-[#263D33] hover:no-underline">
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#D9E5D8] text-lg">📚</span>
+                      <span className="min-w-0"><span className="block">{subject.name}</span><span className="mt-0.5 block text-xs font-medium text-muted-foreground">{(subject.chapters ?? []).length} topics</span></span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    {(subject.chapters ?? []).length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-[#D7C49A] bg-[#F5F3EE] p-4 text-sm text-[#73776E]">Topics are not added yet.</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {[...(subject.chapters ?? [])].sort((a, b) => a.position - b.position).map((topic, topicIndex) => {
+                          const lessons = [...(topic.lessons ?? [])].filter((lesson) => lesson.is_published).sort((a, b) => a.position - b.position);
+                          return (
+                            <section key={topic.id} className="overflow-hidden rounded-xl border border-[#E7D6A9] bg-white">
+                              <div className="flex items-start gap-3 bg-[#F5F3EE] px-3 py-3">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#E7D6A9] text-xs font-extrabold text-[#263D33]">{topicIndex + 1}</span>
+                                <div className="min-w-0 flex-1"><h3 className="font-bold text-[#263D33]">{topic.name}</h3><p className="mt-0.5 text-xs text-[#73776E]">{lessons.length ? lessons.length + " lessons" : "Lessons will appear here"}</p></div>
+                              </div>
+                              <div className="space-y-2 p-3">
+                                {lessons.length === 0 ? (
+                                  <div className="rounded-lg border border-dashed border-[#D8D8D8] bg-[#FAFAF8] px-3 py-3 text-sm text-[#73776E]"><p className="font-semibold">Video is not uploaded yet</p><p className="mt-1 text-xs">PDF is not uploaded yet</p></div>
+                                ) : lessons.map((lesson, lessonIndex) => {
+                                  const done = completedIds.data?.includes(lesson.id);
+                                  return (
+                                    <Link key={lesson.id} to="/lesson/$lessonId" params={{ lessonId: lesson.id }} className="block rounded-xl border border-[#E5E7EB] bg-white p-3 transition-colors hover:border-[#BB8428] hover:bg-[#FFFCF5]">
+                                      <div className="flex items-center gap-2"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#F5F3EE] text-xs font-bold text-[#8A642D]">{String(lessonIndex + 1).padStart(2, "0")}</span><span className="min-w-0 flex-1 text-sm font-semibold text-[#263D33]">{lesson.title}</span>{done ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <PlayCircle className="h-4 w-4 shrink-0 text-[#BB8428]" />}</div>
+                                      <div className="ml-9 mt-2 flex flex-wrap gap-2">
+                                        {lesson.video_url ? <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF3EA] px-2.5 py-1 text-[11px] font-semibold text-[#28623B]"><PlayCircle className="h-3 w-3" /> Video available</span> : <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800"><PlayCircle className="h-3 w-3" /> Video is not uploaded yet</span>}
+                                        {lesson.pdf_url ? <span className="inline-flex items-center gap-1 rounded-full bg-[#FCEFEA] px-2.5 py-1 text-[11px] font-semibold text-[#9A442B]"><FileText className="h-3 w-3" /> Lesson PDF available</span> : <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600"><FileText className="h-3 w-3" /> PDF is not uploaded yet</span>}
+                                      </div>
+                                      <p className="ml-9 mt-2 text-[11px] font-semibold text-[#8A642D]">Open lesson, video &amp; its PDF <span aria-hidden="true">→</span></p>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </section>
+                          );
+                        })}
+                      </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               ))}

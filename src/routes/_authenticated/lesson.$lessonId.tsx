@@ -729,20 +729,20 @@ function LessonPage() {
             </div>
           )}
 
-          {/* Invisible tap zones: tap left/right side to seek 10 seconds. */}
+          {/* Invisible side tap zones; leave the top and bottom player controls clear. */}
           {videoSrc && (
             <>
               <button
                 type="button"
                 aria-label="Back 10 seconds"
                 onClick={(event) => { event.stopPropagation(); seek(-10); }}
-                className="absolute left-0 top-1/4 z-10 h-1/2 w-1/3 bg-transparent"
+                className="absolute bottom-16 left-0 top-12 z-10 w-1/3 touch-manipulation bg-transparent"
               />
               <button
                 type="button"
                 aria-label="Forward 10 seconds"
                 onClick={(event) => { event.stopPropagation(); seek(10); }}
-                className="absolute right-0 top-1/4 z-10 h-1/2 w-1/3 bg-transparent"
+                className="absolute bottom-16 right-0 top-12 z-10 w-1/3 touch-manipulation bg-transparent"
               />
             </>
           )}
@@ -753,14 +753,14 @@ function LessonPage() {
               type="button"
               onClick={togglePlay}
               aria-label="Play video"
-              className="absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full bg-black/55 shadow-xl backdrop-blur-sm"
+              className="absolute inset-0 z-20 m-auto flex h-16 w-16 items-center justify-center rounded-full bg-black/55 shadow-xl backdrop-blur-sm"
             >
               <Play className="ml-1 h-8 w-8 fill-white text-white" />
             </button>
           )}
 
           {/* Top-right: fullscreen + settings */}
-          <div className="absolute right-2 top-2 flex items-center gap-1.5">
+          <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => void toggleFullscreen()}
@@ -841,7 +841,7 @@ function LessonPage() {
           )}
 
           {/* Bottom bar */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 pb-2.5 pt-8">
+          <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 pb-2.5 pt-8">
             <input
               aria-label="Video progress"
               type="range"
@@ -876,7 +876,7 @@ function LessonPage() {
 
   return (
     <StudentShell>
-      <div className="relative left-1/2 w-screen -translate-x-1/2 space-y-4 bg-white">
+      <div className="w-full min-w-0 space-y-4 bg-white">
         {playerElement && <div className="w-full">{playerElement}</div>}
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
@@ -956,7 +956,7 @@ function LessonPage() {
         </div>
 
         {/* Lesson material */}
-        <section className="-mx-4 w-[calc(100%+2rem)] overflow-hidden rounded-none border-x-0 border-y border-gray-200 bg-white shadow-sm">
+        <section className="w-full min-w-0 overflow-hidden rounded-none border-y border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gold/20 px-4 py-3">
             <FileText className="h-4 w-4 text-gold-deep" />
             <p className="text-sm font-extrabold uppercase tracking-wide text-foreground">Lesson material</p>

@@ -23,7 +23,7 @@ function MyReportsPage() {
   const attemptedAutoReplies = useRef(new Set<string>());
   const isGenericReply = (value: string | null) => {
     const reply = (value ?? "").trim().toLowerCase();
-    return /[\\u0900-\\u097F]/.test(reply)
+    return /[\u0900-\u097F]/.test(reply)
       || /^(hello[!.]?\\s*)?thank you for reaching out/.test(reply)
       || reply.includes("your report has been received")
       || reply.includes("thank you for contacting jk academy");

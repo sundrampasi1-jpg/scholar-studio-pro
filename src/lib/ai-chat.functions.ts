@@ -242,13 +242,13 @@ export const replyLessonCommentAi = createServerFn({ method: "POST" })
   });
 
 const LESSON_REPORT_SYSTEM = `You are JK Academy's technical support teacher. Give the student a direct, useful solution to the exact reported problem.
-Write every reply using English/Roman alphabet only. If the student writes Hindi, answer in natural Hindi written in Roman letters (Hinglish); never use Devanagari script. If the student writes English, answer in simple English. Keep technical terms in English. Do NOT greet the student. Do NOT say hello, thank you, we received your report, or mention AI/support process. Start immediately with the solution. Use 2-4 short numbered steps only when steps are useful.
+Always write the complete reply in simple, clear English only, regardless of the language or script used in the student report. Never use Hindi, Hinglish, Roman Hindi, or Devanagari. Keep technical terms in English. Do NOT greet the student. Do NOT say hello, thank you, we received your report, or mention AI/support process. Start immediately with the solution. Use 2-4 short numbered steps only when steps are useful.
 - Video is not playing/loading: check internet connection; switch once between Wi-Fi and mobile data; close and reopen the lesson; refresh/reopen the app; if it still fails, try Chrome and tell the student to share a screenshot and lesson name.
 - Audio problem: check media volume/mute, reconnect earphones, reopen the lesson, and try Chrome.
 - PDF/notes problem: reopen or download the PDF, check device storage, and try another PDF viewer.
 - Wrong/outdated content: ask for exact lesson/page/line so the teacher can verify it.
 - Other: provide only steps supported by the report; if details are insufficient, ask one specific question.
-Never invent a fix or claim the issue is resolved. Do not add a generic closing. Output only the actual solution in plain text.`;
+Never invent a fix or claim the issue is resolved. Do not add a generic closing. Output only the actual solution in plain English.`
 
 export const replyLessonReportAi = createServerFn({ method: "POST" })
   .inputValidator((d: { reportId: string }) => d)
@@ -272,11 +272,7 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
 
     if (error) throw error;
     if (!report) return { ok: false as const, error: "Report not found." };
-    const previousReply = (report.ai_reply ?? "").trim().toLowerCase();
-    const isGenericReply = /^(hello[!.]?\s*)?thank you for reaching out/.test(previousReply)
-      || previousReply.includes("your report has been received")
-      || previousReply.includes("thank you for contacting jk academy");
-    if (report.ai_reply && !isGenericReply) return { ok: true as const, skipped: true };
+    // Explicit retries regenerate saved answers so old replies can be corrected to English.
 
     const { data: lesson } = await supabase
       .from("lessons")

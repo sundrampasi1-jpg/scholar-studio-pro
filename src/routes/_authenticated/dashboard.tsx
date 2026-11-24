@@ -118,6 +118,26 @@ function Dashboard() {
           <p className="mt-3 text-sm text-white/80">
             {doneLessons} of {totalLessons} lessons completed
           </p>
+          {(enrollments.data ?? []).length > 0 && (
+            <div className="mt-4 space-y-2">
+              {(enrollments.data ?? []).map((enrollment) => (
+                <div key={enrollment.id} className="rounded-xl border-2 border-white bg-white px-3 py-2 text-black shadow-sm">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide">
+                    {enrollment.batches?.name ?? enrollment.courses?.title ?? "My batch"} · BATCH EXPIRY
+                  </p>
+                  <p className="mt-0.5 text-sm font-black">
+                    {enrollment.status === "suspended"
+                      ? "ACCESS PAUSED BY INSTITUTE"
+                      : enrollment.expires_at
+                        ? new Date(enrollment.expires_at).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })
+                        : enrollment.courses?.is_free
+                          ? "NO EXPIRY · FREE COURSE"
+                          : "EXPIRY NOT SET · CONTACT ADMIN"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
           <Button asChild size="sm" className="mt-4 bg-white text-[#244C40] hover:bg-white/90">
             <Link to="/courses">Continue learning</Link>
           </Button>

@@ -290,7 +290,7 @@ export function StudentShell({
 
       <main
         ref={mainRef}
-        className={`flex-1 ${location.pathname.startsWith("/lesson/") ? "relative left-1/2 w-screen max-w-none -translate-x-1/2 bg-white px-0 pt-16 pb-20" : "mx-auto w-full max-w-6xl px-4 py-6 pt-20"}`}
+        className={`flex-1 ${location.pathname.startsWith("/lesson/") ? "w-screen max-w-none self-center bg-white px-0 pt-16 pb-20" : "mx-auto w-full max-w-6xl px-4 py-6 pt-20"}`}
         style={{
           transform: location.pathname.startsWith("/lesson/") ? undefined : `translateX(${swipeDrag}px)`,
           transition: swipeDrag === 0 ? "transform 180ms ease-out" : "none",

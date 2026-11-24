@@ -127,13 +127,13 @@ function AdminLive() {
             <div className="space-y-3">
               <Field label="Title"><Input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></Field>
               <Field label="Course">
-                <NativeSelect value={edit.course_id ?? ""} onChange={(e) => setEdit({ ...edit, course_id: e.target.value })}>
+                <NativeSelect value={edit.course_id ?? ""} onChange={(e) => setEdit({ ...edit, course_id: e.target.value, batch_id: "" })}>
                   <option value="">All courses</option>
                   {courses.data?.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </NativeSelect>
               </Field>
               <Field label="Batch (optional — restricts class to this batch)">
-                <NativeSelect value={edit.batch_id ?? ""} onChange={(e) => setEdit({ ...edit, batch_id: e.target.value })}>
+                <NativeSelect value={edit.batch_id ?? ""} onChange={(e) => { const selected = batches.data?.find((b) => b.id === e.target.value); setEdit({ ...edit, batch_id: e.target.value, course_id: selected?.course_id ?? edit.course_id }); }}>
                   <option value="">All eligible students in course</option>
                   {batches.data?.filter((b) => !edit.course_id || b.course_id === edit.course_id).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </NativeSelect>

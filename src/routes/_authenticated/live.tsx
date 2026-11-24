@@ -27,7 +27,7 @@ function LivePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("live_classes")
-        .select("*, courses(title)")
+        .select("*, courses(title), batches(name)")
         .order("scheduled_at", { ascending: true });
       if (error) throw error;
       return data;
@@ -54,7 +54,7 @@ function LivePage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {formatDateTime(l.scheduled_at)} · {l.duration_minutes} min · {l.teacher_name ?? "Faculty"}
-                {l.courses?.title ? ` · ${l.courses.title}` : ""}
+                {l.courses?.title ? ` · ${l.courses.title}` : ""}{l.batches?.name ? ` · Batch: ${l.batches.name}` : ""}
               </p>
               {l.description && <p className="mt-1 text-sm text-muted-foreground">{l.description}</p>}
             </div>

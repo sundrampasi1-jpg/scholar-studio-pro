@@ -209,7 +209,7 @@ export function StudentShell({
   }
 
   return (
-    <div className={`flex min-h-screen flex-col pb-20 md:pb-0 ${location.pathname.startsWith("/lesson/") ? "bg-white" : "bg-surface"}`}>
+    <div className="flex min-h-screen flex-col bg-surface pb-20 md:pb-0">
       <header className="fixed top-0 left-0 right-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <Link to="/dashboard">
@@ -290,9 +290,9 @@ export function StudentShell({
 
       <main
         ref={mainRef}
-        className={`flex-1 ${location.pathname.startsWith("/lesson/") ? "relative left-1/2 w-screen min-w-0 max-w-none -translate-x-1/2 overflow-x-clip bg-white px-0 pt-16 pb-20" : "mx-auto w-full max-w-6xl px-4 py-6 pt-20"}`}
+        className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pt-20"
         style={{
-          transform: location.pathname.startsWith("/lesson/") ? undefined : `translateX(${swipeDrag}px)`,
+          transform: `translateX(${swipeDrag}px)`,
           transition: swipeDrag === 0 ? "transform 180ms ease-out" : "none",
         }}
       >
@@ -327,4 +327,4 @@ export function StudentShell({
       </nav>
     </div>
   );
-}
+            }

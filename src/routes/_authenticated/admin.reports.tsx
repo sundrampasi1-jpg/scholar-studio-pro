@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/AdminShell";
 import { LoadingState, ErrorState, EmptyState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -157,6 +158,12 @@ function AdminReportsPage() {
   return (
     <AdminShell title="Lesson Reports" subtitle="Student reports, comments and teacher/AI replies">
       <div className="min-w-0 space-y-5">
+        <Tabs defaultValue="reports" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="reports">My Reports</TabsTrigger>
+            <TabsTrigger value="comments">Lesson Comments</TabsTrigger>
+          </TabsList>
+          <TabsContent value="comments" className="mt-4">
         <section className="rounded-2xl border bg-card p-4 shadow-sm">
           <h2 className="mb-3 flex items-center gap-2 font-semibold"><MessageCircle className="h-4 w-4" /> Lesson Comments & Teacher Replies</h2>
           {comments.isLoading && <LoadingState />}

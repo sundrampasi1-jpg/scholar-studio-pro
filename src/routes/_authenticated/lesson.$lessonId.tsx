@@ -729,6 +729,24 @@ function LessonPage() {
             </div>
           )}
 
+          {/* Invisible tap zones: tap left/right side to seek 10 seconds. */}
+          {videoSrc && (
+            <>
+              <button
+                type="button"
+                aria-label="Back 10 seconds"
+                onClick={(event) => { event.stopPropagation(); seek(-10); }}
+                className="absolute left-0 top-1/4 z-10 h-1/2 w-1/3 bg-transparent"
+              />
+              <button
+                type="button"
+                aria-label="Forward 10 seconds"
+                onClick={(event) => { event.stopPropagation(); seek(10); }}
+                className="absolute right-0 top-1/4 z-10 h-1/2 w-1/3 bg-transparent"
+              />
+            </>
+          )}
+
           {/* Center play */}
           {!playing && (
             <button
@@ -858,8 +876,8 @@ function LessonPage() {
 
   return (
     <StudentShell>
-      <div className="mx-auto max-w-5xl space-y-4 bg-white">
-        {playerElement && <div className="relative left-1/2 w-screen -translate-x-1/2">{playerElement}</div>}
+      <div className="relative left-1/2 w-screen -translate-x-1/2 space-y-4 bg-white">
+        {playerElement && <div className="w-full">{playerElement}</div>}
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
           {courseId && <Link to="/courses/$courseId" params={{ courseId }} className="text-gold-deep hover:underline">{l.chapters?.subjects?.courses?.title ?? "Course"}</Link>}

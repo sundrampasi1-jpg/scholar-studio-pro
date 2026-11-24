@@ -273,7 +273,7 @@ export const replyLessonReportAi = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!report) return { ok: false as const, error: "Report not found." };
     const previousReply = (report.ai_reply ?? "").trim().toLowerCase();
-    const isGenericReply = /^(hello[!.]?\\s*)?thank you for reaching out/.test(previousReply)
+    const isGenericReply = /^(hello[!.]?\s*)?thank you for reaching out/.test(previousReply)
       || previousReply.includes("your report has been received")
       || previousReply.includes("thank you for contacting jk academy");
     if (report.ai_reply && !isGenericReply) return { ok: true as const, skipped: true };

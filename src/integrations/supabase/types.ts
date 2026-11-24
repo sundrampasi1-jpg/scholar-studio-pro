@@ -620,8 +620,6 @@ export type Database = {
       }
       lesson_reports: {
         Row: {
-          created_at: string
-          details: string | null
           ai_replied_at: string | null
           ai_reply: string | null
           created_at: string

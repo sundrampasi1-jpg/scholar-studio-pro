@@ -878,7 +878,7 @@ function LessonPage() {
   return (
     <StudentShell>
       <div className="mx-auto max-w-5xl space-y-4 bg-white">
-        {playerElement && <div className="-mx-4 w-[calc(100%+2rem)]">{playerElement}</div>}
+        {playerElement && <div className="relative left-1/2 w-screen -translate-x-1/2">{playerElement}</div>}
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
           {courseId && <Link to="/courses/$courseId" params={{ courseId }} className="text-gold-deep hover:underline">{l.chapters?.subjects?.courses?.title ?? "Course"}</Link>}

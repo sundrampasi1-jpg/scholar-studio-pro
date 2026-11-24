@@ -160,7 +160,7 @@ function AdminReportsPage() {
       <div className="min-w-0 space-y-5">
         <Tabs defaultValue="reports" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="reports">My Reports</TabsTrigger>
+            <TabsTrigger value="reports">Student Reports</TabsTrigger>
             <TabsTrigger value="comments">Lesson Comments</TabsTrigger>
           </TabsList>
           <TabsContent value="comments" className="mt-4">
@@ -198,7 +198,7 @@ function AdminReportsPage() {
           {reports.data?.map((report) => <article key={report.id} className="min-w-0 overflow-hidden rounded-2xl border bg-card p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reported lesson</p><h3 className="break-words font-bold">{report.lesson_title || "Lesson"}</h3><p className="mt-1 text-xs text-muted-foreground">{report.student_name} · {dateText(report.created_at)}</p></div>
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">{report.status || "open"}</span>
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${report.ai_reply ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{report.ai_reply ? "Replied" : "Pending"}</span>
             </div>
             {editingReportId === report.id ? <div className="mt-3 space-y-2 rounded-xl border bg-muted/30 p-3"><Input value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Problem category" /><Textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="Student details" /><div className="flex gap-2"><Button size="sm" onClick={() => void saveReport(report.id)}>Save report</Button><Button size="sm" variant="outline" onClick={() => setEditingReportId(null)}>Cancel</Button></div></div> : <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 dark:bg-rose-950/20"><p className="text-[11px] font-extrabold uppercase tracking-wider text-rose-700 dark:text-rose-300">Student's original problem</p><p className="mt-1 break-words text-sm font-semibold">{report.reason}</p>{report.details && <p className="mt-2 whitespace-pre-wrap break-words text-sm">{report.details}</p>}</div>}
             <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {dateText(report.created_at)}</p>

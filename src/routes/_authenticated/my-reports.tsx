@@ -20,6 +20,7 @@ function MyReportsPage() {
   const queryClient = useQueryClient();
   const askReportAi = useServerFn(replyLessonReportAi);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const attemptedAutoReplies = useRef(new Set<string>());
   const isGenericReply = (value: string | null) => {
     const reply = (value ?? "").trim().toLowerCase();
@@ -33,9 +34,16 @@ function MyReportsPage() {
     setRetryingId(reportId);
     try {
       const result = await askReportAi({ data: { reportId } });
-      if (!result.ok && "error" in result && result.error) toast.error(result.error);
-      else { toast.success("Support response checked"); await queryClient.invalidateQueries({ queryKey: ["my-lesson-reports", user?.id] }); }
-    } catch (error) { toast.error(error instanceof Error ? error.message : "AI reply could not be generated."); }
+      if (!result.ok) {
+        const message = ("error" in result && result.error) || "The AI service did not return a solution. Please try again.";
+        setRetryError(message);
+        toast.error(message);
+      } else {
+        setRetryError(null);
+        toast.success("Solution generated");
+        await queryClient.invalidateQueries({ queryKey: ["my-lesson-reports", user?.id] });
+      }
+    } catch (error) { const message = error instanceof Error ? error.message : "AI reply could not be generated."; setRetryError(message); toast.error(message); }
     finally { setRetryingId(null); }
   }
 
@@ -173,10 +181,10 @@ function MyReportsPage() {
                   ) : (
                     <div className="mt-2 space-y-2">
                       <p className="text-sm text-muted-foreground">
-                        {retryingId === report.id ? "Solution is being prepared…" : "Solution is not available yet."}
+                        {retryingId === report.id ? "Solution is being prepared…" : retryError || "Solution is not available yet."}
                       </p>
                       {retryingId !== report.id && (
-                        <Button size="sm" variant="outline" disabled={!!retryingId} onClick={() => void retryAi(report.id)}>Try again</Button>
+                        <Button size="sm" variant="outline" disabled={!!retryingId} onClick={() => void retryAi(report.id)}>Generate solution</Button>
                       )}
                     </div>
                   )}

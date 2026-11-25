@@ -44,7 +44,12 @@ function ReelsPage() {
         {reels.error && <p className="pt-40 text-center text-background/70">Could not load reels. <button className="underline" onClick={() => reels.refetch()}>Retry</button></p>}
         {reels.data?.length === 0 && <p className="pt-40 text-center text-background/70">No reels yet.</p>}
         {reels.data?.map((r) => (
-          <Reel key={r.id} reel={r} userId={user?.id ?? ""} />
+          <Reel
+            key={r.id}
+            reel={r}
+            userId={user?.id ?? ""}
+            userName={String(user?.user_metadata?.["full_name"] ?? user?.user_metadata?.["name"] ?? "Student")}
+          />
         ))}
       </div>
     </div>
@@ -59,10 +64,11 @@ type ReelRow = {
   reel_comments: { count: number }[];
 };
 
-function Reel({ reel, userId }: { reel: ReelRow; userId: string }) {
+function Reel({ reel, userId, userName }: { reel: ReelRow; userId: string; userName: string }) {
   const qc = useQueryClient();
   const ref = useRef<HTMLVideoElement>(null);
   const [showComments, setShowComments] = useState(false);
+  const [likePending, setLikePending] = useState(false);
   const liked = reel.reel_likes.some((l) => l.user_id === userId);
 
   useEffect(() => {
@@ -80,12 +86,29 @@ function Reel({ reel, userId }: { reel: ReelRow; userId: string }) {
   }, []);
 
   async function toggleLike() {
-    const q = liked
-      ? supabase.from("reel_likes").delete().eq("reel_id", reel.id).eq("user_id", userId)
-      : supabase.from("reel_likes").insert({ reel_id: reel.id, user_id: userId });
-    const { error } = await q;
-    if (error) toast.error(error.message);
-    qc.invalidateQueries({ queryKey: ["reels"] });
+    if (!userId || likePending) return;
+    const previous = qc.getQueryData<any[]>(["reels"]);
+    const wasLiked = liked;
+    const updateLike = (rows: any[] | undefined) =>
+      rows?.map((item) => item.id !== reel.id ? item : {
+        ...item,
+        reel_likes: wasLiked
+          ? item.reel_likes.filter((like: { user_id: string }) => like.user_id !== userId)
+          : [...item.reel_likes, { user_id: userId }],
+      });
+    qc.setQueryData(["reels"], updateLike);
+    setLikePending(true);
+    try {
+      const result = wasLiked
+        ? await supabase.from("reel_likes").delete().eq("reel_id", reel.id).eq("user_id", userId)
+        : await supabase.from("reel_likes").insert({ reel_id: reel.id, user_id: userId });
+      if (result.error) {
+        if (previous) qc.setQueryData(["reels"], previous);
+        toast.error(result.error.message);
+      }
+    } finally {
+      setLikePending(false);
+    }
   }
 
   async function share() {
@@ -113,7 +136,7 @@ function Reel({ reel, userId }: { reel: ReelRow; userId: string }) {
         onClick={(e) => (e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause())}
       />
       <div className="absolute bottom-24 right-3 flex flex-col items-center gap-5 text-background">
-        <button onClick={toggleLike} aria-label="Like" className="flex flex-col items-center text-xs">
+        <button onClick={() => void toggleLike()} disabled={likePending || !userId} aria-label="Like" className="flex flex-col items-center text-xs disabled:opacity-60">
           <Heart className={`h-7 w-7 ${liked ? "fill-primary text-primary" : ""}`} />
           {reel.reel_likes.length}
         </button>
@@ -127,15 +150,46 @@ function Reel({ reel, userId }: { reel: ReelRow; userId: string }) {
         </button>
       </div>
       {reel.title && <p className="absolute bottom-8 left-4 right-16 text-sm font-medium text-background">{reel.title}</p>}
-      {showComments && <Comments reelId={reel.id} userId={userId} onClose={() => setShowComments(false)} />}
+      {showComments && <Comments reelId={reel.id} userId={userId} userName={userName} onClose={() => setShowComments(false)} />}
     </section>
   );
 }
 
-function Comments({ reelId, userId, onClose }: { reelId: string; userId: string; onClose: () => void }) {
+function Comments({ reelId, userId, userName, onClose }: { reelId: string; userId: string; userName: string; onClose: () => void }) {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [viewport, setViewport] = useState({
+    height: typeof window === "undefined" ? 0 : window.innerHeight,
+    keyboardInset: 0,
+  });
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const visible = window.visualViewport;
+      const height = visible?.height ?? window.innerHeight;
+      const keyboardInset = visible
+        ? Math.max(0, window.innerHeight - visible.height - visible.offsetTop)
+        : 0;
+      setViewport((current) =>
+        current.height === height && current.keyboardInset === keyboardInset
+          ? current
+          : { height, keyboardInset },
+      );
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("scroll", updateViewport);
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("scroll", updateViewport);
+    };
+  }, []);
+
   const list = useQuery({
     queryKey: ["reel-comments", reelId],
     queryFn: async () => {
@@ -147,16 +201,30 @@ function Comments({ reelId, userId, onClose }: { reelId: string; userId: string;
 
   async function send() {
     const body = text.trim();
-    if (!body) return;
-    const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
-    const { error } = await supabase.from("reel_comments").insert({ reel_id: reelId, user_id: userId, body, author_name: prof?.full_name || "Student" });
-    if (error) {
-      toast.error(error.message);
-      return;
+    if (!body || !userId || posting) return;
+    setPosting(true);
+    try {
+      const { data, error } = await supabase
+        .from("reel_comments")
+        .insert({ reel_id: reelId, user_id: userId, body, author_name: userName || "Student" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      setText("");
+      qc.setQueryData(["reel-comments", reelId], (current: any[] | undefined) =>
+        current ? [...current, data] : [data],
+      );
+      qc.setQueryData(["reels"], (current: any[] | undefined) =>
+        current?.map((item) => item.id !== reelId ? item : {
+          ...item,
+          reel_comments: [{ count: (item.reel_comments?.[0]?.count ?? 0) + 1 }],
+        }),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not post comment.");
+    } finally {
+      setPosting(false);
     }
-    setText("");
-    qc.invalidateQueries({ queryKey: ["reel-comments", reelId] });
-    qc.invalidateQueries({ queryKey: ["reels"] });
   }
 
   async function remove(id: string) {
@@ -166,7 +234,15 @@ function Comments({ reelId, userId, onClose }: { reelId: string; userId: string;
   }
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-50 flex max-h-[65%] flex-col rounded-t-2xl bg-background text-foreground">
+    <div
+      className="absolute inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-2xl bg-background text-foreground"
+      style={{
+        bottom: viewport.keyboardInset,
+        maxHeight: viewport.keyboardInset > 100
+          ? `${Math.max(220, viewport.height - 8)}px`
+          : "65%",
+      }}
+    >
       <div className="flex items-center justify-between border-b p-3">
         <p className="font-semibold">Comments</p>
         <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
@@ -180,9 +256,9 @@ function Comments({ reelId, userId, onClose }: { reelId: string; userId: string;
           </div>
         ))}
       </div>
-      <div className="flex gap-2 border-t p-2">
-        <Input value={text} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…" onKeyDown={(e) => e.key === "Enter" && send()} />
-        <button onClick={send} aria-label="Send" className="rounded-md bg-primary px-3 text-primary-foreground"><Send className="h-4 w-4" /></button>
+      <div className="flex shrink-0 gap-2 border-t p-2 pb-[max(8px,env(safe-area-inset-bottom))]">
+        <Input value={text} disabled={posting} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void send(); } }} />
+        <button onClick={() => void send()} disabled={posting || !text.trim()} aria-label="Send" className="rounded-md bg-primary px-3 text-primary-foreground disabled:opacity-50">{posting ? <span className="text-xs">…</span> : <Send className="h-4 w-4" />}</button>
       </div>
     </div>
   );

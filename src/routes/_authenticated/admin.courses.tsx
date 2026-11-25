@@ -238,7 +238,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
   const aiJobs = useQuery({
     queryKey: ["ai-video-pdf-jobs", course.id, lessonIds],
     enabled: lessonIds.length > 0,
-    refetchInterval: 5000,
+    refetchInterval: (query) => query.state.data?.some((job) => job.status === "queued" || job.status === "processing") ? 5000 : false,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("ai_video_pdf_jobs").select("id, lesson_id, status, error_message, created_at").in("lesson_id", lessonIds).order("created_at", { ascending: false });
       if (error) throw error;

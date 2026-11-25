@@ -887,6 +887,8 @@ export type Database = {
           provider: string
           provider_ref: string | null
           paid_at: string | null
+          batch_id: string | null
+          renewal_of: string | null
           screenshot_url: string | null
           status: string
           user_id: string
@@ -901,6 +903,8 @@ export type Database = {
           provider?: string
           provider_ref?: string | null
           paid_at?: string | null
+          batch_id?: string | null
+          renewal_of?: string | null
           screenshot_url?: string | null
           status?: string
           user_id: string
@@ -914,6 +918,9 @@ export type Database = {
           id?: string
           provider?: string
           provider_ref?: string | null
+          paid_at?: string | null
+          batch_id?: string | null
+          renewal_of?: string | null
           screenshot_url?: string | null
           status?: string
           user_id?: string

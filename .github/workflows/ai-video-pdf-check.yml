@@ -18,4 +18,5 @@ jobs:
       - name: TypeScript check
         run: bunx tsc --noEmit
       - name: Production build
+        if: always()
         run: bun run build

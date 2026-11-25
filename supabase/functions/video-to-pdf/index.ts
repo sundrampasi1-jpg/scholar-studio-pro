@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
     const { data: active } = await adminDb.from("ai_video_pdf_jobs").select("id,status").eq("lesson_id", lessonId).in("status", ["queued", "processing"]).maybeSingle();
     if (active) return json({ jobId: active.id, status: active.status, existing: true }, 202);
     const { data: job, error: jobError } = await adminDb.from("ai_video_pdf_jobs").insert({
-      lesson_id: lessonId, requested_by: authData.user.id, source_video_url: lesson.video_url, status: "queued",
+      lesson_id: lessonId, requested_by: requestedBy, source_video_url: lesson.video_url, status: "queued",
     }).select("id").single();
     if (jobError || !job) return json({ error: "Could not queue PDF generation." }, 500);
     EdgeRuntime.waitUntil(processJob(job.id, geminiKey));

@@ -253,6 +253,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
     const result = await invokeAiPdf({ data: { action, lessonId } });
     if (!result.ok) { toast.error(result.error); return; }
     if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
+    if (!result.sourceVideoUrl) { toast.error("The lesson video URL is missing."); return; }
     try {
       toast.info("AI has analyzed the video. Preparing the PDF…");
       const pdfBlob = await buildVideoNotesPdf(result.notes, result.lessonTitle);

@@ -78,7 +78,7 @@ function AdminCourses() {
   const courses = useQuery({
     queryKey: ["admin-courses"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("courses").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("courses").select("id, title, description, thumbnail_url, price, is_free, is_published").order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
       return data as Course[];
     },
@@ -194,7 +194,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
     queryFn: async () => {
       const { data, error } = await supabase.from("batches")
         .select("id, name, validity_days, is_active, start_date, end_date")
-        .eq("course_id", course.id).order("created_at", { ascending: true });
+        .eq("course_id", course.id).order("created_at", { ascending: true }).limit(100);
       if (error) throw error;
       return data ?? [];
     },
@@ -222,17 +222,45 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
   const tree = useQuery({
     queryKey: key,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch the course tree in bounded requests. A single nested select with
+      // lessons(*) can force the edge runtime to buffer a very large response.
+      const { data: subjects, error: subjectError } = await supabase
         .from("subjects")
-        .select("id, name, position, chapters(id, name, position, lessons(*))")
+        .select("id, name, position")
         .eq("course_id", course.id)
-        .order("position");
-      if (error) throw error;
-      return (data ?? []).map((s) => ({
-        ...s,
-        chapters: [...(s.chapters ?? [])]
-          .sort((a, b) => a.position - b.position)
-          .map((c) => ({ ...c, lessons: [...((c.lessons ?? []) as Lesson[])].sort((a, b) => a.position - b.position) })),
+        .order("position")
+        .limit(100);
+      if (subjectError) throw subjectError;
+      if (!subjects?.length) return [];
+
+      const subjectIds = subjects.map((subject) => subject.id);
+      const { data: chapters, error: chapterError } = await supabase
+        .from("chapters")
+        .select("id, subject_id, name, position")
+        .in("subject_id", subjectIds)
+        .order("position")
+        .limit(300);
+      if (chapterError) throw chapterError;
+      if (!chapters?.length) return subjects.map((subject) => ({ ...subject, chapters: [] }));
+
+      const chapterIds = chapters.map((chapter) => chapter.id);
+      const { data: lessons, error: lessonError } = await supabase
+        .from("lessons")
+        .select("id, chapter_id, title, description, video_url, pdf_url, ai_pdf_url, ai_pdf_source_url, duration_minutes, position, is_published")
+        .in("chapter_id", chapterIds)
+        .order("position")
+        .limit(1000);
+      if (lessonError) throw lessonError;
+
+      return subjects.map((subject) => ({
+        ...subject,
+        chapters: chapters
+          .filter((chapter) => chapter.subject_id === subject.id)
+          .map((chapter) => ({
+            ...chapter,
+            lessons: ((lessons ?? []).filter((item) => item.chapter_id === chapter.id) as Lesson[])
+              .sort((a, b) => a.position - b.position),
+          })),
       }));
     },
   });
@@ -243,7 +271,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
     enabled: lessonIds.length > 0,
     refetchInterval: (query) => query.state.data?.some((job) => job.status === "queued" || job.status === "processing") ? 5000 : false,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("ai_video_pdf_jobs").select("id, lesson_id, status, error_message, created_at").in("lesson_id", lessonIds).order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("ai_video_pdf_jobs").select("id, lesson_id, status, error_message, created_at").in("lesson_id", lessonIds).order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
       return (data ?? []) as { id: string; lesson_id: string; status: string; error_message: string | null; created_at: string }[];
     },
@@ -315,7 +343,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
           changed = true;
         }
         const { data: chapters, error: chapterError } = await supabase.from("chapters")
-          .select("name").eq("subject_id", subjectId);
+          .select("name").eq("subject_id", subjectId).limit(200);
         if (chapterError) throw chapterError;
         const existingTopics = new Set((chapters ?? []).map((chapter) => chapter.name.trim().toLowerCase()));
         const missingTopics = definition.topics

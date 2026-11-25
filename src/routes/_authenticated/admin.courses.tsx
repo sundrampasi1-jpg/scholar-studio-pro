@@ -254,19 +254,20 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
     if (!result.ok) { toast.error(result.error); return; }
     if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
     const sourceVideoUrl = result.sourceVideoUrl;
-    if (typeof sourceVideoUrl !== "string" || !sourceVideoUrl) { toast.error("The lesson video URL is missing."); return; }
+    const jobId = result.jobId;
+    if (typeof sourceVideoUrl !== "string" || !sourceVideoUrl || typeof jobId !== "string" || !jobId) { toast.error("The video or PDF job reference is missing."); return; }
     try {
       toast.info("AI has analyzed the video. Preparing the PDF…");
       const pdfBlob = await buildVideoNotesPdf(result.notes, result.lessonTitle);
       const pdfUrl = await uploadMedia(pdfBlob, "ai-video-notes", `${lessonId}-${Date.now()}-notes.pdf`);
-      const attached = await attachAiPdf({ data: { jobId: result.jobId, lessonId, sourceVideoUrl, pdfUrl } });
+      const attached = await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl } });
       if (!attached.ok) throw new Error(attached.error);
       toast.success("AI PDF generated and attached to the lesson.");
       await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
       await refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "PDF creation failed."; 
-      await attachAiPdf({ data: { jobId: result.jobId, lessonId, sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
+      await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
       toast.error(message);
       await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
     }

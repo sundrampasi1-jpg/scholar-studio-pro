@@ -99,7 +99,7 @@ async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: 
   }
   if (!blob.size) throw new Error("The lesson video file is empty.");
   if (blob.size > 2 * 1024 * 1024 * 1024) throw new Error("This video exceeds Gemini's 2 GB file limit.");
-  const mime = (blob.type || "video/mp4").split(";")[0];
+  const mime = (blob.type || "video/mp4").split(";")[0] || "video/mp4";
   const file = await uploadGeminiFile(blob, mime, title, key);
   return { type: "video", uri: file.uri, mime_type: file.mimeType };
 }

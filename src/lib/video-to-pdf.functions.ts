@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const RETRYABLE_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+const RETRYABLE_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504, 524]);
 
 function isTransientFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /(?:\\b(?:408|429|500|502|503|504)\\b|network connection lost|failed to fetch|fetch failed|connection reset|temporarily unavailable|timed out|timeout)/i.test(message);
+  return /(?:\b(?:408|429|500|502|503|504|524)\b|network connection lost|failed to fetch|fetch failed|connection reset|temporarily unavailable|timed out|timeout)/i.test(message);
 }
 
 function wait(ms: number) {
@@ -32,6 +32,43 @@ async function fetchWithRetry(
     await wait(1200 * (2 ** attempt));
   }
   throw new Error(operation + " failed after automatic retries.");
+}
+
+async function readGeminiSse(response: Response): Promise<string> {
+  if (!response.body) throw new Error("Gemini returned an empty streaming response.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let output = "";
+  const consumeLine = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return;
+    const payload = trimmed.slice(5).trim();
+    if (!payload || payload === "[DONE]") return;
+    let event: any;
+    try { event = JSON.parse(payload); }
+    catch { throw new Error("Gemini returned an invalid streaming event."); }
+    if (event.error) throw new Error(event.error.message || "Gemini streaming analysis failed.");
+    const parts = event.candidates?.[0]?.content?.parts;
+    if (Array.isArray(parts)) {
+      output += parts.map((part: any) => typeof part.text === "string" ? part.text : "").join("");
+    }
+  };
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split(/\\r?\\n/);
+      buffer = lines.pop() || "";
+      for (const line of lines) consumeLine(line);
+      if (done) break;
+    }
+    if (buffer.trim()) consumeLine(buffer);
+  } finally {
+    reader.releaseLock();
+  }
+  if (!output.trim()) throw new Error("Gemini completed the stream without returning notes.");
+  return output;
 }
 
 type Notes = {
@@ -221,7 +258,7 @@ Return ONLY valid JSON with this shape:
 {"title":"...","overview":"Hindi: ...\\nEnglish: ...","topics":[{"title":"Hindi / English topic","points":["Hindi: ... | English: ..."]}],"keyFacts":["Hindi: ... | English: ..."],"visualHighlights":[{"timestamp":"MM:SS","detail":"Hindi: ... | English: ..."}],"questions":[{"question":"Hindi: ... | English: ...","answer":"Hindi: ... | English: ..."}],"mcqs":[{"question":"Hindi: ... | English: ...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"Hindi: ... | English: ..."}]}
 Lesson title: ${lesson.title}
 Teacher-provided description (context only): ${lesson.description || "None"}`;
-      const response = await fetchWithRetry("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+      const response = await fetchWithRetry("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse", {
         signal: AbortSignal.timeout(240_000),
         method: "POST",
         headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
@@ -230,13 +267,11 @@ Teacher-provided description (context only): ${lesson.description || "None"}`;
             { file_data: { mime_type: videoPart.mimeType, file_uri: videoPart.uri } },
             { text: prompt },
           ] }],
-          generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+          generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 },
         }),
       }, "Gemini video analysis");
       if (!response.ok) throw new Error("Gemini analysis failed (" + response.status + "): " + (await response.text()).slice(0, 300));
-      const result = await response.json();
-      const output = result.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("\n");
-      if (!output) throw new Error("Gemini returned no notes for this video.");
+      const output = await readGeminiSse(response);
       const notes = parseNotes(output);
       await adminDb.from("ai_video_pdf_jobs").update({ updated_at: new Date().toISOString() }).eq("id", jobId);
       return { ok: true as const, jobId, lessonId: lesson.id, lessonTitle: lesson.title, sourceVideoUrl: lesson.video_url, notes };

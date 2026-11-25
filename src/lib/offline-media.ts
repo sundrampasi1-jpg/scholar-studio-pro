@@ -4,6 +4,11 @@
 
 const DB_NAME = "jk-offline-media";
 const STORE = "media";
+const CACHE_NAME = "jk-offline-media-v2";
+
+function cacheRequest(key: string): Request {
+  return new Request(new URL(`/__jk_offline_media__/${encodeURIComponent(key)}`, window.location.origin));
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -28,7 +33,34 @@ export async function cacheMedia(key: string, blob: Blob): Promise<void> {
   db.close();
 }
 
+export async function cacheMediaResponse(key: string, response: Response): Promise<number> {
+  const size = Number(response.headers.get("content-length") || 0);
+  if ("caches" in window) {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(cacheRequest(key), response.clone());
+      return size;
+    } catch {
+      // Fall back to IndexedDB on browsers with limited Cache Storage support/quota.
+    }
+  }
+  const blob = await response.blob();
+  if (!blob.size) throw new Error("Download failed — empty file");
+  await cacheMedia(key, blob);
+  return blob.size;
+}
+
 export async function getCachedMedia(key: string): Promise<Blob | null> {
+  try {
+    if ("caches" in window) {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(cacheRequest(key));
+      if (cached) return await cached.blob();
+    }
+  } catch {
+    // Continue to the legacy IndexedDB cache.
+  }
+
   try {
     const db = await openDb();
     const blob = await new Promise<Blob | null>((resolve, reject) => {
@@ -64,6 +96,14 @@ export async function downloadAndCache(url: string, filename: string): Promise<v
 }
 
 export async function deleteCachedMedia(key: string): Promise<void> {
+  if ("caches" in window) {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.delete(cacheRequest(key));
+    } catch {
+      // Still attempt deletion from the legacy IndexedDB cache.
+    }
+  }
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");

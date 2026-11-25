@@ -13,7 +13,25 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const FONT_URL = "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf";
-const adminDb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+function createSupabaseFetch(apiKey: string): typeof fetch {
+  return (input, init) => {
+    const headers = new Headers(
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
+    );
+    if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    if ((apiKey.startsWith("sb_publishable_") || apiKey.startsWith("sb_secret_")) &&
+        headers.get("Authorization") === `Bearer ${apiKey}`) {
+      headers.delete("Authorization");
+    }
+    headers.set("apikey", apiKey);
+    return fetch(input, { ...init, headers });
+  };
+}
+
+const adminDb = createClient(SUPABASE_URL, SERVICE_KEY, {
+  global: { fetch: createSupabaseFetch(SERVICE_KEY) },
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 type Notes = {
   title: string;

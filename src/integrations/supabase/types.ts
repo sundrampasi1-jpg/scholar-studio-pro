@@ -10,60 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.18"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
-      ai_video_pdf_jobs: {
-        Row: {
-          attempt_count: number
-          completed_at: string | null
-          created_at: string
-          error_message: string | null
-          id: string
-          lesson_id: string
-          pdf_url: string | null
-          requested_by: string | null
-          source_video_url: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          attempt_count?: number
-          completed_at?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          lesson_id: string
-          pdf_url?: string | null
-          requested_by?: string | null
-          source_video_url: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          attempt_count?: number
-          completed_at?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          lesson_id?: string
-          pdf_url?: string | null
-          requested_by?: string | null
-          source_video_url?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_video_pdf_jobs_lesson_id_fkey"
-            columns: ["lesson_id"]
-            isOneToOne: false
-            referencedRelation: "lessons"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       announcements: {
         Row: {
           body: string
@@ -121,6 +71,7 @@ export type Database = {
           support_info: string | null
           tagline: string
           updated_at: string
+          upi_id: string | null
         }
         Insert: {
           about?: string | null
@@ -146,6 +97,7 @@ export type Database = {
           support_info?: string | null
           tagline?: string
           updated_at?: string
+          upi_id?: string | null
         }
         Update: {
           about?: string | null
@@ -171,6 +123,7 @@ export type Database = {
           support_info?: string | null
           tagline?: string
           updated_at?: string
+          upi_id?: string | null
         }
         Relationships: []
       }
@@ -183,7 +136,6 @@ export type Database = {
           is_active: boolean
           name: string
           start_date: string | null
-          validity_days: number
         }
         Insert: {
           course_id: string
@@ -193,7 +145,6 @@ export type Database = {
           is_active?: boolean
           name: string
           start_date?: string | null
-          validity_days?: number
         }
         Update: {
           course_id?: string
@@ -203,7 +154,6 @@ export type Database = {
           is_active?: boolean
           name?: string
           start_date?: string | null
-          validity_days?: number
         }
         Relationships: [
           {
@@ -310,6 +260,44 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_challenge_answers: {
+        Row: {
+          challenge_date: string
+          created_at: string
+          id: string
+          is_correct: boolean
+          question_id: string
+          selected_option: string
+          user_id: string
+        }
+        Insert: {
+          challenge_date: string
+          created_at?: string
+          id?: string
+          is_correct: boolean
+          question_id: string
+          selected_option: string
+          user_id: string
+        }
+        Update: {
+          challenge_date?: string
+          created_at?: string
+          id?: string
+          is_correct?: boolean
+          question_id?: string
+          selected_option?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_challenge_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doubt_replies: {
         Row: {
           body: string
@@ -394,10 +382,7 @@ export type Database = {
           batch_id: string | null
           course_id: string
           created_at: string
-          expires_at: string | null
           id: string
-          purchased_at: string | null
-          renewal_count: number
           status: string
           user_id: string
         }
@@ -405,10 +390,7 @@ export type Database = {
           batch_id?: string | null
           course_id: string
           created_at?: string
-          expires_at?: string | null
           id?: string
-          purchased_at?: string | null
-          renewal_count?: number
           status?: string
           user_id: string
         }
@@ -416,10 +398,7 @@ export type Database = {
           batch_id?: string | null
           course_id?: string
           created_at?: string
-          expires_at?: string | null
           id?: string
-          purchased_at?: string | null
-          renewal_count?: number
           status?: string
           user_id?: string
         }
@@ -632,8 +611,6 @@ export type Database = {
       }
       lesson_reports: {
         Row: {
-          ai_replied_at: string | null
-          ai_reply: string | null
           created_at: string
           details: string | null
           id: string
@@ -643,8 +620,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          ai_replied_at?: string | null
-          ai_reply?: string | null
           created_at?: string
           details?: string | null
           id?: string
@@ -654,8 +629,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          ai_replied_at?: string | null
-          ai_reply?: string | null
           created_at?: string
           details?: string | null
           id?: string
@@ -676,42 +649,42 @@ export type Database = {
       }
       lessons: {
         Row: {
-          ai_pdf_source_url: string | null
-          ai_pdf_url: string | null
           chapter_id: string
           created_at: string
           description: string | null
           duration_minutes: number | null
           id: string
           is_published: boolean
+          ai_pdf_url: string | null
+          ai_pdf_source_url: string | null
           pdf_url: string | null
           position: number
           title: string
           video_url: string | null
         }
         Insert: {
-          ai_pdf_source_url?: string | null
-          ai_pdf_url?: string | null
           chapter_id: string
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
           id?: string
           is_published?: boolean
+          ai_pdf_url?: string | null
+          ai_pdf_source_url?: string | null
           pdf_url?: string | null
           position?: number
           title: string
           video_url?: string | null
         }
         Update: {
-          ai_pdf_source_url?: string | null
-          ai_pdf_url?: string | null
           chapter_id?: string
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
           id?: string
           is_published?: boolean
+          ai_pdf_url?: string | null
+          ai_pdf_source_url?: string | null
           pdf_url?: string | null
           position?: number
           title?: string
@@ -727,79 +700,6 @@ export type Database = {
           },
         ]
       }
-      live_class_attendance: {
-        Row: {
-          id: string
-          joined_at: string
-          left_at: string | null
-          live_class_id: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          joined_at?: string
-          left_at?: string | null
-          live_class_id: string
-          user_id: string
-        }
-        Update: {
-          id?: string
-          joined_at?: string
-          left_at?: string | null
-          live_class_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "live_class_attendance_live_class_id_fkey"
-            columns: ["live_class_id"]
-            isOneToOne: false
-            referencedRelation: "live_classes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      live_class_messages: {
-        Row: {
-          author_name: string
-          body: string
-          created_at: string
-          id: string
-          is_ai: boolean
-          is_teacher: boolean
-          live_class_id: string
-          user_id: string
-        }
-        Insert: {
-          author_name?: string
-          body: string
-          created_at?: string
-          id?: string
-          is_ai?: boolean
-          is_teacher?: boolean
-          live_class_id: string
-          user_id: string
-        }
-        Update: {
-          author_name?: string
-          body?: string
-          created_at?: string
-          id?: string
-          is_ai?: boolean
-          is_teacher?: boolean
-          live_class_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "live_class_messages_live_class_id_fkey"
-            columns: ["live_class_id"]
-            isOneToOne: false
-            referencedRelation: "live_classes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       live_classes: {
         Row: {
           batch_id: string | null
@@ -807,14 +707,10 @@ export type Database = {
           created_at: string
           description: string | null
           duration_minutes: number
-          ended_at: string | null
           id: string
-          is_live: boolean
           join_url: string | null
           recording_url: string | null
-          room_name: string | null
           scheduled_at: string
-          started_at: string | null
           teacher_id: string | null
           teacher_name: string | null
           title: string
@@ -825,14 +721,10 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_minutes?: number
-          ended_at?: string | null
           id?: string
-          is_live?: boolean
           join_url?: string | null
           recording_url?: string | null
-          room_name?: string | null
           scheduled_at: string
-          started_at?: string | null
           teacher_id?: string | null
           teacher_name?: string | null
           title: string
@@ -843,14 +735,10 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_minutes?: number
-          ended_at?: string | null
           id?: string
-          is_live?: boolean
           join_url?: string | null
           recording_url?: string | null
-          room_name?: string | null
           scheduled_at?: string
-          started_at?: string | null
           teacher_id?: string | null
           teacher_name?: string | null
           title?: string
@@ -973,72 +861,49 @@ export type Database = {
       payments: {
         Row: {
           amount: number
-          batch_id: string | null
           coupon_code: string | null
           course_id: string | null
           created_at: string
           discount: number
           id: string
-          paid_at: string | null
           provider: string
           provider_ref: string | null
-          renewal_of: string | null
           screenshot_url: string | null
           status: string
           user_id: string
         }
         Insert: {
           amount?: number
-          batch_id?: string | null
           coupon_code?: string | null
           course_id?: string | null
           created_at?: string
           discount?: number
           id?: string
-          paid_at?: string | null
           provider?: string
           provider_ref?: string | null
-          renewal_of?: string | null
           screenshot_url?: string | null
           status?: string
           user_id: string
         }
         Update: {
           amount?: number
-          batch_id?: string | null
           coupon_code?: string | null
           course_id?: string | null
           created_at?: string
           discount?: number
           id?: string
-          paid_at?: string | null
           provider?: string
           provider_ref?: string | null
-          renewal_of?: string | null
           screenshot_url?: string | null
           status?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "payments_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "batches"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "payments_course_id_fkey"
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_renewal_of_fkey"
-            columns: ["renewal_of"]
-            isOneToOne: false
-            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
         ]
@@ -1119,6 +984,91 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reel_comments: {
+        Row: {
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          reel_id: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string
+          body: string
+          created_at?: string
+          id?: string
+          reel_id: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          reel_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_comments_reel_id_fkey"
+            columns: ["reel_id"]
+            isOneToOne: false
+            referencedRelation: "reels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reel_likes: {
+        Row: {
+          created_at: string
+          reel_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          reel_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          reel_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_likes_reel_id_fkey"
+            columns: ["reel_id"]
+            isOneToOne: false
+            referencedRelation: "reels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reels: {
+        Row: {
+          created_at: string
+          id: string
+          is_published: boolean
+          title: string
+          video_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          title?: string
+          video_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          title?: string
+          video_url?: string
+        }
+        Relationships: []
       }
       subjects: {
         Row: {

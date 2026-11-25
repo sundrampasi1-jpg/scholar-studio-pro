@@ -113,8 +113,11 @@ async function uploadToGemini(bytes: Blob, mime: string, displayName: string, ge
 }
 
 async function getVideoSource(videoUrl: string, lessonTitle: string) {
-  if (/youtube\.com\/watch\?v=|youtu\.be\//i.test(videoUrl)) {
+  if (/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\//i.test(videoUrl)) {
     return { kind: "youtube" as const, uri: videoUrl, mime: "video/mp4", bytes: null };
+  }
+  if (/vimeo\.com\//i.test(videoUrl) && !/\.(mp4|webm|mov)(?:\?|$)/i.test(new URL(videoUrl).pathname)) {
+    throw new Error("Vimeo watch-page links are not supported yet. Upload the video file or use a public YouTube link.");
   }
   let storagePath: string | null = null;
   try {
@@ -246,7 +249,7 @@ async function processJob(jobId: string, geminiKey: string) {
     const path = "ai-video-notes/" + lesson.id + "/" + jobId + ".pdf";
     const upload = await adminDb.storage.from("media").upload(path, pdf, { contentType: "application/pdf", upsert: true });
     if (upload.error) throw new Error("Generated PDF could not be saved to media storage.");
-    const { data: signed, error: signedError } = await adminDb.storage.from("media").createSignedUrl(path, 60 * 60 * 24 * 365);
+    const { data: signed, error: signedError } = await adminDb.storage.from("media").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
     if (signedError || !signed?.signedUrl) throw new Error("PDF saved but a student-accessible link could not be created.");
     const { error: lessonUpdateError } = await adminDb.from("lessons").update({
       ai_pdf_url: signed.signedUrl,

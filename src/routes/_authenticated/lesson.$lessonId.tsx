@@ -877,8 +877,8 @@ function LessonPage() {
 
   return (
     <StudentShell>
-      <div className="mx-auto max-w-5xl space-y-4 bg-white">
-        {playerElement && <div className="-mx-4 w-[calc(100%+2rem)]">{playerElement}</div>}
+      <div className="-mx-4 w-[calc(100%+2rem)] max-w-none space-y-4 bg-white">
+        {playerElement && <div className="w-full">{playerElement}</div>}
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">
           {courseId && <Link to="/courses/$courseId" params={{ courseId }} className="text-gold-deep hover:underline">{l.chapters?.subjects?.courses?.title ?? "Course"}</Link>}
@@ -957,7 +957,7 @@ function LessonPage() {
         </div>
 
         {/* Lesson material */}
-        <section className="-mx-4 w-[calc(100%+2rem)] overflow-hidden rounded-none border-x-0 border-y border-gray-200 bg-white shadow-sm">
+        <section className="w-full overflow-hidden rounded-none border-y border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gold/20 px-4 py-3">
             <FileText className="h-4 w-4 text-gold-deep" />
             <p className="text-sm font-extrabold uppercase tracking-wide text-foreground">Lesson material</p>

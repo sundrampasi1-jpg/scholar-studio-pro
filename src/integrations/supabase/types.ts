@@ -51,6 +51,7 @@ export type Database = {
           about: string | null
           address: string | null
           ai_chat_enabled: boolean
+          ai_video_pdf_enabled: boolean
           app_name: string
           contact_email: string | null
           contact_phone: string | null
@@ -76,6 +77,7 @@ export type Database = {
           about?: string | null
           address?: string | null
           ai_chat_enabled?: boolean
+          ai_video_pdf_enabled?: boolean
           app_name?: string
           contact_email?: string | null
           contact_phone?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           about?: string | null
           address?: string | null
           ai_chat_enabled?: boolean
+          ai_video_pdf_enabled?: boolean
           app_name?: string
           contact_email?: string | null
           contact_phone?: string | null
@@ -652,6 +655,8 @@ export type Database = {
           duration_minutes: number | null
           id: string
           is_published: boolean
+          ai_pdf_url: string | null
+          ai_pdf_source_url: string | null
           pdf_url: string | null
           position: number
           title: string
@@ -664,6 +669,8 @@ export type Database = {
           duration_minutes?: number | null
           id?: string
           is_published?: boolean
+          ai_pdf_url?: string | null
+          ai_pdf_source_url?: string | null
           pdf_url?: string | null
           position?: number
           title: string
@@ -676,6 +683,8 @@ export type Database = {
           duration_minutes?: number | null
           id?: string
           is_published?: boolean
+          ai_pdf_url?: string | null
+          ai_pdf_source_url?: string | null
           pdf_url?: string | null
           position?: number
           title?: string

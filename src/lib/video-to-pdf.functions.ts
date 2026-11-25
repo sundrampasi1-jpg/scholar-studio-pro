@@ -18,6 +18,7 @@ async function fetchWithRetry(
   operation: string,
 ): Promise<Response> {
   for (let attempt = 0; attempt < 2; attempt++) {
+    let delayMs = Math.min(2500, 900 * (2 ** attempt) + Math.floor(Math.random() * 400));
     try {
       const response = await fetch(input, init);
       if (!RETRYABLE_HTTP_STATUSES.has(response.status)) return response;
@@ -26,14 +27,11 @@ async function fetchWithRetry(
         throw new Error(operation + " temporarily unavailable (" + response.status + "): " + detail);
       }
       const retryAfter = Number(response.headers.get("retry-after") || 0);
-      const backoff = Math.min(2500, 900 * (2 ** attempt) + Math.floor(Math.random() * 400));
-      const delay = retryAfter > 0 ? Math.min(5000, retryAfter * 1000) : backoff;
-      await wait(delay);
-      continue;
+      if (retryAfter > 0) delayMs = Math.min(5000, retryAfter * 1000);
     } catch (error) {
-      if (attempt === 2 || !isTransientFailure(error)) throw error;
+      if (attempt === 1 || !isTransientFailure(error)) throw error;
     }
-    // Retry-After and bounded exponential backoff are handled above.
+    await wait(delayMs);
   }
   throw new Error(operation + " failed after automatic retries.");
 }

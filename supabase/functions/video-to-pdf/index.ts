@@ -50,14 +50,14 @@ function parseJson(text: string): Notes {
   };
 }
 
-async function uploadToGemini(bytes: Uint8Array, mime: string, displayName: string, geminiKey: string) {
+async function uploadToGemini(bytes: Blob, mime: string, displayName: string, geminiKey: string) {
   const start = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
     method: "POST",
     headers: {
       "x-goog-api-key": geminiKey,
       "X-Goog-Upload-Protocol": "resumable",
       "X-Goog-Upload-Command": "start",
-      "X-Goog-Upload-Header-Content-Length": String(bytes.byteLength),
+      "X-Goog-Upload-Header-Content-Length": String(bytes.size),
       "X-Goog-Upload-Header-Content-Type": mime,
       "Content-Type": "application/json",
     },
@@ -70,7 +70,7 @@ async function uploadToGemini(bytes: Uint8Array, mime: string, displayName: stri
     method: "POST",
     headers: {
       "x-goog-api-key": geminiKey,
-      "Content-Length": String(bytes.byteLength),
+      "Content-Length": String(bytes.size),
       "X-Goog-Upload-Offset": "0",
       "X-Goog-Upload-Command": "upload, finalize",
     },
@@ -119,7 +119,7 @@ async function getVideoSource(videoUrl: string, lessonTitle: string) {
   if (!blob.size) throw new Error("The lesson video file is empty.");
   if (blob.size > 2 * 1024 * 1024 * 1024) throw new Error("This video is above Gemini's 2 GB free-tier file limit.");
   const mime = (blob.type || "video/mp4").split(";")[0];
-  return { kind: "file" as const, uri: "", mime, bytes: new Uint8Array(await blob.arrayBuffer()), name: lessonTitle };
+  return { kind: "file" as const, uri: "", mime, bytes: blob, name: lessonTitle };
 }
 
 async function analyzeVideo(source: Awaited<ReturnType<typeof getVideoSource>>, lessonTitle: string, description: string | null, geminiKey: string) {

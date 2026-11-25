@@ -32,14 +32,20 @@ function parseNotes(text: string): Notes {
   };
 }
 
-async function uploadGeminiFile(blob: Blob, mime: string, title: string, key: string) {
+async function uploadGeminiFile(
+  videoStream: ReadableStream<Uint8Array>,
+  size: number,
+  mime: string,
+  title: string,
+  key: string,
+) {
   const start = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
     method: "POST",
     headers: {
       "x-goog-api-key": key,
       "X-Goog-Upload-Protocol": "resumable",
       "X-Goog-Upload-Command": "start",
-      "X-Goog-Upload-Header-Content-Length": String(blob.size),
+      "X-Goog-Upload-Header-Content-Length": String(size),
       "X-Goog-Upload-Header-Content-Type": mime,
       "Content-Type": "application/json",
     },
@@ -48,17 +54,24 @@ async function uploadGeminiFile(blob: Blob, mime: string, title: string, key: st
   if (!start.ok) throw new Error("Gemini video upload could not start (" + start.status + ").");
   const uploadUrl = start.headers.get("x-goog-upload-url");
   if (!uploadUrl) throw new Error("Gemini did not return a resumable upload URL.");
+
+  // Forward the storage response stream directly. Never call blob(), arrayBuffer(),
+  // or text() on the video response: Cloudflare Workers have a 128 MB isolate limit.
   const uploaded = await fetch(uploadUrl, {
     method: "POST",
     headers: {
       "x-goog-api-key": key,
-      "Content-Length": String(blob.size),
+      "Content-Length": String(size),
       "X-Goog-Upload-Offset": "0",
       "X-Goog-Upload-Command": "upload, finalize",
+      "Content-Type": mime,
     },
-    body: blob,
+    body: videoStream,
   });
-  if (!uploaded.ok) throw new Error("Gemini video upload failed (" + uploaded.status + ").");
+  if (!uploaded.ok) {
+    const detail = (await uploaded.text()).slice(0, 300);
+    throw new Error("Gemini video upload failed (" + uploaded.status + "): " + detail);
+  }
   const payload = await uploaded.json();
   const file = payload.file;
   if (!file?.name || !file?.uri) throw new Error("Gemini video upload returned no file reference.");
@@ -66,7 +79,7 @@ async function uploadGeminiFile(blob: Blob, mime: string, title: string, key: st
     const status = await fetch("https://generativelanguage.googleapis.com/v1beta/" + file.name, {
       headers: { "x-goog-api-key": key },
     });
-    if (!status.ok) throw new Error("Could not check Gemini video processing status.");
+    if (!status.ok) throw new Error("Could not check Gemini video processing status (" + status.status + ").");
     const current = await status.json();
     if (current.state === "ACTIVE") return { uri: current.uri || file.uri, mimeType: current.mimeType || mime };
     if (current.state === "FAILED") throw new Error("Gemini could not process this video file.");
@@ -76,31 +89,36 @@ async function uploadGeminiFile(blob: Blob, mime: string, title: string, key: st
 }
 
 async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: string) {
-  if (/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\//i.test(videoUrl)) {
+  if (/(?:www\\.|m\\.)?youtube\\.com\\/(?:watch\\?v=|shorts\\/|live\\/)|youtu\\.be\\//i.test(videoUrl)) {
     throw new Error("YouTube watch links cannot be read as uploaded lesson files. Upload the original video file to JK Academy first.");
   }
-  let storagePath: string | null = null;
+  let sourceUrl = videoUrl;
   const parsed = new URL(videoUrl);
   const marker = parsed.pathname.includes("/object/sign/media/") ? "/object/sign/media/" :
     parsed.pathname.includes("/object/public/media/") ? "/object/public/media/" : null;
-  if (marker) storagePath = decodeURIComponent(parsed.pathname.split(marker)[1] || "").replace(/\+/g, "/");
-  let blob: Blob;
-  if (storagePath) {
-    const { data, error } = await adminDb.storage.from("media").download(storagePath);
-    if (error || !data) throw new Error("The saved lesson video could not be read from storage.");
-    blob = data;
-  } else {
-    if (/vimeo\.com\//i.test(videoUrl) && !/\.(mp4|webm|mov)(?:\?|$)/i.test(parsed.pathname)) {
-      throw new Error("Vimeo watch-page links are not supported yet. Upload the video file or use a public YouTube link.");
-    }
-    const response = await fetch(videoUrl);
-    if (!response.ok) throw new Error("Could not read the lesson video (" + response.status + ").");
-    blob = await response.blob();
+  if (marker) {
+    const storagePath = decodeURIComponent(parsed.pathname.split(marker)[1] || "").replace(/\\+/g, "/");
+    const { data, error } = await adminDb.storage.from("media").createSignedUrl(storagePath, 600);
+    if (error || !data?.signedUrl) throw new Error("The saved lesson video link could not be prepared from storage.");
+    sourceUrl = data.signedUrl;
+  } else if (/vimeo\\.com\\//i.test(videoUrl) && !/\\.(mp4|webm|mov)(?:\\?|$)/i.test(parsed.pathname)) {
+    throw new Error("Vimeo watch-page links are not supported yet. Upload the original video file first.");
   }
-  if (!blob.size) throw new Error("The lesson video file is empty.");
-  if (blob.size > 2 * 1024 * 1024 * 1024) throw new Error("This video exceeds Gemini's 2 GB file limit.");
-  const mime = (blob.type || "video/mp4").split(";")[0] || "video/mp4";
-  const file = await uploadGeminiFile(blob, mime, title, key);
+
+  const response = await fetch(sourceUrl);
+  if (!response.ok) throw new Error("Could not read the lesson video (" + response.status + ").");
+  if (!response.body) throw new Error("The lesson video source did not provide a readable stream.");
+  const size = Number(response.headers.get("content-length") || 0);
+  if (!Number.isFinite(size) || size <= 0) {
+    await response.body.cancel().catch(() => undefined);
+    throw new Error("The video server did not provide its file size. Re-upload the original MP4 to JK Academy and retry.");
+  }
+  if (size > 2 * 1024 * 1024 * 1024) {
+    await response.body.cancel().catch(() => undefined);
+    throw new Error("This video exceeds Gemini's 2 GB file limit.");
+  }
+  const mime = (response.headers.get("content-type") || "video/mp4").split(";")[0] || "video/mp4";
+  const file = await uploadGeminiFile(response.body, size, mime, title, key);
   return { uri: file.uri, mimeType: file.mimeType };
 }
 

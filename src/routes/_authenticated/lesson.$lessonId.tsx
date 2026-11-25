@@ -438,6 +438,9 @@ function LessonPage() {
   const [seekFeedback, setSeekFeedback] = useState<{ text: string; side: "left" | "right" } | null>(null);
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const feedbackTimerRef = useRef<number | null>(null);
+  const tapToggleTimerRef = useRef<number | null>(null);
+  const clickToggleTimerRef = useRef<number | null>(null);
+  const lastTouchAtRef = useRef(0);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -485,6 +488,8 @@ function LessonPage() {
 
   useEffect(() => () => {
     if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+    if (tapToggleTimerRef.current !== null) window.clearTimeout(tapToggleTimerRef.current);
+    if (clickToggleTimerRef.current !== null) window.clearTimeout(clickToggleTimerRef.current);
   }, []);
 
   // Offline copy: use the cached video when this lesson was downloaded.
@@ -719,6 +724,7 @@ function LessonPage() {
               playsInline
               preload="metadata"
               onTouchEnd={(event) => {
+                lastTouchAtRef.current = Date.now();
                 const touch = event.changedTouches[0];
                 if (!touch) return;
                 const now = Date.now();
@@ -728,6 +734,7 @@ function LessonPage() {
                 const y = touch.clientY - rect.top;
                 if (previous && now - previous.time < 320 && Math.hypot(x - previous.x, y - previous.y) < 48) {
                   event.preventDefault();
+                  if (tapToggleTimerRef.current !== null) window.clearTimeout(tapToggleTimerRef.current);
                   const side = x < rect.width / 2 ? "left" : "right";
                   const delta = side === "left" ? -10 : 10;
                   seek(delta);
@@ -737,9 +744,24 @@ function LessonPage() {
                   lastTapRef.current = null;
                 } else {
                   lastTapRef.current = { time: now, x, y };
+                  if (tapToggleTimerRef.current !== null) window.clearTimeout(tapToggleTimerRef.current);
+                  tapToggleTimerRef.current = window.setTimeout(() => {
+                    setShowControls((visible) => !visible);
+                    tapToggleTimerRef.current = null;
+                  }, 330);
                 }
               }}
+              onClick={() => {
+                if (Date.now() - lastTouchAtRef.current < 500) return;
+                if (clickToggleTimerRef.current !== null) window.clearTimeout(clickToggleTimerRef.current);
+                clickToggleTimerRef.current = window.setTimeout(() => {
+                  setShowControls((visible) => !visible);
+                  clickToggleTimerRef.current = null;
+                }, 330);
+              }}
               onDoubleClick={(event) => {
+                event.preventDefault();
+                if (clickToggleTimerRef.current !== null) window.clearTimeout(clickToggleTimerRef.current);
                 const rect = event.currentTarget.getBoundingClientRect();
                 const side = event.clientX - rect.left < rect.width / 2 ? "left" : "right";
                 const delta = side === "left" ? -10 : 10;
@@ -786,7 +808,7 @@ function LessonPage() {
           {seekFeedback && (
             <div
               aria-live="polite"
-              className={`pointer-events-none absolute top-1/2 z-20 -translate-y-1/2 text-lg font-bold text-white drop-shadow-lg ${seekFeedback.side === "left" ? "left-1/4" : "right-1/4"}`}
+              className={`pointer-events-none absolute top-1/2 z-20 -translate-y-1/2 text-lg font-bold text-white drop-shadow-lg ${seekFeedback.side === "left" ? "left-2" : "right-2"}`}
             >
               {seekFeedback.text}
             </div>

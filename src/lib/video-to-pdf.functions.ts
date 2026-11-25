@@ -58,7 +58,7 @@ async function readGeminiSse(response: Response): Promise<string> {
     while (true) {
       const { value, done } = await reader.read();
       buffer += decoder.decode(value, { stream: !done });
-      const lines = buffer.split(/\\r?\\n/);
+      const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || "";
       for (const line of lines) consumeLine(line);
       if (done) break;

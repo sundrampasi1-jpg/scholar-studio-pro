@@ -51,7 +51,8 @@ async function gemini(model: string, body: unknown, key: string) {
     } catch {
       // Keep the original response text when the provider does not return JSON.
     }
-    const safeDetail = detail.replace(/https?:\\/\\/[^\\s]+/g, "[provider URL]").slice(0, 500);
+    // Strip provider URLs before logging or returning API errors.
+    const safeDetail = detail.replace(/https?:\/\/[^\s]+/g, "[provider URL]").slice(0, 500);
     console.error("Gemini API request failed", { model, status: res.status, detail: safeDetail });
     throw new Error(res.status === 429
       ? "AI service is busy (429). Please try again shortly."
@@ -259,7 +260,7 @@ Always write a complete, self-contained reply in simple, clear English only, reg
 - PDF/notes problem: reopen or download the PDF, check device storage, and try another PDF viewer.
 - Wrong/outdated content: ask for exact lesson/page/line so the teacher can verify it.
 - Other: provide only steps supported by the report; if details are insufficient, ask one specific question.
-Never invent a fix or claim the issue is resolved. Do not add a generic closing. Output only the actual solution in plain English.`
+Never invent a fix or claim the issue is resolved. Do not add a generic closing. Output only the actual solution in plain English.`;
 
 export const replyLessonReportAi = createServerFn({ method: "POST" })
   .inputValidator((d: { reportId: string }) => d)

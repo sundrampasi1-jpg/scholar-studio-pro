@@ -11,8 +11,7 @@ const cors = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const PUBLIC_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
-const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY")!;
+
 const FONT_URL = "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf";
 const adminDb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
@@ -51,11 +50,11 @@ function parseJson(text: string): Notes {
   };
 }
 
-async function uploadToGemini(bytes: Uint8Array, mime: string, displayName: string) {
+async function uploadToGemini(bytes: Uint8Array, mime: string, displayName: string, geminiKey: string) {
   const start = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
     method: "POST",
     headers: {
-      "x-goog-api-key": GEMINI_KEY,
+      "x-goog-api-key": geminiKey,
       "X-Goog-Upload-Protocol": "resumable",
       "X-Goog-Upload-Command": "start",
       "X-Goog-Upload-Header-Content-Length": String(bytes.byteLength),
@@ -70,7 +69,7 @@ async function uploadToGemini(bytes: Uint8Array, mime: string, displayName: stri
   const uploaded = await fetch(uploadUrl, {
     method: "POST",
     headers: {
-      "x-goog-api-key": GEMINI_KEY,
+      "x-goog-api-key": geminiKey,
       "Content-Length": String(bytes.byteLength),
       "X-Goog-Upload-Offset": "0",
       "X-Goog-Upload-Command": "upload, finalize",
@@ -84,7 +83,7 @@ async function uploadToGemini(bytes: Uint8Array, mime: string, displayName: stri
 
   for (let i = 0; i < 30; i++) {
     const status = await fetch("https://generativelanguage.googleapis.com/v1beta/" + file.name, {
-      headers: { "x-goog-api-key": GEMINI_KEY },
+      headers: { "x-goog-api-key": geminiKey },
     });
     if (!status.ok) throw new Error("Could not check Gemini video processing status.");
     const current = await status.json();
@@ -123,11 +122,11 @@ async function getVideoSource(videoUrl: string, lessonTitle: string) {
   return { kind: "file" as const, uri: "", mime, bytes: new Uint8Array(await blob.arrayBuffer()), name: lessonTitle };
 }
 
-async function analyzeVideo(source: Awaited<ReturnType<typeof getVideoSource>>, lessonTitle: string, description: string | null) {
+async function analyzeVideo(source: Awaited<ReturnType<typeof getVideoSource>>, lessonTitle: string, description: string | null, geminiKey: string) {
   let videoPart: Record<string, string>;
   if (source.kind === "youtube") videoPart = { type: "video", uri: source.uri };
   else {
-    const file = await uploadToGemini(source.bytes!, source.mime, lessonTitle);
+    const file = await uploadToGemini(source.bytes!, source.mime, lessonTitle, geminiKey);
     videoPart = { type: "video", uri: file.uri, mime_type: file.mimeType };
   }
 
@@ -141,7 +140,7 @@ Teacher-provided description (context only; video is the source of truth): ${des
 
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
     method: "POST",
-    headers: { "x-goog-api-key": GEMINI_KEY, "Content-Type": "application/json" },
+    headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
     body: JSON.stringify({ model: "gemini-3.6-flash", input: [videoPart, { type: "text", text: prompt }] }),
   });
   if (!response.ok) {
@@ -216,7 +215,7 @@ async function makePdf(notes: Notes, lessonTitle: string) {
   return await finished;
 }
 
-async function processJob(jobId: string) {
+async function processJob(jobId: string, geminiKey: string) {
   const { data: job } = await adminDb.from("ai_video_pdf_jobs").select("*").eq("id", jobId).single();
   if (!job) return;
   try {
@@ -224,7 +223,7 @@ async function processJob(jobId: string) {
     const { data: lesson, error } = await adminDb.from("lessons").select("id,title,description,video_url").eq("id", job.lesson_id).single();
     if (error || !lesson?.video_url) throw new Error("Lesson video not found. Upload or add a video link first.");
     const source = await getVideoSource(lesson.video_url, lesson.title);
-    const notes = await analyzeVideo(source, lesson.title, lesson.description);
+    const notes = await analyzeVideo(source, lesson.title, lesson.description, geminiKey);
     const pdf = await makePdf(notes, lesson.title);
     const path = "ai-video-notes/" + lesson.id + "/" + jobId + ".pdf";
     const upload = await adminDb.storage.from("media").upload(path, pdf, { contentType: "application/pdf", upsert: true });
@@ -251,17 +250,16 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
-    if (!SUPABASE_URL || !SERVICE_KEY || !PUBLIC_KEY) return json({ error: "Supabase server environment is not configured." }, 500);
-    if (!GEMINI_KEY) return json({ error: "GEMINI_API_KEY is missing from server secrets." }, 503);
-    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-    if (!token) return json({ error: "Authentication required." }, 401);
-    const authClient = createClient(SUPABASE_URL, PUBLIC_KEY, { auth: { persistSession: false } });
-    const { data: authData, error: authError } = await authClient.auth.getUser(token);
-    if (authError || !authData.user) return json({ error: "Invalid session." }, 401);
-    const { data: role } = await adminDb.from("user_roles").select("role").eq("user_id", authData.user.id).eq("role", "admin").maybeSingle();
-    if (!role) return json({ error: "Admin access required." }, 403);
-
+    if (!SUPABASE_URL || !SERVICE_KEY) return json({ error: "Supabase server environment is not configured." }, 500);
+    // This endpoint is private to the authenticated TanStack server function.
+    // The service-role bearer is never sent to the browser.
+    if (req.headers.get("Authorization") !== `Bearer ${SERVICE_KEY}`) return json({ error: "Forbidden." }, 403);
     const body = await req.json();
+    const geminiKey = String(body.geminiKey || "");
+    const requestedBy = String(body.requestedBy || "");
+    if (!geminiKey || !requestedBy) return json({ error: "AI server configuration is missing." }, 503);
+    const { data: role } = await adminDb.from("user_roles").select("role").eq("user_id", requestedBy).eq("role", "admin").maybeSingle();
+    if (!role) return json({ error: "Admin access required." }, 403);
     const lessonId = String(body.lessonId || "");
     const action = body.action === "auto" ? "auto" : "manual";
     if (!lessonId) return json({ error: "Lesson ID is required." }, 400);
@@ -279,7 +277,7 @@ Deno.serve(async (req) => {
       lesson_id: lessonId, requested_by: authData.user.id, source_video_url: lesson.video_url, status: "queued",
     }).select("id").single();
     if (jobError || !job) return json({ error: "Could not queue PDF generation." }, 500);
-    EdgeRuntime.waitUntil(processJob(job.id));
+    EdgeRuntime.waitUntil(processJob(job.id, geminiKey));
     return json({ jobId: job.id, status: "queued" }, 202);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error.";

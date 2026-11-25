@@ -40,6 +40,7 @@ async function uploadGeminiFile(
   key: string,
 ) {
   const start = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
+    signal: AbortSignal.timeout(30_000),
     method: "POST",
     headers: {
       "x-goog-api-key": key,
@@ -58,6 +59,7 @@ async function uploadGeminiFile(
   // Forward the storage response stream directly. Never call blob(), arrayBuffer(),
   // or text() on the video response: Cloudflare Workers have a 128 MB isolate limit.
   const uploaded = await fetch(uploadUrl, {
+    signal: AbortSignal.timeout(240_000),
     method: "POST",
     headers: {
       "x-goog-api-key": key,
@@ -75,15 +77,16 @@ async function uploadGeminiFile(
   const payload = await uploaded.json();
   const file = payload.file;
   if (!file?.name || !file?.uri) throw new Error("Gemini video upload returned no file reference.");
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 60; i++) {
     const status = await fetch("https://generativelanguage.googleapis.com/v1beta/" + file.name, {
+      signal: AbortSignal.timeout(15_000),
       headers: { "x-goog-api-key": key },
     });
     if (!status.ok) throw new Error("Could not check Gemini video processing status (" + status.status + ").");
     const current = await status.json();
     if (current.state === "ACTIVE") return { uri: current.uri || file.uri, mimeType: current.mimeType || mime };
     if (current.state === "FAILED") throw new Error("Gemini could not process this video file.");
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
   throw new Error("Video processing is taking too long. Please retry.");
 }
@@ -150,7 +153,7 @@ export const requestVideoPdf = createServerFn({ method: "POST" })
         .eq("lesson_id", data.lessonId).in("status", ["queued", "processing"]).maybeSingle();
       if (active) {
         const age = Date.now() - new Date(active.updated_at).getTime();
-        if (age < 20 * 60 * 1000) return { ok: false as const, error: "A PDF generation job is already running for this lesson." };
+        if (age < 5 * 60 * 1000) return { ok: false as const, error: "PDF generation is still running. Please wait a little longer before retrying." };
         await adminDb.from("ai_video_pdf_jobs").update({ status: "failed", error_message: "Previous job timed out; please retry.", updated_at: new Date().toISOString() }).eq("id", active.id);
       }
 
@@ -172,6 +175,7 @@ Return ONLY valid JSON with this shape:
 Lesson title: ${lesson.title}
 Teacher-provided description (context only): ${lesson.description || "None"}`;
       const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+        signal: AbortSignal.timeout(240_000),
         method: "POST",
         headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -79,6 +79,35 @@ function LessonDiscussion({ lessonId, onClose }: { lessonId: string; onClose: ()
   const [text, setText] = useState("");
   const [posting, setPosting] = useState(false);
   const [teacherTyping, setTeacherTyping] = useState(false);
+  const [commentViewport, setCommentViewport] = useState({
+    height: typeof window === "undefined" ? 0 : window.innerHeight,
+    keyboardInset: 0,
+  });
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      const keyboardInset = viewport
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      setCommentViewport((current) =>
+        current.height === height && current.keyboardInset === keyboardInset
+          ? current
+          : { height, keyboardInset },
+      );
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("scroll", updateViewport);
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("scroll", updateViewport);
+    };
+  }, []);
 
   const profile = useQuery({
     queryKey: ["profile", user?.id],
@@ -140,12 +169,22 @@ function LessonDiscussion({ lessonId, onClose }: { lessonId: string; onClose: ()
   const repliesFor = (id: string) => all.filter((c) => c.parent_id === id);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45" onClick={onClose}>
+    <div
+      className="fixed inset-x-0 top-0 z-[70] flex items-end justify-center bg-black/45"
+      style={{ bottom: commentViewport.keyboardInset }}
+      onClick={onClose}
+    >
       <section
         role="dialog"
         aria-modal="true"
         aria-label="Lesson comments"
-        className="flex max-h-[72dvh] min-h-[52dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[26px] border border-black/5 bg-white shadow-[0_-12px_45px_rgba(0,0,0,0.18)]"
+        className="flex w-full max-w-2xl flex-col overflow-hidden rounded-t-[26px] border border-black/5 bg-white shadow-[0_-12px_45px_rgba(0,0,0,0.18)]"
+        style={{
+          maxHeight: commentViewport.keyboardInset > 100
+            ? `${Math.max(220, commentViewport.height - 8)}px`
+            : "72dvh",
+          minHeight: commentViewport.keyboardInset > 100 ? 0 : "52dvh",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 justify-center pt-2.5">

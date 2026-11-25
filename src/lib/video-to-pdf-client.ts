@@ -16,6 +16,16 @@ declare global {
 
 let html2PdfLoader: Promise<void> | null = null;
 
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), milliseconds);
+    promise.then(
+      (value) => { window.clearTimeout(timer); resolve(value); },
+      (error) => { window.clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
 function loadHtml2Pdf() {
   if (typeof window === "undefined") return Promise.reject(new Error("PDF generation requires a browser."));
   if (window.html2pdf) return Promise.resolve();
@@ -43,7 +53,7 @@ function escapeHtml(value: string) {
 }
 
 export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Promise<Blob> {
-  await loadHtml2Pdf();
+  await withTimeout(loadHtml2Pdf(), 30_000, "PDF library is taking too long to load. Check your internet and retry.");
 
   if (!document.querySelector('link[data-jk-hindi-font="true"]')) {
     const fontLink = document.createElement("link");
@@ -52,7 +62,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     fontLink.dataset["jkHindiFont"] = "true";
     document.head.appendChild(fontLink);
   }
-  await document.fonts.ready;
+  await withTimeout(document.fonts.ready, 12_000, "Hindi font loading timed out. Please retry; the PDF can use the device fallback font.");
   try {
     await document.fonts.load('12px "Noto Sans Devanagari"');
   } catch {
@@ -120,7 +130,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     }).from(root);
-    const pdf = await worker.outputPdf("blob");
+    const pdf = await withTimeout(worker.outputPdf("blob"), 90_000, "PDF rendering took too long. Please retry with a shorter lesson video.");
     if (!(pdf instanceof Blob) || pdf.size < 500) throw new Error("The PDF file could not be created.");
     return pdf;
   } finally {

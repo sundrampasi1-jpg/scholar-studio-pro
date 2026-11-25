@@ -755,7 +755,7 @@ function LessonPage() {
               <Rewind className="h-5 w-5" />
               <span className="text-[9px] font-semibold">10s</span>
             </button>
-          </div>
+          </div>}
           {showControls && <div className="absolute inset-y-0 right-0 flex items-center pr-2">
             <button
               type="button"
@@ -766,7 +766,7 @@ function LessonPage() {
               <FastForward className="h-5 w-5" />
               <span className="text-[9px] font-semibold">10s</span>
             </button>
-          </div>
+          </div>}
 
           {/* Top-right: fullscreen + settings */}
           {showControls && <div className="absolute right-2 top-2 flex items-center gap-1.5">
@@ -786,7 +786,7 @@ function LessonPage() {
             >
               <Settings className="h-5 w-5" />
             </button>
-          </div>
+          </div>}
 
           {/* Settings panel */}
           {showControls && settingsOpen && (

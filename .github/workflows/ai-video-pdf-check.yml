@@ -2,7 +2,7 @@ name: AI Video-to-PDF branch checks
 
 on:
   push:
-    branches: [feature/ai-video-to-pdf]
+    branches: [feature/ai-video-to-pdf, fix/video-stream-memory-ai]
   pull_request:
     branches: [main]
   workflow_dispatch:

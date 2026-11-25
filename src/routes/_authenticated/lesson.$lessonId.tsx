@@ -1093,9 +1093,9 @@ function LessonPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : !l.ai_pdf_url ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">No PDF notes for this lesson yet.</p>
-            )}
+            ) : null}
             {l.ai_pdf_url && (
               <div className="border-t border-gold/20">
                 <button type="button" onClick={() => setShowAiPdf((value) => !value)} className="flex w-full items-center gap-3 px-4 py-3 text-left">

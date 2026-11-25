@@ -269,7 +269,8 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
   const aiJobs = useQuery({
     queryKey: ["ai-video-pdf-jobs", course.id, lessonIds],
     enabled: lessonIds.length > 0,
-    refetchInterval: (query) => query.state.data?.some((job) => job.status === "queued" || job.status === "processing") ? 5000 : false,
+    // Poll continuously so stale jobs and completed/failed server work are reflected in the UI.
+    refetchInterval: 5000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("ai_video_pdf_jobs").select("id, lesson_id, status, error_message, created_at, updated_at").in("lesson_id", lessonIds).order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
@@ -491,7 +492,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
                             {!l.is_published && <Badge variant="outline">Draft</Badge>}
                             {l.video_url && (() => {
                               const job = latestAiJob(l.id);
-                              const busy = (job?.status === "queued" || job?.status === "processing") && Date.now() - new Date(job.updated_at || job.created_at).getTime() < 5 * 60 * 1000;
+                              const busy = (job?.status === "queued" || job?.status === "processing") && Date.now() - new Date(job.created_at).getTime() < 5 * 60 * 1000;
                               return <Button size="sm" variant="outline" disabled={busy} onClick={() => void generateAiPdf(l.id)}>
                                 {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FileDown className="mr-1 h-3.5 w-3.5" /> }
                                 {busy ? "Generating" : l.ai_pdf_url ? "Regenerate PDF" : "Generate PDF"}

@@ -15,7 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, run, confirmDelete, notifyAll } from "@/lib/admin-ui";
 import { toast } from "sonner";
-import { requestVideoPdf } from "@/lib/video-to-pdf.functions";
+import { requestVideoPdf, attachVideoPdf } from "@/lib/video-to-pdf.functions";
+import { buildVideoNotesPdf } from "@/lib/video-to-pdf-client";
+import { uploadMedia } from "@/lib/upload";
 
 export const Route = createFileRoute("/_authenticated/admin/courses")({
   head: () => ({
@@ -181,6 +183,7 @@ function AdminCourses() {
 function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnabled: boolean }) {
   const qc = useQueryClient();
   const invokeAiPdf = useServerFn(requestVideoPdf);
+  const attachAiPdf = useServerFn(attachVideoPdf);
   const key = ["admin-course-tree", course.id];
   const [lesson, setLesson] = useState<Partial<Lesson> | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -246,11 +249,25 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
     },
   });
   function latestAiJob(lessonId: string) { return aiJobs.data?.find((job) => job.lesson_id === lessonId); }
-  async function generateAiPdf(lessonId: string) {
-    const result = await invokeAiPdf({ data: { action: "manual", lessonId } });
+  async function generateAiPdf(lessonId: string, action: "auto" | "manual" = "manual") {
+    const result = await invokeAiPdf({ data: { action, lessonId } });
     if (!result.ok) { toast.error(result.error); return; }
-    toast.success(result.skipped ? "This video already has AI notes." : "AI PDF generation queued.");
-    await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+    if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
+    try {
+      toast.info("AI has analyzed the video. Preparing the PDF…");
+      const pdfBlob = await buildVideoNotesPdf(result.notes, result.lessonTitle);
+      const pdfUrl = await uploadMedia(pdfBlob, "ai-video-notes", `${lessonId}-${Date.now()}-notes.pdf`);
+      const attached = await attachAiPdf({ data: { jobId: result.jobId, lessonId, sourceVideoUrl: result.sourceVideoUrl, pdfUrl } });
+      if (!attached.ok) throw new Error(attached.error);
+      toast.success("AI PDF generated and attached to the lesson.");
+      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+      await refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "PDF creation failed."; 
+      await attachAiPdf({ data: { jobId: result.jobId, lessonId, sourceVideoUrl: result.sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
+      toast.error(message);
+      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+    }
   }
 
   const [gsSeeded, setGsSeeded] = useState(false);
@@ -366,9 +383,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
       setLesson(null);
       refresh();
       if (autoPdfEnabled && row.video_url && savedId) {
-        const result = await invokeAiPdf({ data: { action: "auto", lessonId: savedId } });
-        if (!result.ok) toast.error(result.error);
-        else if (!result.skipped) toast.success("Video saved. AI notes are being generated.");
+        void generateAiPdf(savedId, "auto");
         void qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
       }
     }

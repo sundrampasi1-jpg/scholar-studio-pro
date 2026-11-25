@@ -15,7 +15,7 @@ import { fetchCourseLessonIds } from "@/lib/queries";
 import {
   BarChart3, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download,
   FileText, Flag, GraduationCap, HelpCircle, Loader2, Maximize, MessageCircle,
-  Minimize, Pause, Play, Rewind, FastForward, Send, Settings, X,
+  Minimize, Pause, Play, Send, Settings, X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/lesson/$lessonId")({
@@ -435,7 +435,9 @@ function LessonPage() {
   const [speed, setSpeed] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [showSkipControls, setShowSkipControls] = useState(false);
+  const [seekFeedback, setSeekFeedback] = useState<{ text: string; side: "left" | "right" } | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -481,11 +483,9 @@ function LessonPage() {
     return () => window.clearTimeout(timer);
   }, [playing, showControls, settingsOpen]);
 
-  useEffect(() => {
-    if (!showSkipControls) return;
-    const timer = window.setTimeout(() => setShowSkipControls(false), 1200);
-    return () => window.clearTimeout(timer);
-  }, [showSkipControls]);
+  useEffect(() => () => {
+    if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+  }, []);
 
   // Offline copy: use the cached video when this lesson was downloaded.
   useEffect(() => {
@@ -718,10 +718,37 @@ function LessonPage() {
               src={videoSrc}
               playsInline
               preload="metadata"
-              onClick={() => {
-                setShowControls((visible) => !visible);
-                setShowSkipControls(true);
+              onTouchEnd={(event) => {
+                const touch = event.changedTouches[0];
+                if (!touch) return;
+                const now = Date.now();
+                const previous = lastTapRef.current;
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+                if (previous && now - previous.time < 320 && Math.hypot(x - previous.x, y - previous.y) < 48) {
+                  event.preventDefault();
+                  const side = x < rect.width / 2 ? "left" : "right";
+                  const delta = side === "left" ? -10 : 10;
+                  seek(delta);
+                  setSeekFeedback({ text: side === "left" ? "-10" : "+10", side });
+                  if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+                  feedbackTimerRef.current = window.setTimeout(() => setSeekFeedback(null), 650);
+                  lastTapRef.current = null;
+                } else {
+                  lastTapRef.current = { time: now, x, y };
+                }
               }}
+              onDoubleClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const side = event.clientX - rect.left < rect.width / 2 ? "left" : "right";
+                const delta = side === "left" ? -10 : 10;
+                seek(delta);
+                setSeekFeedback({ text: side === "left" ? "-10" : "+10", side });
+                if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+                feedbackTimerRef.current = window.setTimeout(() => setSeekFeedback(null), 650);
+              }}
+              style={{ touchAction: "manipulation" }}
               onPlay={() => { setPlaying(true); setShowControls(true); }}
               onPause={() => { setPlaying(false); setShowControls(true); }}
               onLoadedMetadata={(event) => {
@@ -756,29 +783,14 @@ function LessonPage() {
             </button>
           )}
 
-          {/* Skip buttons */}
-          {showControls && showSkipControls && <div className="absolute inset-y-0 left-0 flex items-center pl-2">
-            <button
-              type="button"
-              onClick={() => seek(-10)}
-              aria-label="Back 10 seconds"
-              className="flex flex-col items-center rounded-full bg-black/55 p-2.5 text-white backdrop-blur-sm"
+          {seekFeedback && (
+            <div
+              aria-live="polite"
+              className={`pointer-events-none absolute top-1/2 z-20 -translate-y-1/2 text-lg font-bold text-white drop-shadow-lg ${seekFeedback.side === "left" ? "left-1/4" : "right-1/4"}`}
             >
-              <Rewind className="h-5 w-5" />
-              <span className="text-[9px] font-semibold">10s</span>
-            </button>
-          </div>}
-          {showControls && showSkipControls && <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-            <button
-              type="button"
-              onClick={() => seek(10)}
-              aria-label="Forward 10 seconds"
-              className="flex flex-col items-center rounded-full bg-black/55 p-2.5 text-white backdrop-blur-sm"
-            >
-              <FastForward className="h-5 w-5" />
-              <span className="text-[9px] font-semibold">10s</span>
-            </button>
-          </div>}
+              {seekFeedback.text}
+            </div>
+          )}
 
           {/* Top-right: fullscreen + settings */}
           {showControls && <div className="absolute right-2 top-2 flex items-center gap-1.5">

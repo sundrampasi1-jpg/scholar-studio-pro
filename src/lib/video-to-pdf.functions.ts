@@ -149,10 +149,10 @@ export const requestVideoPdf = createServerFn({ method: "POST" })
       if (lessonError || !lesson?.video_url) return { ok: false as const, error: "Lesson video not found." };
       if (data.action === "auto" && lesson.ai_pdf_source_url === lesson.video_url) return { ok: true as const, skipped: true, reason: "This video already has AI notes." };
 
-      const { data: active } = await adminDb.from("ai_video_pdf_jobs").select("id,status,updated_at")
+      const { data: active } = await adminDb.from("ai_video_pdf_jobs").select("id,status,created_at")
         .eq("lesson_id", data.lessonId).in("status", ["queued", "processing"]).maybeSingle();
       if (active) {
-        const age = Date.now() - new Date(active.updated_at).getTime();
+        const age = Date.now() - new Date(active.created_at).getTime();
         if (age < 5 * 60 * 1000) return { ok: false as const, error: "PDF generation is still running. Please wait a little longer before retrying." };
         await adminDb.from("ai_video_pdf_jobs").update({ status: "failed", error_message: "Previous job timed out; please retry.", updated_at: new Date().toISOString() }).eq("id", active.id);
       }

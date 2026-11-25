@@ -49,7 +49,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     const fontLink = document.createElement("link");
     fontLink.rel = "stylesheet";
     fontLink.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap";
-    fontLink.dataset.jkHindiFont = "true";
+    fontLink.dataset["jkHindiFont"] = "true";
     document.head.appendChild(fontLink);
   }
   await document.fonts.ready;

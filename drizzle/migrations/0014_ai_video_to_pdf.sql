@@ -2,6 +2,8 @@
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS ai_video_pdf_enabled boolean NOT NULL DEFAULT false;
 
+INSERT INTO public.app_settings (id) VALUES (true) ON CONFLICT (id) DO NOTHING;
+
 ALTER TABLE public.lessons
   ADD COLUMN IF NOT EXISTS ai_pdf_url text,
   ADD COLUMN IF NOT EXISTS ai_pdf_source_url text;

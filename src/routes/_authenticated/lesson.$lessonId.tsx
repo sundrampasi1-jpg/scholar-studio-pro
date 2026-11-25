@@ -435,6 +435,7 @@ function LessonPage() {
   const [speed, setSpeed] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [showSkipControls, setShowSkipControls] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -479,6 +480,12 @@ function LessonPage() {
     const timer = window.setTimeout(() => setShowControls(false), 2500);
     return () => window.clearTimeout(timer);
   }, [playing, showControls, settingsOpen]);
+
+  useEffect(() => {
+    if (!showSkipControls) return;
+    const timer = window.setTimeout(() => setShowSkipControls(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [showSkipControls]);
 
   // Offline copy: use the cached video when this lesson was downloaded.
   useEffect(() => {
@@ -711,7 +718,10 @@ function LessonPage() {
               src={videoSrc}
               playsInline
               preload="metadata"
-              onClick={() => setShowControls((visible) => !visible)}
+              onClick={() => {
+                setShowControls((visible) => !visible);
+                setShowSkipControls(true);
+              }}
               onPlay={() => { setPlaying(true); setShowControls(true); }}
               onPause={() => { setPlaying(false); setShowControls(true); }}
               onLoadedMetadata={(event) => {
@@ -732,20 +742,22 @@ function LessonPage() {
             </div>
           )}
 
-          {/* Center play */}
-          {showControls && !playing && (
+          {/* Center pause / play */}
+          {showControls && (
             <button
               type="button"
               onClick={togglePlay}
-              aria-label="Play video"
+              aria-label={playing ? "Pause video" : "Play video"}
               className="absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full bg-black/55 shadow-xl backdrop-blur-sm"
             >
-              <Play className="ml-1 h-8 w-8 fill-white text-white" />
+              {playing
+                ? <Pause className="h-8 w-8 fill-white text-white" />
+                : <Play className="ml-1 h-8 w-8 fill-white text-white" />}
             </button>
           )}
 
           {/* Skip buttons */}
-          {showControls && <div className="absolute inset-y-0 left-0 flex items-center pl-2">
+          {showControls && showSkipControls && <div className="absolute inset-y-0 left-0 flex items-center pl-2">
             <button
               type="button"
               onClick={() => seek(-10)}
@@ -756,7 +768,7 @@ function LessonPage() {
               <span className="text-[9px] font-semibold">10s</span>
             </button>
           </div>}
-          {showControls && <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+          {showControls && showSkipControls && <div className="absolute inset-y-0 right-0 flex items-center pr-2">
             <button
               type="button"
               onClick={() => seek(10)}

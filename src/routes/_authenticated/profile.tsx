@@ -60,6 +60,8 @@ function ProfilePage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [seekFeedback, setSeekFeedback] = useState<"forward" | "backward" | null>(null);
+  const seekFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lastTapRef = useRef<{ time: number; x: number } | null>(null);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -299,7 +301,9 @@ function ProfilePage() {
     setShowControls(true);
 
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (seekFeedbackTimerRef.current) clearTimeout(seekFeedbackTimerRef.current);
     lastTapRef.current = null;
+    setSeekFeedback(null);
 
     setPlayingTitle("");
     setPlayingLessonId(null);
@@ -507,6 +511,9 @@ function ProfilePage() {
                   0,
                   Math.min(video.duration || 0, video.currentTime + (forward ? 10 : -10))
                 );
+                setSeekFeedback(forward ? "forward" : "backward");
+                if (seekFeedbackTimerRef.current) clearTimeout(seekFeedbackTimerRef.current);
+                seekFeedbackTimerRef.current = setTimeout(() => setSeekFeedback(null), 650);
               }
               setShowControls(false);
               return;
@@ -544,6 +551,15 @@ function ProfilePage() {
             }}
             className="h-full w-full object-contain"
           />
+
+          {seekFeedback && (
+            <div
+              className={`pointer-events-none absolute top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/65 px-5 py-3 text-lg font-semibold text-white ${seekFeedback === "forward" ? "right-8" : "left-8"}`}
+              aria-live="polite"
+            >
+              {seekFeedback === "forward" ? "+10" : "−10"}
+            </div>
+          )}
 
           {!videoPlaying && (
             <button

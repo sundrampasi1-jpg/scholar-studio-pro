@@ -877,7 +877,7 @@ function LessonPage() {
 
   return (
     <StudentShell>
-      <div className="-mx-4 w-[calc(100%+2rem)] max-w-none space-y-4 bg-white">
+      <div className="w-full max-w-none space-y-4 bg-white">
         {playerElement && <div className="w-full">{playerElement}</div>}
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm">

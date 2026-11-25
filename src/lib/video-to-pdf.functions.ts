@@ -1,6 +1,39 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const RETRYABLE_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+function isTransientFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /(?:\\b(?:408|429|500|502|503|504)\\b|network connection lost|failed to fetch|fetch failed|connection reset|temporarily unavailable|timed out|timeout)/i.test(message);
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  input: string,
+  init: RequestInit,
+  operation: string,
+): Promise<Response> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(input, init);
+      if (!RETRYABLE_HTTP_STATUSES.has(response.status)) return response;
+      const detail = (await response.text()).slice(0, 300);
+      if (attempt === 2) {
+        throw new Error(operation + " temporarily unavailable (" + response.status + "): " + detail);
+      }
+    } catch (error) {
+      if (attempt === 2 || !isTransientFailure(error)) throw error;
+    }
+    // Google recommends exponential backoff for transient 429/5xx errors.
+    await wait(1200 * (2 ** attempt));
+  }
+  throw new Error(operation + " failed after automatic retries.");
+}
+
 type Notes = {
   title: string;
   overview: string;
@@ -91,7 +124,7 @@ async function uploadGeminiFile(
   throw new Error("Video processing is taking too long. Please retry.");
 }
 
-async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: string) {
+async function getVideoPartOnce(videoUrl: string, title: string, adminDb: any, key: string) {
   if (/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\//i.test(videoUrl)) {
     throw new Error("YouTube watch links cannot be read as uploaded lesson files. Upload the original video file to JK Academy first.");
   }
@@ -123,6 +156,20 @@ async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: 
   const mime = (response.headers.get("content-type") || "video/mp4").split(";")[0] || "video/mp4";
   const file = await uploadGeminiFile(response.body, size, mime, title, key);
   return { uri: file.uri, mimeType: file.mimeType };
+}
+
+// A streamed request body cannot be replayed. Retry the entire source-fetch and
+// resumable-upload sequence so each attempt receives a fresh readable stream.
+async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await getVideoPartOnce(videoUrl, title, adminDb, key);
+    } catch (error) {
+      if (attempt === 2 || !isTransientFailure(error)) throw error;
+      await wait(1500 * (2 ** attempt));
+    }
+  }
+  throw new Error("Video upload failed after automatic network retries.");
 }
 
 export const requestVideoPdf = createServerFn({ method: "POST" })
@@ -174,7 +221,7 @@ Return ONLY valid JSON with this shape:
 {"title":"...","overview":"Hindi: ...\\nEnglish: ...","topics":[{"title":"Hindi / English topic","points":["Hindi: ... | English: ..."]}],"keyFacts":["Hindi: ... | English: ..."],"visualHighlights":[{"timestamp":"MM:SS","detail":"Hindi: ... | English: ..."}],"questions":[{"question":"Hindi: ... | English: ...","answer":"Hindi: ... | English: ..."}],"mcqs":[{"question":"Hindi: ... | English: ...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"Hindi: ... | English: ..."}]}
 Lesson title: ${lesson.title}
 Teacher-provided description (context only): ${lesson.description || "None"}`;
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+      const response = await fetchWithRetry("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
         signal: AbortSignal.timeout(240_000),
         method: "POST",
         headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
@@ -185,7 +232,7 @@ Teacher-provided description (context only): ${lesson.description || "None"}`;
           ] }],
           generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
         }),
-      });
+      }, "Gemini video analysis");
       if (!response.ok) throw new Error("Gemini analysis failed (" + response.status + "): " + (await response.text()).slice(0, 300));
       const result = await response.json();
       const output = result.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("\n");

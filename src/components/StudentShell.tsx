@@ -76,6 +76,35 @@ export function StudentShell({
   const location = useLocation();
   const mainRef = useRef<HTMLElement | null>(null);
   const [swipeDrag, setSwipeDrag] = useState(0);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const updateKeyboardState = () => {
+      const viewport = window.visualViewport;
+      const keyboardInset = viewport
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      const active = document.activeElement;
+      const editing = active instanceof HTMLElement &&
+        (active.matches("input, textarea, select") || active.isContentEditable);
+      setKeyboardOpen(keyboardInset > 120 || (editing && window.matchMedia("(max-width: 767px)").matches));
+    };
+
+    const onFocusOut = () => window.setTimeout(updateKeyboardState, 120);
+    updateKeyboardState();
+    window.addEventListener("resize", updateKeyboardState);
+    window.addEventListener("focusin", updateKeyboardState);
+    window.addEventListener("focusout", onFocusOut);
+    window.visualViewport?.addEventListener("resize", updateKeyboardState);
+    window.visualViewport?.addEventListener("scroll", updateKeyboardState);
+    return () => {
+      window.removeEventListener("resize", updateKeyboardState);
+      window.removeEventListener("focusin", updateKeyboardState);
+      window.removeEventListener("focusout", onFocusOut);
+      window.visualViewport?.removeEventListener("resize", updateKeyboardState);
+      window.visualViewport?.removeEventListener("scroll", updateKeyboardState);
+    };
+  }, []);
 
   useEffect(() => {
     navItems.forEach((item) => {
@@ -310,7 +339,10 @@ export function StudentShell({
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden">
+      <nav
+        aria-hidden={keyboardOpen}
+        className={`fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.1)] transition-[transform,opacity] duration-150 md:hidden ${keyboardOpen ? "pointer-events-none translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
+      >
         {navItems.map(({ to, label, Icon }) => (
           <Link
             key={to}

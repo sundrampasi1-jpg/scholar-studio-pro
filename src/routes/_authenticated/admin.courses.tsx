@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, ChevronRight, FileDown, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { AdminShell } from "@/components/AdminShell";
 import { MediaInput } from "@/components/MediaInput";
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, run, confirmDelete, notifyAll } from "@/lib/admin-ui";
 import { toast } from "sonner";
+import { requestVideoPdf } from "@/lib/video-to-pdf.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/courses")({
   head: () => ({
@@ -178,6 +180,7 @@ function AdminCourses() {
 
 function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnabled: boolean }) {
   const qc = useQueryClient();
+  const invokeAiPdf = useServerFn(requestVideoPdf);
   const key = ["admin-course-tree", course.id];
   const [lesson, setLesson] = useState<Partial<Lesson> | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -244,9 +247,9 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
   });
   function latestAiJob(lessonId: string) { return aiJobs.data?.find((job) => job.lesson_id === lessonId); }
   async function generateAiPdf(lessonId: string) {
-    const { data, error } = await supabase.functions.invoke("video-to-pdf", { body: { action: "manual", lessonId } });
-    if (error || data?.error) { toast.error(data?.error || error?.message || "Could not start PDF generation."); return; }
-    toast.success(data?.skipped ? "This video already has AI notes." : "AI PDF generation queued.");
+    const result = await invokeAiPdf({ data: { action: "manual", lessonId } });
+    if (!result.ok) { toast.error(result.error); return; }
+    toast.success(result.skipped ? "This video already has AI notes." : "AI PDF generation queued.");
     await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
   }
 
@@ -363,9 +366,9 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
       setLesson(null);
       refresh();
       if (autoPdfEnabled && row.video_url && savedId) {
-        const { data, error } = await supabase.functions.invoke("video-to-pdf", { body: { action: "auto", lessonId: savedId } });
-        if (error || data?.error) toast.error(data?.error || error?.message || "Automatic PDF generation could not start.");
-        else if (!data?.skipped) toast.success("Video saved. AI notes are being generated.");
+        const result = await invokeAiPdf({ data: { action: "auto", lessonId: savedId } });
+        if (!result.ok) toast.error(result.error);
+        else if (!result.skipped) toast.success("Video saved. AI notes are being generated.");
         void qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
       }
     }

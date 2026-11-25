@@ -455,6 +455,14 @@ function LessonPage() {
   const [showPdf, setShowPdf] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  // Keep controls visible briefly after playback starts or a tap reveals them,
+  // then hide them automatically while the video continues playing.
+  useEffect(() => {
+    if (!playing || !showControls) return;
+    const timer = window.setTimeout(() => setShowControls(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [playing, showControls]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       const active = !!document.fullscreenElement;

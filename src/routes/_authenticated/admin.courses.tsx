@@ -271,21 +271,26 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
     enabled: lessonIds.length > 0,
     refetchInterval: (query) => query.state.data?.some((job) => job.status === "queued" || job.status === "processing") ? 5000 : false,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("ai_video_pdf_jobs").select("id, lesson_id, status, error_message, created_at").in("lesson_id", lessonIds).order("created_at", { ascending: false }).limit(200);
+      const { data, error } = await (supabase as any).from("ai_video_pdf_jobs").select("id, lesson_id, status, error_message, created_at, updated_at").in("lesson_id", lessonIds).order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
-      return (data ?? []) as { id: string; lesson_id: string; status: string; error_message: string | null; created_at: string }[];
+      return (data ?? []) as { id: string; lesson_id: string; status: string; error_message: string | null; created_at: string; updated_at: string }[];
     },
   });
   function latestAiJob(lessonId: string) { return aiJobs.data?.find((job) => job.lesson_id === lessonId); }
   async function generateAiPdf(lessonId: string, action: "auto" | "manual" = "manual") {
-    const result = await invokeAiPdf({ data: { action, lessonId } });
-    if (!result.ok) { toast.error(result.error); return; }
-    if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
-    const sourceVideoUrl = result.sourceVideoUrl;
-    const jobId = result.jobId;
-    if (typeof sourceVideoUrl !== "string" || !sourceVideoUrl || typeof jobId !== "string" || !jobId) { toast.error("The video or PDF job reference is missing."); return; }
+    let jobId: string | null = null;
+    let sourceVideoUrl: string | null = null;
     try {
-      toast.info("AI has analyzed the video. Preparing the PDF…");
+      toast.info("AI is analyzing the lesson video. This may take a few minutes.");
+      const result = await invokeAiPdf({ data: { action, lessonId } });
+      if (!result.ok) { toast.error(result.error); await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] }); return; }
+      if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
+      sourceVideoUrl = result.sourceVideoUrl;
+      jobId = result.jobId;
+      if (typeof sourceVideoUrl !== "string" || !sourceVideoUrl || typeof jobId !== "string" || !jobId) {
+        throw new Error("The video or PDF job reference is missing.");
+      }
+      toast.info("AI analysis complete. Creating and attaching the PDF…");
       const pdfBlob = await buildVideoNotesPdf(result.notes, result.lessonTitle);
       const pdfUrl = await uploadMedia(pdfBlob, "ai-video-notes", `${lessonId}-${Date.now()}-notes.pdf`);
       const attached = await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl } });
@@ -294,8 +299,10 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
       await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
       await refresh();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "PDF creation failed."; 
-      await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
+      const message = error instanceof Error ? error.message : "PDF generation failed.";
+      if (jobId && sourceVideoUrl) {
+        await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
+      }
       toast.error(message);
       await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
     }
@@ -484,7 +491,7 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
                             {!l.is_published && <Badge variant="outline">Draft</Badge>}
                             {l.video_url && (() => {
                               const job = latestAiJob(l.id);
-                              const busy = job?.status === "queued" || job?.status === "processing";
+                              const busy = (job?.status === "queued" || job?.status === "processing") && Date.now() - new Date(job.updated_at || job.created_at).getTime() < 5 * 60 * 1000;
                               return <Button size="sm" variant="outline" disabled={busy} onClick={() => void generateAiPdf(l.id)}>
                                 {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FileDown className="mr-1 h-3.5 w-3.5" /> }
                                 {busy ? "Generating" : l.ai_pdf_url ? "Regenerate PDF" : "Generate PDF"}

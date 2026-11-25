@@ -17,19 +17,23 @@ async function fetchWithRetry(
   init: RequestInit,
   operation: string,
 ): Promise<Response> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const response = await fetch(input, init);
       if (!RETRYABLE_HTTP_STATUSES.has(response.status)) return response;
       const detail = (await response.text()).slice(0, 300);
-      if (attempt === 2) {
+      if (attempt === 1) {
         throw new Error(operation + " temporarily unavailable (" + response.status + "): " + detail);
       }
+      const retryAfter = Number(response.headers.get("retry-after") || 0);
+      const backoff = Math.min(2500, 900 * (2 ** attempt) + Math.floor(Math.random() * 400));
+      const delay = retryAfter > 0 ? Math.min(5000, retryAfter * 1000) : backoff;
+      await wait(delay);
+      continue;
     } catch (error) {
       if (attempt === 2 || !isTransientFailure(error)) throw error;
     }
-    // Google recommends exponential backoff for transient 429/5xx errors.
-    await wait(1200 * (2 ** attempt));
+    // Retry-After and bounded exponential backoff are handled above.
   }
   throw new Error(operation + " failed after automatic retries.");
 }
@@ -258,20 +262,47 @@ Return ONLY valid JSON with this shape:
 {"title":"...","overview":"Hindi: ...\\nEnglish: ...","topics":[{"title":"Hindi / English topic","points":["Hindi: ... | English: ..."]}],"keyFacts":["Hindi: ... | English: ..."],"visualHighlights":[{"timestamp":"MM:SS","detail":"Hindi: ... | English: ..."}],"questions":[{"question":"Hindi: ... | English: ...","answer":"Hindi: ... | English: ..."}],"mcqs":[{"question":"Hindi: ... | English: ...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"Hindi: ... | English: ..."}]}
 Lesson title: ${lesson.title}
 Teacher-provided description (context only): ${lesson.description || "None"}`;
-      const response = await fetchWithRetry("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse", {
-        signal: AbortSignal.timeout(240_000),
-        method: "POST",
-        headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [
-            { file_data: { mime_type: videoPart.mimeType, file_uri: videoPart.uri } },
-            { text: prompt },
-          ] }],
-          generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 },
-        }),
-      }, "Gemini video analysis");
-      if (!response.ok) throw new Error("Gemini analysis failed (" + response.status + "): " + (await response.text()).slice(0, 300));
-      const output = await readGeminiSse(response);
+      const requestBody = JSON.stringify({
+        contents: [{ role: "user", parts: [
+          { file_data: { mime_type: videoPart.mimeType, file_uri: videoPart.uri } },
+          { text: prompt },
+        ] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 },
+      });
+      const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+      const modelErrors: string[] = [];
+      let output = "";
+      for (const model of models) {
+        try {
+          const response = await fetchWithRetry(
+            "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":streamGenerateContent?alt=sse",
+            {
+              signal: AbortSignal.timeout(240_000),
+              method: "POST",
+              headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
+              body: requestBody,
+            },
+            "Gemini video analysis (" + model + ")",
+          );
+          if (!response.ok) {
+            const detail = (await response.text()).slice(0, 300);
+            const error = new Error("Gemini analysis failed (" + response.status + "): " + detail);
+            if (isTransientFailure(error) && model !== models[models.length - 1]) {
+              modelErrors.push(model + ": " + error.message);
+              continue;
+            }
+            throw error;
+          }
+          output = await readGeminiSse(response);
+          break;
+        } catch (error) {
+          if (!isTransientFailure(error) || model === models[models.length - 1]) throw error;
+          modelErrors.push(model + ": " + (error instanceof Error ? error.message : String(error)));
+        }
+      }
+      if (!output.trim()) {
+        throw new Error("All Gemini models are temporarily unavailable. " + modelErrors.join(" | "));
+      }
       const notes = parseNotes(output);
       await adminDb.from("ai_video_pdf_jobs").update({ updated_at: new Date().toISOString() }).eq("id", jobId);
       return { ok: true as const, jobId, lessonId: lesson.id, lessonTitle: lesson.title, sourceVideoUrl: lesson.video_url, notes };

@@ -77,7 +77,7 @@ async function uploadGeminiFile(blob: Blob, mime: string, title: string, key: st
 
 async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: string) {
   if (/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\//i.test(videoUrl)) {
-    return { type: "video", uri: videoUrl };
+    throw new Error("YouTube watch links cannot be read as uploaded lesson files. Upload the original video file to JK Academy first.");
   }
   let storagePath: string | null = null;
   const parsed = new URL(videoUrl);
@@ -101,7 +101,7 @@ async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: 
   if (blob.size > 2 * 1024 * 1024 * 1024) throw new Error("This video exceeds Gemini's 2 GB file limit.");
   const mime = (blob.type || "video/mp4").split(";")[0] || "video/mp4";
   const file = await uploadGeminiFile(blob, mime, title, key);
-  return { type: "video", uri: file.uri, mime_type: file.mimeType };
+  return { uri: file.uri, mimeType: file.mimeType };
 }
 
 export const requestVideoPdf = createServerFn({ method: "POST" })
@@ -153,14 +153,20 @@ Return ONLY valid JSON with this shape:
 {"title":"...","overview":"Hindi: ...\\nEnglish: ...","topics":[{"title":"Hindi / English topic","points":["Hindi: ... | English: ..."]}],"keyFacts":["Hindi: ... | English: ..."],"visualHighlights":[{"timestamp":"MM:SS","detail":"Hindi: ... | English: ..."}],"questions":[{"question":"Hindi: ... | English: ...","answer":"Hindi: ... | English: ..."}],"mcqs":[{"question":"Hindi: ... | English: ...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"Hindi: ... | English: ..."}]}
 Lesson title: ${lesson.title}
 Teacher-provided description (context only): ${lesson.description || "None"}`;
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
         method: "POST",
         headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "gemini-3.6-flash", input: [videoPart, { type: "text", text: prompt }] }),
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [
+            { file_data: { mime_type: videoPart.mimeType, file_uri: videoPart.uri } },
+            { text: prompt },
+          ] }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+        }),
       });
-      if (!response.ok) throw new Error("Gemini analysis failed (" + response.status + "): " + (await response.text()).slice(0, 220));
+      if (!response.ok) throw new Error("Gemini analysis failed (" + response.status + "): " + (await response.text()).slice(0, 300));
       const result = await response.json();
-      const output = result.output_text || result.output?.map((x: any) => x.content?.map((p: any) => p.text || "").join("")).join("\n");
+      const output = result.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("\n");
       if (!output) throw new Error("Gemini returned no notes for this video.");
       const notes = parseNotes(output);
       await adminDb.from("ai_video_pdf_jobs").update({ updated_at: new Date().toISOString() }).eq("id", jobId);

@@ -732,15 +732,19 @@ function LessonPage() {
             </div>
           )}
 
-          {/* Center play */}
-          {showControls && !playing && (
+          {/* Center play/pause */}
+          {showControls && (
             <button
               type="button"
               onClick={togglePlay}
-              aria-label="Play video"
+              aria-label={playing ? "Pause video" : "Play video"}
               className="absolute inset-0 m-auto flex h-16 w-16 items-center justify-center rounded-full bg-black/55 shadow-xl backdrop-blur-sm"
             >
-              <Play className="ml-1 h-8 w-8 fill-white text-white" />
+              {playing ? (
+                <Pause className="h-8 w-8 fill-white text-white" />
+              ) : (
+                <Play className="ml-1 h-8 w-8 fill-white text-white" />
+              )}
             </button>
           )}
 

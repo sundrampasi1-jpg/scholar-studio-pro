@@ -9,7 +9,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { replyLessonCommentAi, replyLessonReportAi } from "@/lib/ai-chat.functions";
-import { cacheMedia, getCachedMedia } from "@/lib/offline-media";
+import { cacheMediaResponse, getCachedMedia } from "@/lib/offline-media";
 import { addDownload, isDownloaded } from "@/lib/downloads";
 import { fetchCourseLessonIds } from "@/lib/queries";
 import {
@@ -657,22 +657,16 @@ function LessonPage() {
       if (error || !data?.signedUrl) throw new Error("Could not fetch the video.");
       const res = await fetch(data.signedUrl);
       if (!res.ok) throw new Error("Download failed — try again");
-      const blob = await res.blob();
-      if (!blob.size) throw new Error("Download failed — empty file");
-      await cacheMedia(lessonId, blob);
+      const size = await cacheMediaResponse(lessonId, res);
       addDownload({
         key: lessonId,
         lessonId,
         title: l.title,
         courseId,
-        size: blob.size,
+        size,
         at: new Date().toISOString(),
       });
       setSavedOffline(true);
-      setCachedUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(blob);
-      });
       toast.success("Saved! Watch offline from Profile → My Downloads.", { id: toastId });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save the video.", { id: toastId });

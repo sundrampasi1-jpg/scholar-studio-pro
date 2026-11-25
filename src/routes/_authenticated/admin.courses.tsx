@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ChevronDown, ChevronRight, FileDown, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { AdminShell } from "@/components/AdminShell";
 import { MediaInput } from "@/components/MediaInput";
 import { LoadingState, EmptyState } from "@/components/DataStates";
@@ -13,6 +14,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, run, confirmDelete, notifyAll } from "@/lib/admin-ui";
+import { toast } from "sonner";
+import { requestVideoPdf, attachVideoPdf } from "@/lib/video-to-pdf.functions";
+import { buildVideoNotesPdf } from "@/lib/video-to-pdf-client";
+import { uploadMedia } from "@/lib/upload";
 
 export const Route = createFileRoute("/_authenticated/admin/courses")({
   head: () => ({
@@ -40,6 +45,8 @@ type Lesson = {
   description: string | null;
   video_url: string | null;
   pdf_url: string | null;
+  ai_pdf_url: string | null;
+  ai_pdf_source_url: string | null;
   duration_minutes: number | null;
   position: number;
   is_published: boolean;
@@ -50,6 +57,23 @@ function AdminCourses() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Partial<Course> | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+
+  const aiPdfSettings = useQuery({
+    queryKey: ["ai-video-pdf-enabled"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("app_settings").select("id, ai_video_pdf_enabled").maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  async function toggleAutoPdf(enabled: boolean) {
+    if (!aiPdfSettings.data) return;
+    const { error } = await supabase.from("app_settings").update({ ai_video_pdf_enabled: enabled }).eq("id", aiPdfSettings.data.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(enabled ? "Automatic Video-to-PDF is ON" : "Automatic Video-to-PDF is OFF");
+    await qc.invalidateQueries({ queryKey: ["ai-video-pdf-enabled"] });
+  }
 
   const courses = useQuery({
     queryKey: ["admin-courses"],
@@ -101,6 +125,13 @@ function AdminCourses() {
         </Button>
       }
     >
+      <div className="surface-card mb-4 flex flex-wrap items-center justify-between gap-3 p-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">AI Automatic Video-to-PDF</p>
+          <p className="text-xs text-muted-foreground">Generate bilingual exam notes from the actual lesson audio and visuals after saving a video.</p>
+        </div>
+        <Switch checked={!!aiPdfSettings.data?.ai_video_pdf_enabled} disabled={aiPdfSettings.isLoading || !aiPdfSettings.data} onCheckedChange={(value) => void toggleAutoPdf(value)} aria-label="Toggle automatic Video-to-PDF" />
+      </div>
       <Input placeholder="Search courses…" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3 max-w-sm" />
       {courses.isLoading ? (
         <LoadingState />
@@ -123,7 +154,7 @@ function AdminCourses() {
         </div>
       )}
 
-      {current && <CourseContent course={current} />}
+      {current && <CourseContent course={current} autoPdfEnabled={!!aiPdfSettings.data?.ai_video_pdf_enabled} />}
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -149,8 +180,10 @@ function AdminCourses() {
   );
 }
 
-function CourseContent({ course }: { course: Course }) {
+function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnabled: boolean }) {
   const qc = useQueryClient();
+  const invokeAiPdf = useServerFn(requestVideoPdf);
+  const attachAiPdf = useServerFn(attachVideoPdf);
   const key = ["admin-course-tree", course.id];
   const [lesson, setLesson] = useState<Partial<Lesson> | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -203,6 +236,42 @@ function CourseContent({ course }: { course: Course }) {
       }));
     },
   });
+
+  const lessonIds = (tree.data ?? []).flatMap((subject) => subject.chapters.flatMap((chapter) => chapter.lessons.map((item) => item.id)));
+  const aiJobs = useQuery({
+    queryKey: ["ai-video-pdf-jobs", course.id, lessonIds],
+    enabled: lessonIds.length > 0,
+    refetchInterval: (query) => query.state.data?.some((job) => job.status === "queued" || job.status === "processing") ? 5000 : false,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("ai_video_pdf_jobs").select("id, lesson_id, status, error_message, created_at").in("lesson_id", lessonIds).order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as { id: string; lesson_id: string; status: string; error_message: string | null; created_at: string }[];
+    },
+  });
+  function latestAiJob(lessonId: string) { return aiJobs.data?.find((job) => job.lesson_id === lessonId); }
+  async function generateAiPdf(lessonId: string, action: "auto" | "manual" = "manual") {
+    const result = await invokeAiPdf({ data: { action, lessonId } });
+    if (!result.ok) { toast.error(result.error); return; }
+    if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
+    const sourceVideoUrl = result.sourceVideoUrl;
+    const jobId = result.jobId;
+    if (typeof sourceVideoUrl !== "string" || !sourceVideoUrl || typeof jobId !== "string" || !jobId) { toast.error("The video or PDF job reference is missing."); return; }
+    try {
+      toast.info("AI has analyzed the video. Preparing the PDF…");
+      const pdfBlob = await buildVideoNotesPdf(result.notes, result.lessonTitle);
+      const pdfUrl = await uploadMedia(pdfBlob, "ai-video-notes", `${lessonId}-${Date.now()}-notes.pdf`);
+      const attached = await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl } });
+      if (!attached.ok) throw new Error(attached.error);
+      toast.success("AI PDF generated and attached to the lesson.");
+      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+      await refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "PDF creation failed."; 
+      await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
+      toast.error(message);
+      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+    }
+  }
 
   const [gsSeeded, setGsSeeded] = useState(false);
 
@@ -302,13 +371,24 @@ function CourseContent({ course }: { course: Course }) {
       position: lesson.position ?? 0,
       is_published: lesson.is_published ?? true,
     };
-    const ok = lesson.id
-      ? await run(supabase.from("lessons").update(row).eq("id", lesson.id))
-      : await run(supabase.from("lessons").insert(row));
+    let savedId = lesson.id;
+    let ok = false;
+    if (lesson.id) {
+      ok = await run(supabase.from("lessons").update(row).eq("id", lesson.id));
+    } else {
+      const { data, error } = await supabase.from("lessons").insert(row).select("id").single();
+      if (error) { toast.error(error.message); return; }
+      savedId = data.id;
+      ok = true;
+    }
     if (ok) {
       if (!lesson.id && row.is_published) await notifyAll(supabase, `New lesson in ${course.title}: ${row.title}`, "lesson", `/courses/${course.id}`);
       setLesson(null);
       refresh();
+      if (autoPdfEnabled && row.video_url && savedId) {
+        void generateAiPdf(savedId, "auto");
+        void qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+      }
     }
   }
 
@@ -372,7 +452,17 @@ function CourseContent({ course }: { course: Course }) {
                             <span className="min-w-0 flex-1 truncate">{l.title}</span>
                             {l.video_url && <Badge variant="secondary">Video</Badge>}
                             {l.pdf_url && <Badge variant="secondary">PDF</Badge>}
+                            {l.ai_pdf_url && <Badge variant="secondary">AI PDF</Badge>}
                             {!l.is_published && <Badge variant="outline">Draft</Badge>}
+                            {l.video_url && (() => {
+                              const job = latestAiJob(l.id);
+                              const busy = job?.status === "queued" || job?.status === "processing";
+                              return <Button size="sm" variant="outline" disabled={busy} onClick={() => void generateAiPdf(l.id)}>
+                                {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FileDown className="mr-1 h-3.5 w-3.5" /> }
+                                {busy ? "Generating" : l.ai_pdf_url ? "Regenerate PDF" : "Generate PDF"}
+                              </Button>;
+                            })()}
+                            {latestAiJob(l.id)?.status === "failed" && <Badge variant="destructive">AI failed</Badge>}
                             <Button size="icon" variant="ghost" onClick={() => setLesson(l)} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
                             <Button size="icon" variant="ghost" onClick={() => delRow("lessons", l.id, `lesson "${l.title}"`)} aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
                           </li>

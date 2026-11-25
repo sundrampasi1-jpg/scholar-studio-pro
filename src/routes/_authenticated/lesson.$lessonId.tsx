@@ -492,6 +492,7 @@ function LessonPage() {
   const [showPolls, setShowPolls] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
+  const [showAiPdf, setShowAiPdf] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   // Keep controls visible briefly after playback starts or a tap reveals them,
@@ -1092,8 +1093,30 @@ function LessonPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : !l.ai_pdf_url ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">No PDF notes for this lesson yet.</p>
+            ) : null}
+            {l.ai_pdf_url && (
+              <div className="border-t border-gold/20">
+                <button type="button" onClick={() => setShowAiPdf((value) => !value)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[10px] font-black text-emerald-800">AI PDF</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold">AI Video Notes · Hindi + English</span>
+                    <span className="block text-xs text-muted-foreground">Topics, important facts, Q&A and MCQs from this video</span>
+                  </span>
+                  <ChevronDown className={"h-5 w-5 shrink-0 text-gold-deep transition-transform " + (showAiPdf ? "rotate-180" : "")} />
+                </button>
+                {showAiPdf && (
+                  <div className="pb-0">
+                    <div className="mb-2 flex justify-end px-4">
+                      <button type="button" onClick={() => downloadFile(l.ai_pdf_url!, l.title + " AI Video Notes")} className="flex items-center gap-1.5 rounded-full bg-gold/15 px-3 py-1.5 text-xs font-bold text-gold-deep">
+                        <Download className="h-3.5 w-3.5" /> Download PDF
+                      </button>
+                    </div>
+                    <PdfViewer url={l.ai_pdf_url} className="max-h-[75vh] w-full overflow-y-auto bg-surface" />
+                  </div>
+                )}
+              </div>
             )}
             <Link
               to="/doubts"

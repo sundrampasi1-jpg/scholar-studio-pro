@@ -1,0 +1,24 @@
+name: AI Video-to-PDF branch checks
+
+on:
+  push:
+    branches: [feature/ai-video-to-pdf]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript check
+        run: bunx tsc --noEmit
+      - name: Production build
+        if: always()
+        run: bun run build

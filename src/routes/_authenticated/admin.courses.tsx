@@ -41,6 +41,8 @@ type Lesson = {
   description: string | null;
   video_url: string | null;
   pdf_url: string | null;
+  ai_pdf_url: string | null;
+  ai_pdf_source_url: string | null;
   duration_minutes: number | null;
   position: number;
   is_published: boolean;

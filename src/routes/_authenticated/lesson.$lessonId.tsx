@@ -434,6 +434,7 @@ function LessonPage() {
 
   const [speed, setSpeed] = useState(1);
   const [playing, setPlaying] = useState(false);
+  const [showControls, setShowControls] = useState(true);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -471,6 +472,13 @@ function LessonPage() {
   useEffect(() => {
     document.body.style.overflow = fullscreen ? "hidden" : "";
   }, [fullscreen]);
+
+  // Match YouTube-style controls: keep them visible while paused, then auto-hide during playback.
+  useEffect(() => {
+    if (!playing || !showControls || settingsOpen) return;
+    const timer = window.setTimeout(() => setShowControls(false), 2500);
+    return () => window.clearTimeout(timer);
+  }, [playing, showControls, settingsOpen]);
 
   // Offline copy: use the cached video when this lesson was downloaded.
   useEffect(() => {
@@ -703,9 +711,9 @@ function LessonPage() {
               src={videoSrc}
               playsInline
               preload="metadata"
-              onClick={togglePlay}
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
+              onClick={() => setShowControls((visible) => !visible)}
+              onPlay={() => { setPlaying(true); setShowControls(true); }}
+              onPause={() => { setPlaying(false); setShowControls(true); }}
               onLoadedMetadata={(event) => {
                 const el = event.currentTarget;
                 setDuration(el.duration || 0);
@@ -725,7 +733,7 @@ function LessonPage() {
           )}
 
           {/* Center play */}
-          {!playing && (
+          {showControls && !playing && (
             <button
               type="button"
               onClick={togglePlay}
@@ -737,7 +745,7 @@ function LessonPage() {
           )}
 
           {/* Skip buttons */}
-          <div className="absolute inset-y-0 left-0 flex items-center pl-2">
+          {showControls && <div className="absolute inset-y-0 left-0 flex items-center pl-2">
             <button
               type="button"
               onClick={() => seek(-10)}
@@ -748,7 +756,7 @@ function LessonPage() {
               <span className="text-[9px] font-semibold">10s</span>
             </button>
           </div>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+          {showControls && <div className="absolute inset-y-0 right-0 flex items-center pr-2">
             <button
               type="button"
               onClick={() => seek(10)}
@@ -761,7 +769,7 @@ function LessonPage() {
           </div>
 
           {/* Top-right: fullscreen + settings */}
-          <div className="absolute right-2 top-2 flex items-center gap-1.5">
+          {showControls && <div className="absolute right-2 top-2 flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => void toggleFullscreen()}
@@ -781,7 +789,7 @@ function LessonPage() {
           </div>
 
           {/* Settings panel */}
-          {settingsOpen && (
+          {showControls && settingsOpen && (
             <div className="absolute right-2 top-12 z-30 w-60 rounded-xl border border-gold/40 bg-black/90 p-3 text-white shadow-2xl backdrop-blur">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gold">Playback speed</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -842,7 +850,7 @@ function LessonPage() {
           )}
 
           {/* Bottom bar */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 pb-2.5 pt-8">
+          {showControls && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 pb-2.5 pt-8">
             <input
               aria-label="Video progress"
               type="range"
@@ -869,7 +877,7 @@ function LessonPage() {
               </button>
               <span className="text-white/85">{formatTime(duration)}</span>
             </div>
-          </div>
+          </div>}
         </div>
       )}
     </div>

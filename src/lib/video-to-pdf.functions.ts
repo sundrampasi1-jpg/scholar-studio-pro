@@ -101,7 +101,7 @@ async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: 
     const { data, error } = await adminDb.storage.from("media").createSignedUrl(storagePath, 600);
     if (error || !data?.signedUrl) throw new Error("The saved lesson video link could not be prepared from storage.");
     sourceUrl = data.signedUrl;
-  } else if (/vimeo\\.com\\//i.test(videoUrl) && !/\\.(mp4|webm|mov)(?:\\?|$)/i.test(parsed.pathname)) {
+  } else if (/vimeo\.com\//i.test(videoUrl) && !/\.(mp4|webm|mov)(?:\?|$)/i.test(parsed.pathname)) {
     throw new Error("Vimeo watch-page links are not supported yet. Upload the original video file first.");
   }
 

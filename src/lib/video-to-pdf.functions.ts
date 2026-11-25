@@ -89,7 +89,7 @@ async function uploadGeminiFile(
 }
 
 async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: string) {
-  if (/(?:www\\.|m\\.)?youtube\\.com\\/(?:watch\\?v=|shorts\\/|live\\/)|youtu\\.be\\//i.test(videoUrl)) {
+  if (/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\//i.test(videoUrl)) {
     throw new Error("YouTube watch links cannot be read as uploaded lesson files. Upload the original video file to JK Academy first.");
   }
   let sourceUrl = videoUrl;
@@ -97,7 +97,7 @@ async function getVideoPart(videoUrl: string, title: string, adminDb: any, key: 
   const marker = parsed.pathname.includes("/object/sign/media/") ? "/object/sign/media/" :
     parsed.pathname.includes("/object/public/media/") ? "/object/public/media/" : null;
   if (marker) {
-    const storagePath = decodeURIComponent(parsed.pathname.split(marker)[1] || "").replace(/\\+/g, "/");
+    const storagePath = decodeURIComponent(parsed.pathname.split(marker)[1] || "").replace(/\+/g, "/");
     const { data, error } = await adminDb.storage.from("media").createSignedUrl(storagePath, 600);
     if (error || !data?.signedUrl) throw new Error("The saved lesson video link could not be prepared from storage.");
     sourceUrl = data.signedUrl;

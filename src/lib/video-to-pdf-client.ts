@@ -47,24 +47,12 @@ function loadScript(src: string, ready: () => boolean): Promise<void> {
 
 function loadHtml2Pdf() {
   if (typeof window === "undefined") return Promise.reject(new Error("PDF generation requires a browser."));
-  if (window.html2PDF && window.html2canvas && window.jspdf?.jsPDF) return Promise.resolve();
+  if (window.html2pdf) return Promise.resolve();
   if (!html2PdfLoader) {
-    html2PdfLoader = (async () => {
-      // html2pdf.js bundles html2canvas 1.4.1, which cannot parse Tailwind v4
-      // oklch() colors. Use the maintained html2canvas-pro renderer instead.
-      await loadScript(
-        "https://cdn.jsdelivr.net/npm/jspdf@4.2.0/dist/jspdf.umd.min.js",
-        () => !!window.jspdf?.jsPDF,
-      );
-      await loadScript(
-        "https://cdn.jsdelivr.net/npm/html2canvas-pro@1.6.7/dist/html2canvas-pro.min.js",
-        () => typeof window.html2canvas === "function",
-      );
-      await loadScript(
-        "https://cdn.jsdelivr.net/npm/jspdf-html2canvas@1.7.0/dist/jspdf-html2canvas.min.js",
-        () => typeof window.html2PDF === "function",
-      );
-    })().catch((error) => {
+    html2PdfLoader = loadScript(
+      "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js",
+      () => typeof window.html2pdf === "function",
+    ).catch((error) => {
       html2PdfLoader = null;
       throw error;
     });
@@ -200,36 +188,42 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   document.body.appendChild(root);
   try {
     const pdfDocument = await withTimeout(
-      window.html2PDF!(root, {
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        html2canvas: {
-          scale: 1.5,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 794,
-          scrollX: 0,
-          scrollY: -window.scrollY,
-          onclone: (clonedDoc: Document) => {
-            const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
-            clonedDoc.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])').forEach((element) => element.remove());
-
-            const safeStyle = clonedDoc.createElement("style");
-            safeStyle.textContent = pdfStyles;
-            clonedDoc.head.appendChild(safeStyle);
-
-            clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
-            clonedDoc.querySelectorAll<HTMLElement>("#jk-pdf-render-root").forEach((element) => {
-              element.style.cssText = "position:static;width:794px;margin:0;padding:0;background:#fff;color:#172033;";
-            });
+      window.html2pdf!()
+        .set({
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          html2canvas: {
+            scale: 1.5,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            windowWidth: 794,
+            scrollX: 0,
+            scrollY: -window.scrollY,
+            onclone: (clonedDoc: Document) => {
+              const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
+              clonedDoc.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])').forEach((element) => element.remove());
+              const safeStyle = clonedDoc.createElement("style");
+              safeStyle.textContent = pdfStyles;
+              clonedDoc.head.appendChild(safeStyle);
+              clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
+              clonedDoc.querySelectorAll<HTMLElement>("#jk-pdf-render-root").forEach((element) => {
+                element.style.cssText = "position:static;width:794px;margin:0;padding:0;background:#fff;color:#172033;";
+              });
+            },
           },
-        },
-        imageType: "image/jpeg",
-        imageQuality: 0.96,
-        // Reserve a dedicated footer band so the rule never crosses question text.
-        margin: { top: 8, right: 8, bottom: 22, left: 8 },
-        autoResize: true,
-        success: () => undefined,
-      }),
+          image: { type: "jpeg", quality: 0.96 },
+          // The old renderer sliced one tall screenshot and ignored CSS pagination.
+          // This renderer honors keep-together rules for complete text blocks.
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: ["p", "li", ".topic", ".qa", ".mcq", "h2", "h3"],
+          },
+          margin: [8, 8, 22, 8],
+          filename: "jk-academy-notes.pdf",
+          enableLinks: false,
+        })
+        .from(root)
+        .toPdf()
+        .get("pdf"),
       90_000,
       "PDF rendering took too long. Please retry with a shorter lesson video.",
     );

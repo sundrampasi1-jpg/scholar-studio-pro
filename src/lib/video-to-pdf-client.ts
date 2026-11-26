@@ -235,6 +235,23 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
       90_000,
       "PDF rendering took too long. Please retry with a shorter lesson video.",
     );
+    // Add a subtle branded footer rule to every physical PDF page.
+    try {
+      const pageCount = typeof (pdfDocument as any).getNumberOfPages === "function"
+        ? (pdfDocument as any).getNumberOfPages()
+        : 0;
+      for (let page = 1; page <= pageCount; page += 1) {
+        (pdfDocument as any).setPage(page);
+        (pdfDocument as any).setDrawColor(199, 154, 75);
+        (pdfDocument as any).setLineWidth(0.35);
+        (pdfDocument as any).line(9, 287, 201, 287);
+        (pdfDocument as any).setTextColor(100, 116, 139);
+        (pdfDocument as any).setFontSize(7);
+        (pdfDocument as any).text("JK ACADEMY", 105, 292, { align: "center" });
+      }
+    } catch (footerError) {
+      console.warn("PDF decorative footer could not be added", footerError);
+    }
     const pdf = pdfDocument.output("blob");
     if (!(pdf instanceof Blob) || pdf.size < 500) throw new Error("The PDF file could not be created.");
     return pdf;

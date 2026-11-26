@@ -48,11 +48,11 @@ function loadHtml2Pdf() {
       // html2pdf.js bundles html2canvas 1.4.1, which cannot parse Tailwind v4
       // oklch() colors. Use the maintained html2canvas-pro renderer instead.
       await loadScript(
-        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.4/jspdf.umd.min.js",
+        "https://cdn.jsdelivr.net/npm/jspdf@4.2.0/dist/jspdf.umd.min.js",
         () => !!window.jspdf?.jsPDF,
       );
       await loadScript(
-        "https://cdn.jsdelivr.net/npm/html2canvas-pro@2.6.4/dist/html2canvas-pro.min.js",
+        "https://cdn.jsdelivr.net/npm/html2canvas-pro@1.6.7/dist/html2canvas-pro.min.js",
         () => typeof window.html2canvas === "function",
       );
       await loadScript(

@@ -15,9 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, run, confirmDelete, notifyAll } from "@/lib/admin-ui";
 import { toast } from "sonner";
-import { requestVideoPdf, attachVideoPdf } from "@/lib/video-to-pdf.functions";
-import { buildVideoNotesPdf } from "@/lib/video-to-pdf-client";
-import { uploadMedia } from "@/lib/upload";
+import { requestVideoPdf } from "@/lib/video-to-pdf.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/courses")({
   head: () => ({
@@ -183,7 +181,6 @@ function AdminCourses() {
 function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnabled: boolean }) {
   const qc = useQueryClient();
   const invokeAiPdf = useServerFn(requestVideoPdf);
-  const attachAiPdf = useServerFn(attachVideoPdf);
   const key = ["admin-course-tree", course.id];
   const [lesson, setLesson] = useState<Partial<Lesson> | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -279,33 +276,48 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
   });
   function latestAiJob(lessonId: string) { return aiJobs.data?.find((job) => job.lesson_id === lessonId); }
   async function generateAiPdf(lessonId: string, action: "auto" | "manual" = "manual") {
-    let jobId: string | null = null;
-    let sourceVideoUrl: string | null = null;
     try {
-      toast.info("AI is analyzing the lesson video. This may take a few minutes.");
+      toast.info("AI PDF job is being queued…");
       const result = await invokeAiPdf({ data: { action, lessonId } });
-      if (!result.ok) { toast.error(result.error); await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] }); return; }
-      if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
-      sourceVideoUrl = result.sourceVideoUrl;
-      jobId = result.jobId;
-      if (typeof sourceVideoUrl !== "string" || !sourceVideoUrl || typeof jobId !== "string" || !jobId) {
-        throw new Error("The video or PDF job reference is missing.");
+      if (!result.ok) {
+        toast.error(result.error);
+        await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+        return;
       }
-      toast.info("AI analysis complete. Creating and attaching the PDF…");
-      const pdfBlob = await buildVideoNotesPdf(result.notes, result.lessonTitle);
-      const pdfUrl = await uploadMedia(pdfBlob, "ai-video-notes", `${lessonId}-${Date.now()}-notes.pdf`);
-      const attached = await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl } });
-      if (!attached.ok) throw new Error(attached.error);
-      toast.success("AI PDF generated and attached to the lesson.");
+      if (result.skipped) {
+        toast.info(result.reason || "Automatic video notes are OFF.");
+        return;
+      }
+      toast.success(result.existing ? "This lesson's PDF job is already running." : "PDF generation started in the background.");
       await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
-      await refresh();
+
+      // Poll only the small job-status row; video analysis and PDF creation
+      // continue independently inside the already-deployed Edge Function.
+      for (let attempt = 0; attempt < 180; attempt++) {
+        await new Promise((resolve) => window.setTimeout(resolve, 5000));
+        const { data: job, error } = await (supabase as any)
+          .from("ai_video_pdf_jobs")
+          .select("status,error_message")
+          .eq("id", result.jobId)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (job?.status === "completed") {
+          toast.success("AI PDF generated and attached to the lesson.");
+          await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+          await refresh();
+          return;
+        }
+        if (job?.status === "failed") {
+          throw new Error(job.error_message || "AI video-to-PDF processing failed.");
+        }
+      }
+      toast.info("PDF is still processing in the background. You can check its status here later.");
+      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
     } catch (error) {
       const message = error instanceof Error ? error.message : "PDF generation failed.";
-      if (jobId && sourceVideoUrl) {
-        await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
-      }
       toast.error(message);
       await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+      await refresh();
     }
   }
 

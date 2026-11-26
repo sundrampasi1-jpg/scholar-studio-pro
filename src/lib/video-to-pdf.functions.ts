@@ -228,7 +228,7 @@ export const requestVideoPdf = createServerFn({ method: "POST" })
     try {
       // Queue the existing Supabase Edge Function. It returns immediately and
       // performs video analysis + PDF creation in a background task.
-      const response = await fetch(supabaseUrl.replace(/\\/$/, "") + "/functions/v1/video-to-pdf", {
+      const response = await fetch((supabaseUrl.endsWith("/") ? supabaseUrl.slice(0, -1) : supabaseUrl) + "/functions/v1/video-to-pdf", {
         method: "POST",
         signal: AbortSignal.timeout(20_000),
         headers: {
@@ -242,11 +242,11 @@ export const requestVideoPdf = createServerFn({ method: "POST" })
       if (!response.ok) {
         return { ok: false as const, error: String(payload.error || ("Could not start AI PDF job (" + response.status + ").")) };
       }
-      if (payload.skipped) return { ok: true as const, skipped: true, reason: String(payload.reason || "Automatic video notes are OFF.") };
+      if (payload.skipped) return { ok: true as const, skipped: true, jobId: null, reason: String(payload.reason || "Automatic video notes are OFF.") };
       if (typeof payload.jobId !== "string" || !payload.jobId) {
         return { ok: false as const, error: "The AI service did not return a PDF job ID." };
       }
-      return { ok: true as const, jobId: payload.jobId, status: String(payload.status || "queued"), existing: !!payload.existing };
+      return { ok: true as const, skipped: false, jobId: payload.jobId as string, status: String(payload.status || "queued"), existing: !!payload.existing };
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : "Could not connect to the AI PDF service." };
     }

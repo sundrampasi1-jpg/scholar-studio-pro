@@ -23,6 +23,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const queue = useRef<number[]>([]);
   const activeRenders = useRef(0);
   const pumpRef = useRef<() => void>(() => {});
+  // Evict off-screen PDF canvases to keep Android WebView graphics memory bounded.
+  let evictDistantPages = () => {};
 
   useEffect(() => {
     let cancelled = false;
@@ -258,6 +260,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       } finally {
         renderTasks.current.delete(pageNum);
         renderingPages.current.delete(pageNum);
+        evictDistantPages();
       }
     };
 
@@ -318,6 +321,40 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     }
     if (scrollRoot === document.body) scrollRoot = null;
 
+    const viewportHeight = scrollRoot?.clientHeight || window.innerHeight;
+    const evictDistance = Math.max(viewportHeight * 1.25, 900);
+    evictDistantPages = () => {
+      const rootRect = scrollRoot?.getBoundingClientRect();
+      const viewTop = rootRect?.top ?? 0;
+      const viewBottom = viewTop + viewportHeight;
+      pageRefs.current.forEach((host, pageNum) => {
+        if (!renderedPages.current.has(pageNum) || renderingPages.current.has(pageNum)) return;
+        const rect = host.getBoundingClientRect();
+        const isFarAway = rect.bottom < viewTop - evictDistance || rect.top > viewBottom + evictDistance;
+        if (!isFarAway) return;
+        // Zero the backing store before removing the canvas so WebView can reclaim
+        // the large GPU/bitmap allocation, then allow this page to render on return.
+        host.querySelectorAll("canvas").forEach((canvas) => {
+          canvas.width = 0;
+          canvas.height = 0;
+          canvas.remove();
+        });
+        renderedPages.current.delete(pageNum);
+        renderedZoom.current.delete(pageNum);
+      });
+    };
+
+    let evictionFrame = 0;
+    const scrollTarget: HTMLElement | Window = scrollRoot ?? window;
+    const onScrollForEviction = () => {
+      if (evictionFrame) return;
+      evictionFrame = requestAnimationFrame(() => {
+        evictionFrame = 0;
+        evictDistantPages();
+      });
+    };
+    scrollTarget.addEventListener("scroll", onScrollForEviction, { passive: true });
+
     const scheduleVisiblePages = () => {
       const viewportTop = scrollRoot?.getBoundingClientRect().top ?? 0;
       const viewportBottom = scrollRoot ? viewportTop + scrollRoot.clientHeight : window.innerHeight;
@@ -340,6 +377,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         // Prioritize pages nearest the current viewport.
         visible.sort((a, b) => a - b);
         visible.forEach(schedulePage);
+        evictDistantPages();
       },
       { root: scrollRoot, rootMargin: "500px 0px", threshold: 0.01 }
     );
@@ -352,6 +390,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     return () => {
       disposed = true;
       observer.disconnect();
+      scrollTarget.removeEventListener("scroll", onScrollForEviction);
+      if (evictionFrame) cancelAnimationFrame(evictionFrame);
+      evictDistantPages = () => {};
       queue.current = [];
       renderTasks.current.forEach((task) => {
         try { task.cancel(); } catch {}

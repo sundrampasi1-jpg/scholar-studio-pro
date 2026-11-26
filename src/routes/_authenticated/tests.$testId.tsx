@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Clock, Flag } from "lucide-react";
+import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LoadingState } from "@/components/DataStates";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/tests/$testId")({
 });
 
 const OPTS = ["a", "b", "c", "d"] as const;
+const FEEDBACK_DELAY = 750;
 
 function TakeTest() {
   const { testId } = Route.useParams();
@@ -32,10 +33,13 @@ function TakeTest() {
   const [started, setStarted] = useState(false);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [review, setReview] = useState<Record<string, boolean>>({});
+  const answersRef = useRef<Record<string, string>>({});
   const [remaining, setRemaining] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ questionId: string; option: string; correct: boolean } | null>(null);
   const submittedRef = useRef(false);
+  const lockedRef = useRef(false);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const data = useQuery({
     queryKey: ["test-take", testId],
@@ -60,9 +64,10 @@ function TakeTest() {
     let total = 0;
     let correct = 0;
     let wrong = 0;
+    const finalAnswers = answersRef.current;
     for (const q of questions) {
       total += q.marks;
-      const a = answers[q.id];
+      const a = finalAnswers[q.id];
       if (!a) continue;
       if (a === q.correct_option) {
         score += q.marks;
@@ -78,7 +83,7 @@ function TakeTest() {
         total,
         correct_count: correct,
         wrong_count: wrong,
-        answers,
+        answers: finalAnswers,
       })
       .select("id")
       .single();
@@ -117,6 +122,10 @@ function TakeTest() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started]);
 
+  useEffect(() => () => {
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+  }, []);
+
   if (data.isLoading)
     return (
       <StudentShell>
@@ -135,14 +144,14 @@ function TakeTest() {
   if (!started) {
     return (
       <StudentShell title={test.title} subtitle={test.description ?? undefined}>
-        <div className="surface-card max-w-lg space-y-3 p-5">
+        <div className="surface-card max-w-lg space-y-3 rounded-2xl p-5">
           <p className="text-sm">
             <strong>{questions.length}</strong> questions · <strong>{test.duration_minutes}</strong>{" "}
             minutes
           </p>
           <ul className="list-disc pl-5 text-sm text-muted-foreground">
             <li>Timer starts when you press Start.</li>
-            <li>You can skip, go back, and mark questions for review.</li>
+            <li>Tap an option to lock your answer and move to the next question.</li>
             <li>The test submits automatically when time runs out.</li>
           </ul>
           <div className="flex gap-2">
@@ -167,109 +176,115 @@ function TakeTest() {
   const q = questions[current]!;
   const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
   const ss = String(remaining % 60).padStart(2, "0");
+  const progress = ((current + 1) / questions.length) * 100;
+
+  function chooseOption(option: string) {
+    if (lockedRef.current || !q) return;
+    lockedRef.current = true;
+    const nextAnswers = { ...answersRef.current, [q.id]: option };
+    answersRef.current = nextAnswers;
+    setAnswers(nextAnswers);
+    const isCorrect = option === q.correct_option;
+    setFeedback({ questionId: q.id, option, correct: isCorrect });
+
+    advanceTimerRef.current = setTimeout(() => {
+      setFeedback(null);
+      if (current < questions.length - 1) {
+        setCurrent((value) => value + 1);
+        lockedRef.current = false;
+      } else {
+        void submit();
+      }
+    }, FEEDBACK_DELAY);
+  }
 
   return (
     <StudentShell>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="truncate text-lg font-semibold">{test.title}</h1>
-        <span
-          className={cn(
-            "flex items-center gap-1 rounded-md px-3 py-1 text-sm font-semibold",
-            remaining < 60 ? "bg-destructive text-destructive-foreground" : "bg-accent text-accent-foreground",
-          )}
-        >
-          <Clock className="h-4 w-4" /> {mm}:{ss}
-        </span>
-      </div>
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">{test.title}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Question {current + 1} of {questions.length}</p>
+          </div>
+          <span
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-bold tabular-nums shadow-sm",
+              remaining < 60
+                ? "border-destructive/30 bg-destructive/10 text-destructive"
+                : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+            )}
+          >
+            <Clock className="h-4 w-4" /> {mm}:{ss}
+          </span>
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
-        <div className="surface-card p-5">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Question {current + 1} of {questions.length} · {q.marks} mark{q.marks > 1 ? "s" : ""}
-          </p>
-          <p className="mt-2 whitespace-pre-wrap font-medium">{q.question_text}</p>
-          <div className="mt-4 space-y-2">
-            {OPTS.map((o) => {
-              const text = q[`option_${o}` as const];
-              if (!text) return null;
-              const selected = answers[q.id] === o;
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-amber-500 transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        <section className="overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-[0_12px_40px_-20px_rgba(180,83,9,0.35)] dark:border-amber-900 dark:from-amber-950/50 dark:via-card dark:to-orange-950/30">
+          <div className="border-b border-amber-200/80 px-5 py-5 sm:px-7 sm:py-6 dark:border-amber-900">
+            <div className="mb-3 inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold tracking-wide text-amber-800 dark:bg-amber-900/70 dark:text-amber-200">
+              QUESTION {current + 1}
+            </div>
+            <h2 className="whitespace-pre-wrap text-lg font-bold leading-relaxed text-slate-900 sm:text-xl dark:text-slate-50">
+              {q.question_text}
+            </h2>
+            <p className="mt-2 text-xs font-medium text-amber-800/75 dark:text-amber-200/75">
+              {q.marks} mark{q.marks > 1 ? "s" : ""} · Choose one answer
+            </p>
+          </div>
+
+          <div className="space-y-3 p-4 sm:p-6">
+            {OPTS.map((option, index) => {
+              const optionText = q[`option_${option}` as const];
+              if (!optionText) return null;
+              const isChosen = feedback?.questionId === q.id && feedback.option === option;
+              const showCorrect = !!feedback && option === q.correct_option;
+              const showWrong = isChosen && !feedback.correct;
               return (
                 <button
-                  key={o}
-                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: o }))}
+                  key={option}
+                  type="button"
+                  disabled={lockedRef.current}
+                  onClick={() => chooseOption(option)}
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition",
-                    selected ? "border-primary bg-accent" : "hover:bg-muted",
+                    "group flex min-h-[66px] w-full items-center gap-3 rounded-2xl border-2 bg-white px-4 py-3.5 text-left text-sm font-medium text-slate-800 shadow-sm transition-all duration-200 sm:min-h-[72px] sm:px-5 sm:text-base dark:bg-card dark:text-card-foreground",
+                    !feedback && "border-amber-100 hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-50 hover:shadow-md dark:border-border dark:hover:border-amber-700 dark:hover:bg-amber-950/30",
+                    showCorrect && "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200",
+                    showWrong && "border-rose-500 bg-rose-50 text-rose-900 dark:bg-rose-950/40 dark:text-rose-200",
+                    !!feedback && !showCorrect && !showWrong && "border-slate-100 opacity-60 dark:border-border",
                   )}
                 >
-                  <span className="font-semibold uppercase">{o}.</span> {text}
+                  <span
+                    className={cn(
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-sm font-bold uppercase text-amber-800 transition-colors dark:bg-amber-900/60 dark:text-amber-200",
+                      showCorrect && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200",
+                      showWrong && "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200",
+                    )}
+                  >
+                    {showCorrect ? <CheckCircle2 className="h-5 w-5" /> : showWrong ? <XCircle className="h-5 w-5" /> : String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="flex-1 leading-relaxed">{optionText}</span>
+                  {showCorrect && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />}
+                  {showWrong && <XCircle className="h-5 w-5 shrink-0 text-rose-600" />}
                 </button>
               );
             })}
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Button variant="outline" disabled={current === 0} onClick={() => setCurrent((c) => c - 1)}>
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setReview((r) => ({ ...r, [q.id]: !r[q.id] }))}
-            >
-              <Flag className="mr-1.5 h-4 w-4" /> {review[q.id] ? "Unmark review" : "Mark for review"}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setAnswers((a) => {
-                  const n = { ...a };
-                  delete n[q.id];
-                  return n;
-                });
-              }}
-            >
-              Clear
-            </Button>
-            {current < questions.length - 1 ? (
-              <Button onClick={() => setCurrent((c) => c + 1)}>
-                {answers[q.id] ? "Save & next" : "Skip"}
-              </Button>
-            ) : (
-              <Button onClick={() => submit()} disabled={submitting}>
-                Submit test
-              </Button>
-            )}
-          </div>
-        </div>
+        </section>
 
-        <aside className="surface-card h-fit p-4">
-          <p className="mb-3 text-sm font-medium">Questions</p>
-          <div className="grid grid-cols-6 gap-2">
-            {questions.map((qq, i) => (
-              <button
-                key={qq.id}
-                onClick={() => setCurrent(i)}
-                className={cn(
-                  "h-9 rounded-md border text-xs font-semibold",
-                  i === current && "ring-2 ring-ring",
-                  review[qq.id]
-                    ? "border-warning bg-warning/20"
-                    : answers[qq.id]
-                      ? "border-success bg-success text-success-foreground"
-                      : "",
-                )}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
-          <div className="mt-4 space-y-1 text-xs text-muted-foreground">
-            <p>Answered: {Object.keys(answers).length}</p>
-            <p>Marked for review: {Object.values(review).filter(Boolean).length}</p>
-          </div>
-          <Button className="mt-4 w-full" onClick={() => submit()} disabled={submitting}>
-            Submit test
-          </Button>
-        </aside>
+        <p className="text-center text-xs font-medium text-muted-foreground">
+          {feedback
+            ? feedback.correct
+              ? "Correct answer! Moving to the next question…"
+              : "Not quite. The correct answer is highlighted. Moving on…"
+            : "Tap an option — the next question opens automatically."}
+        </p>
+        {submitting && <p className="text-center text-sm text-muted-foreground">Submitting your test…</p>}
       </div>
     </StudentShell>
   );

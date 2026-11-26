@@ -90,9 +90,10 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     </section>`).join("");
 
   const root = document.createElement("div");
+  root.id = "jk-pdf-render-root";
   root.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#172033;z-index:-1;";
   root.innerHTML = `
-    <style>
+    <style id="jk-pdf-render-styles">
       .jk-pdf{box-sizing:border-box;width:794px;padding:42px 48px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
       .jk-pdf h1{font-size:23px;text-align:center;color:#14532d;margin:0 0 6px}
       .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:10px;margin:0 0 24px}
@@ -134,9 +135,20 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
         // html2canvas cannot parse the app's Tailwind oklch colors. Render this
         // self-contained PDF document without inheriting the app-wide styles.
         onclone: (clonedDoc: Document) => {
-          clonedDoc.head.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])')
-            .forEach((element) => element.remove());
+          // Strip every app stylesheet from the cloned document, not just head
+          // styles. Some app/theme styles are injected outside head and contain
+          // oklch(), which html2canvas cannot parse.
+          const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
+          clonedDoc.querySelectorAll('style, link[rel="stylesheet"]').forEach((element) => element.remove());
+
+          const safeStyle = clonedDoc.createElement("style");
+          safeStyle.textContent = pdfStyles;
+          clonedDoc.head.appendChild(safeStyle);
+
           clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
+          clonedDoc.querySelectorAll<HTMLElement>("#jk-pdf-render-root").forEach((element) => {
+            element.style.cssText = "position:static;width:794px;margin:0;padding:0;background:#fff;color:#172033;";
+          });
         },
       },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },

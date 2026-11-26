@@ -129,6 +129,14 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   useEffect(() => {
     if (state !== "ready" || !containerRef.current) return;
 
+    // Zoom changes must invalidate old-resolution canvases so the new pinch scale is rendered.
+    renderedPages.current.clear();
+    pageRefs.current.forEach((el) => {
+      const oldCanvas = el.querySelector("canvas");
+      if (oldCanvas) oldCanvas.remove();
+    });
+    queue.current = [];
+
     let disposed = false;
     const processPage = async (pageNum: number) => {
       const doc = pdfDocRef.current;
@@ -178,7 +186,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     };
 
     const pump = () => {
-      while (!disposed && activeRenders.current < 2 && queue.current.length) {
+      while (!disposed && activeRenders.current < 1 && queue.current.length) {
         const pageNum = queue.current.shift()!;
         activeRenders.current += 1;
         void processPage(pageNum).finally(() => {
@@ -220,7 +228,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         visible.sort((a, b) => a - b);
         visible.forEach(schedulePage);
       },
-      { root: scrollRoot, rootMargin: "500px 0px", threshold: 0.01 }
+      { root: scrollRoot, rootMargin: "300px 0px", threshold: 0.01 }
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));

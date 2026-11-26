@@ -105,13 +105,19 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   }
 
   const pickLanguage = (value: string, language: "hi" | "en") => {
-    const text = String(value || "").replace(/\s*\|\s*(English|Hindi):\s*/gi, "\n$1: ");
-    const hindi = text.match(/Hindi:\s*([\s\S]*?)(?=\nEnglish:|$)/i)?.[1]?.trim();
-    const english = text.match(/English:\s*([\s\S]*?)(?=\nHindi:|$)/i)?.[1]?.trim();
+    const text = String(value || "").replace(/\\r/g, "").trim();
+    const normalized = text
+      .replace(/\\s*\\|\\s*(?=(?:Hindi|English)\\s*:)/gi, "\\n")
+      .replace(/\\s+(?=(?:Hindi|English)\\s*:)/gi, "\\n");
+    const hindi = normalized.match(/(?:^|\\n)\\s*Hindi\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*English\\s*:|$)/i)?.[1]?.trim();
+    const english = normalized.match(/(?:^|\\n)\\s*English\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*Hindi\\s*:|$)/i)?.[1]?.trim();
     if (hindi || english) return (language === "hi" ? hindi : english) || "";
-    const parts = text.split(/\s+\/\s+(?=[A-Za-z])/);
-    if (parts.length > 1) return (language === "hi" ? parts[0] : parts.slice(1).join(" / ")).trim();
-    return text.trim();
+    const devanagari = normalized.match(/(?:^|\\n)\\s*हिंदी\\s*[:：-]\\s*([\\s\\S]*?)(?=\\n\\s*(?:English|अंग्रेज़ी)\\s*[:：-]|$)/i)?.[1]?.trim();
+    const englishAlt = normalized.match(/(?:^|\\n)\\s*(?:English|अंग्रेज़ी)\\s*[:：-]\\s*([\\s\\S]*?)(?=\\n\\s*हिंदी\\s*[:：-]|$)/i)?.[1]?.trim();
+    if (devanagari || englishAlt) return (language === "hi" ? devanagari : englishAlt) || "";
+    const slashParts = text.split(/\\s+\\/\\s+/);
+    if (slashParts.length === 2) return slashParts[language === "hi" ? 0 : 1].trim();
+    return text;
   };
 
   const renderLanguage = (language: "hi" | "en") => {
@@ -161,11 +167,11 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   root.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#172033;z-index:-1;";
   root.innerHTML = `
     <style id="jk-pdf-render-styles">
-      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:16px;line-height:1.8;overflow-wrap:anywhere}
+      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:19px;line-height:1.85;overflow-wrap:anywhere}
       .jk-pdf h1{font-size:27px;text-align:center;color:#14532d;margin:0 0 7px}
       .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:14px;margin:0 0 26px}
-      .jk-pdf h2{font-size:21px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
-      .jk-pdf h3{font-size:18px;color:#1f2937;margin:15px 0 7px}
+      .jk-pdf h2{font-size:24px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
+      .jk-pdf h3{font-size:21px;color:#1f2937;margin:15px 0 7px}
       .jk-pdf p{margin:7px 0;white-space:pre-wrap}
       .jk-pdf ul,.jk-pdf ol{padding-left:28px;margin:7px 0 15px}
       .jk-pdf li{margin:5px 0}

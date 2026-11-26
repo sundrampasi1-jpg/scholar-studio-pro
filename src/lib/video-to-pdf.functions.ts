@@ -220,35 +220,97 @@ export const requestVideoPdf = createServerFn({ method: "POST" })
     if (!role) return { ok: false as const, error: "Admin access required." };
 
     const geminiKey = process.env["GEMINI_API_KEY"];
-    const supabaseUrl = process.env["SUPABASE_URL"];
-    const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
     if (!geminiKey) return { ok: false as const, error: "GEMINI_API_KEY is not configured on the app server." };
-    if (!supabaseUrl || !serviceRoleKey) return { ok: false as const, error: "Supabase server configuration is missing." };
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as any;
+    let jobId: string | null = null;
     try {
-      // Queue the existing Supabase Edge Function. It returns immediately and
-      // performs video analysis + PDF creation in a background task.
-      const response = await fetch((supabaseUrl.endsWith("/") ? supabaseUrl.slice(0, -1) : supabaseUrl) + "/functions/v1/video-to-pdf", {
-        method: "POST",
-        signal: AbortSignal.timeout(20_000),
-        headers: {
-          "Authorization": "Bearer " + serviceRoleKey,
-          "apikey": serviceRoleKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ lessonId: data.lessonId, action: data.action, requestedBy: userId, geminiKey }),
+      const { data: settings } = await adminDb.from("app_settings").select("ai_video_pdf_enabled").eq("id", true).maybeSingle();
+      if (data.action === "auto" && !settings?.ai_video_pdf_enabled) return { ok: true as const, skipped: true, reason: "Automatic video notes are OFF." };
+
+      const { data: lesson, error: lessonError } = await adminDb.from("lessons")
+        .select("id,title,description,video_url,ai_pdf_source_url")
+        .eq("id", data.lessonId).single();
+      if (lessonError || !lesson?.video_url) return { ok: false as const, error: "Lesson video not found." };
+      if (data.action === "auto" && lesson.ai_pdf_source_url === lesson.video_url) return { ok: true as const, skipped: true, reason: "This video already has AI notes." };
+
+      const { data: active } = await adminDb.from("ai_video_pdf_jobs").select("id,status,created_at")
+        .eq("lesson_id", data.lessonId).in("status", ["queued", "processing"]).maybeSingle();
+      if (active) {
+        const age = Date.now() - new Date(active.created_at).getTime();
+        if (age < 5 * 60 * 1000) return { ok: false as const, error: "PDF generation is still running. Please wait a little longer before retrying." };
+        await adminDb.from("ai_video_pdf_jobs").update({ status: "failed", error_message: "Previous job timed out; please retry.", updated_at: new Date().toISOString() }).eq("id", active.id);
+      }
+
+      const { data: job, error: jobError } = await adminDb.from("ai_video_pdf_jobs").insert({
+        lesson_id: data.lessonId,
+        requested_by: userId,
+        source_video_url: lesson.video_url,
+        status: "processing",
+      }).select("id").single();
+      if (jobError || !job) throw new Error("Could not create the PDF generation job.");
+      jobId = job.id;
+
+      const videoPart = await getVideoPart(lesson.video_url, lesson.title, adminDb, geminiKey);
+      const prompt = `You are an expert Indian competitive-exam teacher preparing rigorous JK Academy notes.
+Analyze the actual audio AND visual stream of this exact lesson video. Read visible slides, maps, diagrams, tables, board writing and examples; listen to the teacher's spoken explanations. Do not rely only on the title or description. Never invent facts not supported by the video; mark unclear details instead of guessing.
+Create bilingual notes in BOTH Hindi (Devanagari) and English for every section. Include all distinct topics in the order taught, concise topic-wise notes, important dates/names/definitions/data, visual highlights with MM:SS timestamps where possible, exam-relevant question-answer pairs, and 8-12 four-option MCQs with correct answers and short explanations. Avoid duplicate or generic questions. Use UPSC/UPPCS/SSC/state-exam framing without adding outside facts.
+Return ONLY valid JSON with this shape:
+{"title":"...","overview":"Hindi: ...\\nEnglish: ...","topics":[{"title":"Hindi / English topic","points":["Hindi: ... | English: ..."]}],"keyFacts":["Hindi: ... | English: ..."],"visualHighlights":[{"timestamp":"MM:SS","detail":"Hindi: ... | English: ..."}],"questions":[{"question":"Hindi: ... | English: ...","answer":"Hindi: ... | English: ..."}],"mcqs":[{"question":"Hindi: ... | English: ...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"Hindi: ... | English: ..."}]}
+Lesson title: ${lesson.title}
+Teacher-provided description (context only): ${lesson.description || "None"}`;
+      const requestBody = JSON.stringify({
+        contents: [{ role: "user", parts: [
+          { file_data: { mime_type: videoPart.mimeType, file_uri: videoPart.uri } },
+          { text: prompt },
+        ] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 },
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        return { ok: false as const, error: String(payload.error || ("Could not start AI PDF job (" + response.status + ").")) };
+      const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+      const modelErrors: string[] = [];
+      let output = "";
+      for (const model of models) {
+        try {
+          const response = await fetchWithRetry(
+            "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":streamGenerateContent?alt=sse",
+            {
+              signal: AbortSignal.timeout(240_000),
+              method: "POST",
+              headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
+              body: requestBody,
+            },
+            "Gemini video analysis (" + model + ")",
+          );
+          if (!response.ok) {
+            const detail = (await response.text()).slice(0, 300);
+            const error = new Error("Gemini analysis failed (" + response.status + "): " + detail);
+            if (isTransientFailure(error) && model !== models[models.length - 1]) {
+              modelErrors.push(model + ": " + error.message);
+              continue;
+            }
+            throw error;
+          }
+          output = await readGeminiSse(response);
+          break;
+        } catch (error) {
+          if (!isTransientFailure(error) || model === models[models.length - 1]) throw error;
+          modelErrors.push(model + ": " + (error instanceof Error ? error.message : String(error)));
+        }
       }
-      if (payload.skipped) return { ok: true as const, skipped: true, jobId: null, reason: String(payload.reason || "Automatic video notes are OFF.") };
-      if (typeof payload.jobId !== "string" || !payload.jobId) {
-        return { ok: false as const, error: "The AI service did not return a PDF job ID." };
+      if (!output.trim()) {
+        throw new Error("All Gemini models are temporarily unavailable. " + modelErrors.join(" | "));
       }
-      return { ok: true as const, skipped: false, jobId: payload.jobId as string, status: String(payload.status || "queued"), existing: !!payload.existing };
+      const notes = parseNotes(output);
+      await adminDb.from("ai_video_pdf_jobs").update({ updated_at: new Date().toISOString() }).eq("id", jobId);
+      return { ok: true as const, jobId, lessonId: lesson.id, lessonTitle: lesson.title, sourceVideoUrl: lesson.video_url, notes };
     } catch (error) {
-      return { ok: false as const, error: error instanceof Error ? error.message : "Could not connect to the AI PDF service." };
+      if (jobId) await adminDb.from("ai_video_pdf_jobs").update({
+        status: "failed",
+        error_message: (error instanceof Error ? error.message : "PDF generation failed.").slice(0, 500),
+        updated_at: new Date().toISOString(),
+      }).eq("id", jobId);
+      return { ok: false as const, error: error instanceof Error ? error.message : "AI video analysis failed." };
     }
   });
 

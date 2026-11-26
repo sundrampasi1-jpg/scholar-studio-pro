@@ -122,6 +122,8 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
 
   const englishOptionNames: Record<string, string> = {
     "यमुना": "Yamuna", "गंगा": "Ganga", "दामोदर": "Damodar", "दामोदर नदी": "Damodar River",
+    "छोटा नागपुर का पठार": "Chota Nagpur Plateau", "अमरकंटक": "Amarkantak", "त्र्यंबकेश्वर": "Trimbakeshwar",
+    "शिवालिक पहाड़ियाँ": "Shivalik Hills", "शिवालिक पहाड़ियाँ": "Shivalik Hills", "छोटा नागपुर पठार": "Chota Nagpur Plateau",
     "सरस्वती": "Saraswati", "ब्रह्मपुत्र": "Brahmaputra", "गोदावरी": "Godavari", "कृष्णा": "Krishna",
     "कावेरी": "Kaveri", "महानदी": "Mahanadi", "लूनी": "Luni", "साबरमती": "Sabarmati",
     "नर्मदा": "Narmada", "ताप्ती": "Tapti", "तापी": "Tapti", "बराकर": "Barakar",

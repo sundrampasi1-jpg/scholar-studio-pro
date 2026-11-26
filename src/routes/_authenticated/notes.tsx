@@ -53,16 +53,16 @@ function NotesPage() {
       let storagePath: string | null = null;
       try {
         const parsed = new URL(raw, window.location.origin);
-        const match = parsed.pathname.match(/\\/storage\\/v1\\/object\\/(?:sign|public|authenticated)\\/media\\/(.+)$/i);
+        const match = parsed.pathname.match(/\/storage\/v1\/object\/(?:sign|public|authenticated)\/media\/(.+)$/i);
         if (match?.[1]) storagePath = match[1];
       } catch {
         // A relative storage path is handled below.
       }
 
-      if (storagePath !== null || !/^https?:\\/\\//i.test(raw)) {
-        let path = storagePath ?? raw.split("?")[0].replace(/^\\/+/, "");
+      if (storagePath !== null || !/^https?:\/\//i.test(raw)) {
+        let path = storagePath ?? raw.split("?")[0].replace(/^\/+/, "");
         try { path = decodeURIComponent(path); } catch { /* Keep the original storage path if it is already decoded. */ }
-        path = path.replace(/^\\/+/, "");
+        path = path.replace(/^\/+/, "");
         const { data, error } = await supabase.storage.from("media").createSignedUrl(path, 3600);
         if (error || !data?.signedUrl) throw error ?? new Error("Could not create a secure PDF link.");
         resolvedUrl = data.signedUrl;

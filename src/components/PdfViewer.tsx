@@ -11,7 +11,6 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const [numPages, setNumPages] = useState(0);
   const pinchZoomRef = useRef(1);
   const [attempt, setAttempt] = useState(0);
-  const [renderVersion, setRenderVersion] = useState(0);
   const [pageRatio, setPageRatio] = useState(1.414);
   const pdfDocRef = useRef<any>(null);
   const renderedPages = useRef<Set<number>>(new Set());
@@ -122,9 +121,6 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         if (nextZoom !== null) {
           pinchZoomRef.current = nextZoom;
           if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
-          // Re-render at the new pixel density after the pinch settles, instead of
-          // merely enlarging the old low-resolution canvas (which looks blurry).
-          setRenderVersion((version) => version + 1);
         }
       }
     };
@@ -147,12 +143,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     renderedPages.current.clear();
     pageRefs.current.forEach((el) => {
       const oldCanvas = el.querySelector("canvas");
-      if (oldCanvas) {
-        // Release the backing bitmap immediately before rebuilding at the new zoom.
-        oldCanvas.width = 0;
-        oldCanvas.height = 0;
-        oldCanvas.remove();
-      }
+      if (oldCanvas) oldCanvas.remove();
     });
     queue.current = [];
 
@@ -173,18 +164,11 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         const fitWidth = containerRef.current?.parentElement?.clientWidth || window.innerWidth || 800;
         const width = Math.max(200, fitWidth);
         const cssHeight = width * (base.height / base.width);
-        // Render sharply on high-DPI phones while keeping each canvas under a safe pixel budget.
-        const pixelBudget = 6_000_000;
+        // Bound each backing canvas so a long PDF cannot exhaust Android WebView memory.
+        const pixelBudget = 8_000_000;
         const qualityScale = Math.sqrt(pixelBudget / Math.max(1, width * cssHeight));
-        const requestedZoom = Math.max(1, pinchZoomRef.current);
-        const pixelRatio = Math.min(
-          Math.max(window.devicePixelRatio || 1, 1),
-          2,
-          qualityScale / requestedZoom,
-        );
-        // Keep the CSS page width fixed while increasing the backing canvas
-        // resolution for pinch zoom; this stays sharp without unbounded memory use.
-        const scale = (width / base.width) * pixelRatio * requestedZoom;
+        const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2, qualityScale);
+        const scale = (width / base.width) * pixelRatio;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);
@@ -241,8 +225,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       pump();
     };
 
-    // The viewer itself is the vertical scroller in the Notes modal. Starting
-    // from its inner horizontal wrapper can select the wrong nested scroll root.
+    // Observe against the actual scrollable ancestor, not always the viewport.
+    // Notes modal scrolls on the PdfViewer wrapper itself. Use that real vertical
+    // scroller as the observer root so pages are rendered as they enter view.
     let scrollRoot: HTMLElement | null = gestureRef.current;
     while (scrollRoot && scrollRoot !== document.body) {
       const overflowY = window.getComputedStyle(scrollRoot).overflowY;
@@ -257,36 +242,17 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
           .filter((entry) => entry.isIntersecting)
           .map((entry) => Number((entry.target as HTMLElement).dataset["page"]))
           .filter((pageNum) => Number.isFinite(pageNum));
-        if (visible.length) {
-          // Keep only pages around the current viewport in memory. Retaining every
-          // rendered canvas caused long PDFs to exhaust Android WebView memory.
-          for (const [pageNum, element] of pageRefs.current) {
-            const isNearViewport = visible.some((visiblePage) => Math.abs(visiblePage - pageNum) <= 1);
-            if (!isNearViewport && renderedPages.current.has(pageNum)) {
-              const staleCanvas = element.querySelector("canvas");
-              if (staleCanvas) {
-                staleCanvas.width = 0;
-                staleCanvas.height = 0;
-                staleCanvas.remove();
-              }
-              renderedPages.current.delete(pageNum);
-            }
-          }
-        }
+        // Prioritize pages nearest the current viewport.
         visible.sort((a, b) => a - b);
         visible.forEach(schedulePage);
       },
-      { root: scrollRoot, rootMargin: "300px 0px", threshold: 0.01 }
+      { root: scrollRoot, rootMargin: "500px 0px", threshold: 0.01 }
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));
-    // Render the first pages immediately at the top; elsewhere the observer
-    // schedules only pages around the current scroll position.
-    const currentScrollTop = scrollRoot?.scrollTop ?? 0;
-    if (!("IntersectionObserver" in window) || currentScrollTop < 100) {
-      schedulePage(1);
-      schedulePage(2);
-    }
+    // Start rendering immediately; the observer will queue the remaining pages as needed.
+    schedulePage(1);
+    schedulePage(2);
 
     return () => {
       disposed = true;
@@ -299,7 +265,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       renderingPages.current.clear();
       pumpRef.current = () => {};
     };
-  }, [state, numPages, renderVersion]);
+  }, [state, numPages]);
 
   return (
     <div ref={gestureRef} className={className}>

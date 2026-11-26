@@ -1,4 +1,4 @@
-
+import { createHash } from "node:crypto";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -6,6 +6,18 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
+    // Keep RPC URLs stable across deployments so a client from a previous
+    // build can still resolve the matching server function on the new server.
+    serverFns: {
+      generateFunctionId: ({ filename, functionName }) => {
+        const stablePath = filename.replace(/\\/g, "/").split("/").slice(-3).join("/");
+        const digest = createHash("sha256")
+          .update(`${stablePath}:${functionName}`)
+          .digest("hex")
+          .slice(0, 24);
+        return `jk-${digest}`;
+      },
+    },
   },
 
   plugins: [
@@ -29,7 +41,7 @@ export default defineConfig({
 
         // Cache pages visited while online for offline reopening.
         navigateFallback: null,
-        navigateFallbackDenylist: [/^\/~oauth/],
+        navigateFallbackDenylist: [/^\\/~oauth/],
 
         runtimeCaching: [
           {

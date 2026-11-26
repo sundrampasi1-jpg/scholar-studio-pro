@@ -241,8 +241,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       pump();
     };
 
-    // Observe against the actual scrollable ancestor, not always the viewport.
-    let scrollRoot: HTMLElement | null = containerRef.current.parentElement;
+    // The viewer itself is the vertical scroller in the Notes modal. Starting
+    // from its inner horizontal wrapper can select the wrong nested scroll root.
+    let scrollRoot: HTMLElement | null = gestureRef.current;
     while (scrollRoot && scrollRoot !== document.body) {
       const overflowY = window.getComputedStyle(scrollRoot).overflowY;
       if ((overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") && scrollRoot.scrollHeight > scrollRoot.clientHeight + 1) break;
@@ -279,9 +280,10 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));
-    // Render only pages near the current scroll position. This avoids rendering
-    // unrelated pages when a reader pinches while far down a PDF.
-    if (!("IntersectionObserver" in window)) {
+    // Render the first pages immediately at the top; elsewhere the observer
+    // schedules only pages around the current scroll position.
+    const currentScrollTop = scrollRoot?.scrollTop ?? 0;
+    if (!("IntersectionObserver" in window) || currentScrollTop < 100) {
       schedulePage(1);
       schedulePage(2);
     }

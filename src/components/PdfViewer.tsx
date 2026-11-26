@@ -92,7 +92,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     if (!host) return;
     // Handle pinch zoom directly in CSS. This avoids re-rendering every PDF canvas
     // (which caused mobile browsers to run out of memory and show the app error page).
-    host.style.touchAction = "pan-y";
+    host.style.touchAction = "pan-x pan-y";
     const distance = (touches: TouchList) => {
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;

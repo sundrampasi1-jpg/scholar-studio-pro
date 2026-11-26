@@ -28,8 +28,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     queue.current = [];
     activeRenders.current = 0;
 
+    let loadingTask: any;
     (async () => {
-      let loadingTask: any;
       try {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         // Bundle the worker with the app so PDF rendering does not depend on a third-party CDN.

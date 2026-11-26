@@ -191,7 +191,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         activeRenders.current += 1;
         void processPage(pageNum).finally(() => {
           activeRenders.current = Math.max(0, activeRenders.current - 1);
-          pump();
+          pumpRef.current();
         });
       }
     };

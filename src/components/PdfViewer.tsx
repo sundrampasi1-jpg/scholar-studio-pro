@@ -97,23 +97,37 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     // Handle pinch zoom directly in CSS. This avoids re-rendering every PDF canvas
     // (which caused mobile browsers to run out of memory and show the app error page).
     host.style.touchAction = "pan-x pan-y";
+    let zoomFrame = 0;
+    let latestZoom = pinchZoomRef.current;
     const distance = (touches: TouchList) => {
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
       return Math.hypot(dx, dy);
+    };
+    const findScrollableAncestor = (element: HTMLElement | null, axis: "x" | "y") => {
+      let current = element;
+      while (current && current !== document.body) {
+        const style = window.getComputedStyle(current);
+        const overflow = axis === "x" ? style.overflowX : style.overflowY;
+        const canScroll = axis === "x"
+          ? current.scrollWidth > current.clientWidth + 1
+          : current.scrollHeight > current.clientHeight + 1;
+        if (/(auto|scroll|overlay)/.test(overflow) && canScroll) return current;
+        current = current.parentElement;
+      }
+      return null;
     };
     const onStart = (event: TouchEvent) => {
       if (event.touches.length === 2) {
         if (event.cancelable) event.preventDefault();
         const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
         const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
-        const horizontal = containerRef.current?.parentElement || null;
-        let vertical: HTMLElement | null = host;
-        while (vertical && vertical !== document.body) {
-          const style = window.getComputedStyle(vertical);
-          if (/(auto|scroll|overlay)/.test(style.overflowY) && vertical.scrollHeight > vertical.clientHeight + 1) break;
-          vertical = vertical.parentElement;
-        }
+        const horizontal = findScrollableAncestor(containerRef.current, "x");
+        const vertical = findScrollableAncestor(host, "y");
+        // Disable browser scroll anchoring while the PDF content is being scaled;
+        // otherwise mobile WebViews may independently jump the scroll position.
+        if (horizontal) horizontal.style.overflowAnchor = "none";
+        if (vertical) vertical.style.overflowAnchor = "none";
         const hRect = horizontal?.getBoundingClientRect();
         const vRect = vertical?.getBoundingClientRect();
         pinchAnchorRef.current = {
@@ -135,12 +149,21 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       const ratio = distance(event.touches) / Math.max(1, pinchStartRef.current.distance);
       const nextZoom = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
       pinchPendingZoomRef.current = nextZoom;
-      if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
-      const anchor = pinchAnchorRef.current;
-      if (anchor) {
-        if (anchor.horizontal) anchor.horizontal.scrollLeft = ((anchor.scrollX + anchor.x) / anchor.startZoom) * nextZoom - anchor.x;
-        if (anchor.vertical) anchor.vertical.scrollTop = ((anchor.scrollY + anchor.y) / anchor.startZoom) * nextZoom - anchor.y;
-      }
+      latestZoom = nextZoom;
+      // Batch layout and scroll writes to one animation frame. Repeated synchronous
+      // zoom/layout reads on every touch event make Android WebView stutter badly.
+      if (zoomFrame) cancelAnimationFrame(zoomFrame);
+      zoomFrame = requestAnimationFrame(() => {
+        zoomFrame = 0;
+        if (containerRef.current) containerRef.current.style.zoom = String(latestZoom);
+        const anchor = pinchAnchorRef.current;
+        if (!anchor) return;
+        const ratio = latestZoom / anchor.startZoom;
+        // Scale the content point under the finger, then offset the scrollport so
+        // that exact point remains under the same finger midpoint.
+        if (anchor.horizontal) anchor.horizontal.scrollLeft = (anchor.scrollX + anchor.x) * ratio - anchor.x;
+        if (anchor.vertical) anchor.vertical.scrollTop = (anchor.scrollY + anchor.y) * ratio - anchor.y;
+      });
     };
     const onEnd = (event: TouchEvent) => {
       if (event.touches.length < 2) {
@@ -149,7 +172,16 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         pinchPendingZoomRef.current = null;
         if (nextZoom !== null) {
           pinchZoomRef.current = nextZoom;
+          latestZoom = nextZoom;
+          if (zoomFrame) cancelAnimationFrame(zoomFrame);
+          zoomFrame = 0;
           if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
+          const anchor = pinchAnchorRef.current;
+          if (anchor) {
+            const ratio = nextZoom / anchor.startZoom;
+            if (anchor.horizontal) anchor.horizontal.scrollLeft = (anchor.scrollX + anchor.x) * ratio - anchor.x;
+            if (anchor.vertical) anchor.vertical.scrollTop = (anchor.scrollY + anchor.y) * ratio - anchor.y;
+          }
           scheduleVisiblePagesRef.current();
         }
         pinchAnchorRef.current = null;
@@ -228,6 +260,28 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     };
 
     const pump = () => {
+      // Drop obsolete off-screen work and render the page nearest the viewport first.
+      const rootRect = scrollRoot?.getBoundingClientRect();
+      const viewTop = rootRect?.top ?? 0;
+      const viewBottom = rootRect ? viewTop + scrollRoot!.clientHeight : window.innerHeight;
+      const keepQueue: number[] = [];
+      for (const queuedPage of queue.current) {
+        const queuedElement = pageRefs.current.get(queuedPage);
+        const rect = queuedElement?.getBoundingClientRect();
+        if (rect && rect.bottom >= viewTop - window.innerHeight && rect.top <= viewBottom + window.innerHeight) {
+          keepQueue.push(queuedPage);
+        } else {
+          renderingPages.current.delete(queuedPage);
+        }
+      }
+      queue.current = keepQueue;
+      const viewportCenter = (viewTop + viewBottom) / 2;
+      queue.current.sort((a, b) => {
+        const ar = pageRefs.current.get(a)?.getBoundingClientRect();
+        const br = pageRefs.current.get(b)?.getBoundingClientRect();
+        return Math.abs((ar?.top ?? 0) + (ar?.height ?? 0) / 2 - viewportCenter) -
+          Math.abs((br?.top ?? 0) + (br?.height ?? 0) / 2 - viewportCenter);
+      });
       while (!disposed && activeRenders.current < 1 && queue.current.length) {
         const pageNum = queue.current.shift()!;
         activeRenders.current += 1;
@@ -285,7 +339,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         visible.sort((a, b) => a - b);
         visible.forEach(schedulePage);
       },
-      { root: scrollRoot, rootMargin: "900px 0px", threshold: 0.01 }
+      { root: scrollRoot, rootMargin: "500px 0px", threshold: 0.01 }
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));

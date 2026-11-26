@@ -6,6 +6,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const containerRef = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<HTMLDivElement>(null);
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const pinchPendingZoomRef = useRef<number | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -87,7 +88,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   useEffect(() => {
     const host = gestureRef.current;
     if (!host) return;
-    host.style.touchAction = "pan-x pan-y";
+    host.style.touchAction = "pan-y";
     const distance = (touches: TouchList) => {
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
@@ -96,17 +97,22 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     const onStart = (event: TouchEvent) => {
       if (event.touches.length === 2) {
         pinchStartRef.current = { distance: distance(event.touches), zoom };
+        pinchPendingZoomRef.current = zoom;
       }
     };
     const onMove = (event: TouchEvent) => {
       if (event.touches.length !== 2 || !pinchStartRef.current) return;
       event.preventDefault();
       const ratio = distance(event.touches) / Math.max(1, pinchStartRef.current.distance);
-      const nextZoom = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
-      setZoom((current) => Math.abs(current - nextZoom) > 0.035 ? nextZoom : current);
+      pinchPendingZoomRef.current = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
     };
     const onEnd = (event: TouchEvent) => {
-      if (event.touches.length < 2) pinchStartRef.current = null;
+      if (event.touches.length < 2) {
+        pinchStartRef.current = null;
+        const nextZoom = pinchPendingZoomRef.current;
+        pinchPendingZoomRef.current = null;
+        if (nextZoom !== null) setZoom((current) => Math.abs(current - nextZoom) > 0.025 ? nextZoom : current);
+      }
     };
     host.addEventListener("touchstart", onStart, { passive: true });
     host.addEventListener("touchmove", onMove, { passive: false });
@@ -137,7 +143,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         const base = page.getViewport({ scale: 1 });
         const fitWidth = host.parentElement?.clientWidth || window.innerWidth || 800;
         const width = Math.max(200, fitWidth) * zoom;
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.25);
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.0);
         const scale = (width / base.width) * pixelRatio;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
@@ -214,7 +220,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         visible.sort((a, b) => a - b);
         visible.forEach(schedulePage);
       },
-      { root: scrollRoot, rootMargin: "900px 0px", threshold: 0.01 }
+      { root: scrollRoot, rootMargin: "500px 0px", threshold: 0.01 }
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));

@@ -9,7 +9,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const pinchPendingZoomRef = useRef<number | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [numPages, setNumPages] = useState(0);
-  const [zoom, setZoom] = useState(1);
+  const pinchZoomRef = useRef(1);
   const [attempt, setAttempt] = useState(0);
   const [pageRatio, setPageRatio] = useState(1.414);
   const pdfDocRef = useRef<any>(null);
@@ -25,6 +25,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     let cancelled = false;
     setState("loading");
     setNumPages(0);
+    pinchZoomRef.current = 1;
+    if (containerRef.current) containerRef.current.style.zoom = "1";
     renderedPages.current.clear();
     renderingPages.current.clear();
     pageRefs.current.clear();
@@ -88,9 +90,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   useEffect(() => {
     const host = gestureRef.current;
     if (!host) return;
-    // Capture two-finger gestures before nested horizontal scrollers or the browser
-    // can interpret them as page navigation/viewport zoom. One-finger vertical scroll
-    // remains native because the viewer keeps pan-y.
+    // Handle pinch zoom directly in CSS. This avoids re-rendering every PDF canvas
+    // (which caused mobile browsers to run out of memory and show the app error page).
     host.style.touchAction = "pan-y";
     const distance = (touches: TouchList) => {
       const dx = touches[0].clientX - touches[1].clientX;
@@ -99,16 +100,18 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     };
     const onStart = (event: TouchEvent) => {
       if (event.touches.length === 2) {
-        event.preventDefault();
-        pinchStartRef.current = { distance: distance(event.touches), zoom };
-        pinchPendingZoomRef.current = zoom;
+        if (event.cancelable) event.preventDefault();
+        pinchStartRef.current = { distance: distance(event.touches), zoom: pinchZoomRef.current };
+        pinchPendingZoomRef.current = pinchZoomRef.current;
       }
     };
     const onMove = (event: TouchEvent) => {
       if (event.touches.length !== 2 || !pinchStartRef.current) return;
       if (event.cancelable) event.preventDefault();
       const ratio = distance(event.touches) / Math.max(1, pinchStartRef.current.distance);
-      pinchPendingZoomRef.current = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
+      const nextZoom = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
+      pinchPendingZoomRef.current = nextZoom;
+      if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
     };
     const onEnd = (event: TouchEvent) => {
       if (event.touches.length < 2) {
@@ -116,7 +119,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         const nextZoom = pinchPendingZoomRef.current;
         pinchPendingZoomRef.current = null;
         if (nextZoom !== null) {
-          setZoom((current) => Math.abs(current - nextZoom) > 0.015 ? nextZoom : current);
+          pinchZoomRef.current = nextZoom;
+          if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
         }
       }
     };
@@ -130,7 +134,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       host.removeEventListener("touchend", onEnd, true);
       host.removeEventListener("touchcancel", onEnd, true);
     };
-  }, [zoom]);
+  }, []);
 
   useEffect(() => {
     if (state !== "ready" || !containerRef.current) return;
@@ -158,7 +162,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         // Measure the fixed-width scroll viewport, never the content wrapper: the latter
         // grows with zoom and would multiply the next pinch scale, eventually exhausting memory.
         const fitWidth = containerRef.current?.parentElement?.clientWidth || window.innerWidth || 800;
-        const width = Math.max(200, fitWidth) * zoom;
+        const width = Math.max(200, fitWidth);
         const cssHeight = width * (base.height / base.width);
         // Render sharply on high-DPI phones while keeping each canvas under a safe pixel budget.
         const pixelBudget = 12_000_000;
@@ -259,7 +263,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       renderingPages.current.clear();
       pumpRef.current = () => {};
     };
-  }, [state, numPages, zoom]);
+  }, [state, numPages]);
 
   return (
     <div ref={gestureRef} className={className}>

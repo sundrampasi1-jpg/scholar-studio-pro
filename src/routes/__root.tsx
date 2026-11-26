@@ -44,6 +44,39 @@ function ErrorComponent({ error, reset }: import("@tanstack/react-router").Error
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  // Recover from stale cached app-shell chunks after a deployment. This is
+  // limited to module/chunk loading failures; ordinary route errors are untouched.
+  useEffect(() => {
+    const err = error as Error & { cause?: unknown };
+    const messages = [
+      err instanceof Error ? err.message : String(error),
+      err?.cause instanceof Error ? err.cause.message : String(err?.cause ?? ""),
+    ].join(" ").toLowerCase();
+    const isStaleChunk =
+      messages.includes("failed to fetch dynamically imported module") ||
+      messages.includes("importing a module script failed") ||
+      messages.includes("error loading dynamically imported module") ||
+      messages.includes("chunkloaderror") ||
+      messages.includes("loading chunk");
+    if (!isStaleChunk) return;
+
+    const recoveryKey = `jk-chunk-recovery:${window.location.pathname}`;
+    try {
+      if (sessionStorage.getItem(recoveryKey) === "1") return;
+      sessionStorage.setItem(recoveryKey, "1");
+    } catch {
+      return;
+    }
+
+    void (async () => {
+      try {
+        if ("caches" in window) await window.caches.delete("jk-app-pages");
+      } finally {
+        window.location.reload();
+      }
+    })();
+  }, [error]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">

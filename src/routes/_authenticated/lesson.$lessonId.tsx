@@ -1099,7 +1099,7 @@ function LessonPage() {
             {l.ai_pdf_url && (
               <div className="border-t border-gold/20">
                 <button type="button" onClick={() => setShowAiPdf((value) => !value)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[10px] font-black text-emerald-800">TEACHER PDF</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[10px] font-black text-emerald-800">PDF</span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-bold">Teacher PDF · Hindi + English</span>
                     <span className="block text-xs text-muted-foreground">Topics, important facts, Q&A and MCQs from this video</span>

@@ -9,7 +9,7 @@ export default defineConfig({
     // Keep RPC URLs stable across deployments so a client from a previous
     // build can still resolve the matching server function on the new server.
     serverFns: {
-      generateFunctionId: ({ filename, functionName }) => {
+      generateFunctionId: ({ filename, functionName }: { filename: string; functionName: string }) => {
         const stablePath = filename.replace(/\\/g, "/").split("/").slice(-3).join("/");
         const digest = createHash("sha256")
           .update(`${stablePath}:${functionName}`)

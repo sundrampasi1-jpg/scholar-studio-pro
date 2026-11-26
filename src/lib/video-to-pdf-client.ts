@@ -139,7 +139,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
           // styles. Some app/theme styles are injected outside head and contain
           // oklch(), which html2canvas cannot parse.
           const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
-          clonedDoc.querySelectorAll('style, link[rel="stylesheet"]').forEach((element) => element.remove());
+          clonedDoc.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])').forEach((element) => element.remove());
 
           const safeStyle = clonedDoc.createElement("style");
           safeStyle.textContent = pdfStyles;

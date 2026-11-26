@@ -41,7 +41,7 @@ export default defineConfig({
 
         // Cache pages visited while online for offline reopening.
         navigateFallback: null,
-        navigateFallbackDenylist: [/^\\/~oauth/],
+        navigateFallbackDenylist: [/^\/~oauth/],
 
         runtimeCaching: [
           {

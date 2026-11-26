@@ -267,7 +267,7 @@ Teacher-provided description (context only): ${lesson.description || "None"}`;
         ] }],
         generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 },
       });
-      const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+      const models = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"];
       const modelErrors: string[] = [];
       let notes: Notes | null = null;
       for (const model of models) {

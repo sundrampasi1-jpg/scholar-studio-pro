@@ -163,7 +163,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
       </section>`).join("");
     return `
       <article class="jk-pdf language-section ${hindi ? "hindi-section" : "english-section"}">
-        <h1>JK ACADEMY</h1>
+        <h1 class="jk-brand">JK ACADEMY</h1>
         <p class="subtitle">${heading("वीडियो अध्ययन नोट्स", "Video Study Notes")}</p>
         <h2>${escapeHtml(pickLanguage(notes.title || lessonTitle, language) || notes.title || lessonTitle)}</h2>
         <h2>${heading("सारांश", "Overview")}</h2>
@@ -177,7 +177,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
         ${questions}
         <h2>${heading("अभ्यास प्रश्न", "Practice MCQs")}</h2>
         ${mcqs}
-        <p class="foot">JK Academy · ${heading("अध्ययन सामग्री", "Study Material")}</p>
+        
       </article>`;
   };
 
@@ -186,8 +186,8 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   root.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#172033;z-index:-1;";
   root.innerHTML = `
     <style id="jk-pdf-render-styles">
-      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px 54px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:20px;line-height:1.9;overflow-wrap:anywhere;border-bottom:2px solid #c79a4b}
-      .jk-pdf h1{font-size:31px;font-weight:900;letter-spacing:3px;text-align:center;color:#14532d;margin:0 0 7px;text-shadow:0 1px 0 #e8d4ad}
+      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px 54px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:20px;line-height:1.9;overflow-wrap:anywhere}
+      .jk-pdf h1.jk-brand{font-family:Georgia,"Times New Roman",serif;font-size:34px;font-weight:900;letter-spacing:4px;text-align:center;color:#14532d;margin:0 0 7px;text-shadow:0 1px 0 #e8d4ad}
       .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:16px;font-weight:600;letter-spacing:.5px;margin:0 0 26px}
       .jk-pdf h2{font-size:26px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
       .jk-pdf h3{font-size:23px;color:#1f2937;margin:15px 0 7px}
@@ -196,7 +196,6 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
       .jk-pdf li{margin:5px 0}
       .jk-pdf .topic,.jk-pdf .qa,.jk-pdf .mcq{break-inside:avoid;page-break-inside:avoid;margin:0 0 14px}
       .jk-pdf .english-section{break-before:page;page-break-before:always}
-      .jk-pdf .foot{margin-top:28px;padding-top:12px;border-top:1px solid #d7b878;color:#64748b;font-size:14px;font-weight:800;letter-spacing:2px;text-align:center}
     </style>
     ${renderLanguage("hi")}
     ${renderLanguage("en")}`;
@@ -228,7 +227,8 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
         },
         imageType: "image/jpeg",
         imageQuality: 0.96,
-        margin: { top: 8, right: 8, bottom: 8, left: 8 },
+        // Reserve a dedicated footer band so the rule never crosses question text.
+        margin: { top: 8, right: 8, bottom: 19, left: 8 },
         autoResize: true,
         success: () => undefined,
       }),
@@ -244,10 +244,11 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
         (pdfDocument as any).setPage(page);
         (pdfDocument as any).setDrawColor(199, 154, 75);
         (pdfDocument as any).setLineWidth(0.35);
-        (pdfDocument as any).line(9, 287, 201, 287);
-        (pdfDocument as any).setTextColor(100, 116, 139);
-        (pdfDocument as any).setFontSize(7);
-        (pdfDocument as any).text("JK ACADEMY", 105, 292, { align: "center" });
+        (pdfDocument as any).line(9, 284, 201, 284);
+        (pdfDocument as any).setTextColor(20, 83, 45);
+        (pdfDocument as any).setFont("times", "bold");
+        (pdfDocument as any).setFontSize(8);
+        (pdfDocument as any).text("JK ACADEMY", 105, 289, { align: "center", charSpace: 1.2 });
       }
     } catch (footerError) {
       console.warn("PDF decorative footer could not be added", footerError);

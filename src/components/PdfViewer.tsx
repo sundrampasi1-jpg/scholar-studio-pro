@@ -251,7 +251,17 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
           .filter((entry) => entry.isIntersecting)
           .map((entry) => Number((entry.target as HTMLElement).dataset["page"]))
           .filter((pageNum) => Number.isFinite(pageNum));
-        // Prioritize pages nearest the current viewport.
+        if (visible.length) {
+          // Keep only pages around the current viewport in memory. Retaining every
+          // rendered canvas caused long PDFs to exhaust Android WebView memory.
+          for (const [pageNum, element] of pageRefs.current) {
+            const isNearViewport = visible.some((visiblePage) => Math.abs(visiblePage - pageNum) <= 1);
+            if (!isNearViewport && renderedPages.current.has(pageNum)) {
+              element.querySelector("canvas")?.remove();
+              renderedPages.current.delete(pageNum);
+            }
+          }
+        }
         visible.sort((a, b) => a - b);
         visible.forEach(schedulePage);
       },
@@ -259,9 +269,12 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));
-    // Start rendering immediately; the observer will queue the remaining pages as needed.
-    schedulePage(1);
-    schedulePage(2);
+    // Render only pages near the current scroll position. This avoids rendering
+    // unrelated pages when a reader pinches while far down a PDF.
+    if (!("IntersectionObserver" in window)) {
+      schedulePage(1);
+      schedulePage(2);
+    }
 
     return () => {
       disposed = true;

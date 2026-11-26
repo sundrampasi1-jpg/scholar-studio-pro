@@ -10,33 +10,58 @@ type Notes = {
 
 declare global {
   interface Window {
-    html2pdf?: () => any;
+    html2PDF?: (
+      element: HTMLElement,
+      options?: Record<string, unknown>,
+    ) => Promise<{ output: (type: "blob") => Blob }>;
+    html2canvas?: (...args: any[]) => any;
+    jspdf?: { jsPDF?: new (...args: any[]) => any };
   }
 }
 
 let html2PdfLoader: Promise<void> | null = null;
 
-function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(message)), milliseconds);
-    promise.then(
-      (value) => { window.clearTimeout(timer); resolve(value); },
-      (error) => { window.clearTimeout(timer); reject(error); },
-    );
+function loadScript(src: string, ready: () => boolean): Promise<void> {
+  if (ready()) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const existing = Array.from(document.scripts).find((script) => script.src === src);
+    const script = existing ?? document.createElement("script");
+    const onLoad = () => ready()
+      ? resolve()
+      : reject(new Error("A required PDF library did not initialize."));
+    const onError = () => reject(new Error("Could not load a PDF rendering library. Check your internet connection."));
+    script.addEventListener("load", onLoad, { once: true });
+    script.addEventListener("error", onError, { once: true });
+    if (!existing) {
+      script.src = src;
+      script.async = true;
+      document.head.appendChild(script);
+    }
   });
 }
 
 function loadHtml2Pdf() {
   if (typeof window === "undefined") return Promise.reject(new Error("PDF generation requires a browser."));
-  if (window.html2pdf) return Promise.resolve();
+  if (window.html2PDF && window.html2canvas && window.jspdf?.jsPDF) return Promise.resolve();
   if (!html2PdfLoader) {
-    html2PdfLoader = new Promise<void>((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.3/html2pdf.bundle.min.js";
-      script.async = true;
-      script.onload = () => window.html2pdf ? resolve() : reject(new Error("PDF library did not initialize."));
-      script.onerror = () => reject(new Error("Could not load the PDF generator. Check your internet connection."));
-      document.head.appendChild(script);
+    html2PdfLoader = (async () => {
+      // html2pdf.js bundles html2canvas 1.4.1, which cannot parse Tailwind v4
+      // oklch() colors. Use the maintained html2canvas-pro renderer instead.
+      await loadScript(
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.4/jspdf.umd.min.js",
+        () => !!window.jspdf?.jsPDF,
+      );
+      await loadScript(
+        "https://cdn.jsdelivr.net/npm/html2canvas-pro@2.6.4/dist/html2canvas-pro.min.js",
+        () => typeof window.html2canvas === "function",
+      );
+      await loadScript(
+        "https://cdn.jsdelivr.net/npm/jspdf-html2canvas@1.7.0/dist/jspdf-html2canvas.min.js",
+        () => typeof window.html2PDF === "function",
+      );
+    })().catch((error) => {
+      html2PdfLoader = null;
+      throw error;
     });
   }
   return html2PdfLoader;
@@ -124,37 +149,40 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     </article>`;
   document.body.appendChild(root);
   try {
-    const worker = window.html2pdf!().set({
-      margin: [8, 8, 8, 8],
-      image: { type: "jpeg", quality: 0.96 },
-      html2canvas: {
-        scale: 1.5,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        windowWidth: 794,
-        // html2canvas cannot parse the app's Tailwind oklch colors. Render this
-        // self-contained PDF document without inheriting the app-wide styles.
-        onclone: (clonedDoc: Document) => {
-          // Strip every app stylesheet from the cloned document, not just head
-          // styles. Some app/theme styles are injected outside head and contain
-          // oklch(), which html2canvas cannot parse.
-          const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
-          clonedDoc.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])').forEach((element) => element.remove());
+    const pdfDocument = await withTimeout(
+      window.html2PDF!(root, {
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        html2canvas: {
+          scale: 1.5,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          onclone: (clonedDoc: Document) => {
+            const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
+            clonedDoc.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])').forEach((element) => element.remove());
 
-          const safeStyle = clonedDoc.createElement("style");
-          safeStyle.textContent = pdfStyles;
-          clonedDoc.head.appendChild(safeStyle);
+            const safeStyle = clonedDoc.createElement("style");
+            safeStyle.textContent = pdfStyles;
+            clonedDoc.head.appendChild(safeStyle);
 
-          clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
-          clonedDoc.querySelectorAll<HTMLElement>("#jk-pdf-render-root").forEach((element) => {
-            element.style.cssText = "position:static;width:794px;margin:0;padding:0;background:#fff;color:#172033;";
-          });
+            clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
+            clonedDoc.querySelectorAll<HTMLElement>("#jk-pdf-render-root").forEach((element) => {
+              element.style.cssText = "position:static;width:794px;margin:0;padding:0;background:#fff;color:#172033;";
+            });
+          },
         },
-      },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
-    }).from(root);
-    const pdf = await withTimeout(worker.outputPdf("blob"), 90_000, "PDF rendering took too long. Please retry with a shorter lesson video.");
+        imageType: "image/jpeg",
+        imageQuality: 0.96,
+        margin: { top: 8, right: 8, bottom: 8, left: 8 },
+        autoResize: true,
+        success: () => undefined,
+      }),
+      90_000,
+      "PDF rendering took too long. Please retry with a shorter lesson video.",
+    );
+    const pdf = pdfDocument.output("blob");
     if (!(pdf instanceof Blob) || pdf.size < 500) throw new Error("The PDF file could not be created.");
     return pdf;
   } finally {

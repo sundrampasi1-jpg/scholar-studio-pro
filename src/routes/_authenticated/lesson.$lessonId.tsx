@@ -1099,9 +1099,9 @@ function LessonPage() {
             {l.ai_pdf_url && (
               <div className="border-t border-gold/20">
                 <button type="button" onClick={() => setShowAiPdf((value) => !value)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[10px] font-black text-emerald-800">AI PDF</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[10px] font-black text-emerald-800">TEACHER PDF</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-bold">AI Video Notes · Hindi + English</span>
+                    <span className="block text-sm font-bold">Teacher PDF · Hindi + English</span>
                     <span className="block text-xs text-muted-foreground">Topics, important facts, Q&A and MCQs from this video</span>
                   </span>
                   <ChevronDown className={"h-5 w-5 shrink-0 text-gold-deep transition-transform " + (showAiPdf ? "rotate-180" : "")} />
@@ -1109,7 +1109,7 @@ function LessonPage() {
                 {showAiPdf && (
                   <div className="pb-0">
                     <div className="mb-2 flex justify-end px-4">
-                      <button type="button" onClick={() => downloadFile(l.ai_pdf_url!, l.title + " AI Video Notes")} className="flex items-center gap-1.5 rounded-full bg-gold/15 px-3 py-1.5 text-xs font-bold text-gold-deep">
+                      <button type="button" onClick={() => downloadFile(l.ai_pdf_url!, l.title + " Teacher Notes")} className="flex items-center gap-1.5 rounded-full bg-gold/15 px-3 py-1.5 text-xs font-bold text-gold-deep">
                         <Download className="h-3.5 w-3.5" /> Download PDF
                       </button>
                     </div>

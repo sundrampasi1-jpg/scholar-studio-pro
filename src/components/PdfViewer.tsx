@@ -219,11 +219,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       } catch (e: any) {
         if (e?.name !== "RenderingCancelledException") {
           console.error("Page render failed", pageNum, e);
-          const host = pageRefs.current.get(pageNum);
-          if (host?.isConnected) {
-            const canvas = host.querySelector("canvas");
-            if (canvas) canvas.remove();
-          }
+          // Keep the previous lower-resolution canvas visible if an HD upgrade fails.
         }
       } finally {
         renderTasks.current.delete(pageNum);

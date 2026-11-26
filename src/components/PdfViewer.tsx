@@ -149,9 +149,15 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
           return;
         }
         const base = page.getViewport({ scale: 1 });
-        const fitWidth = host.parentElement?.clientWidth || window.innerWidth || 800;
+        // Measure the fixed-width scroll viewport, never the content wrapper: the latter
+        // grows with zoom and would multiply the next pinch scale, eventually exhausting memory.
+        const fitWidth = containerRef.current?.parentElement?.clientWidth || window.innerWidth || 800;
         const width = Math.max(200, fitWidth) * zoom;
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.0);
+        const cssHeight = width * (base.height / base.width);
+        // Render sharply on high-DPI phones while keeping each canvas under a safe pixel budget.
+        const pixelBudget = 12_000_000;
+        const qualityScale = Math.sqrt(pixelBudget / Math.max(1, width * cssHeight));
+        const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2, qualityScale);
         const scale = (width / base.width) * pixelRatio;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");

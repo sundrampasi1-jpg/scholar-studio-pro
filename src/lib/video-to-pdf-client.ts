@@ -10,12 +10,7 @@ type Notes = {
 
 declare global {
   interface Window {
-    html2PDF?: (
-      element: HTMLElement,
-      options?: Record<string, unknown>,
-    ) => Promise<{ output: (type: "blob") => Blob }>;
-    html2canvas?: (...args: any[]) => any;
-    jspdf?: { jsPDF?: new (...args: any[]) => any };
+    html2pdf?: (...args: any[]) => any;
   }
 }
 

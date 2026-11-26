@@ -5,7 +5,7 @@ const RETRYABLE_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504, 524]);
 
 function isTransientFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /(?:\b(?:408|429|500|502|503|504|524)\b|high demand|resource exhausted|rate[ -]?limit|overloaded|model is currently experiencing|network connection lost|failed to fetch|fetch failed|connection reset|temporarily unavailable|timed out|timeout)/i.test(message);
+  return /(?:\b(?:408|429|500|502|503|504|524)\b|network connection lost|failed to fetch|fetch failed|connection reset|temporarily unavailable|timed out|timeout)/i.test(message);
 }
 
 function wait(ms: number) {

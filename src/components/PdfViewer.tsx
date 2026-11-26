@@ -213,11 +213,11 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       )}
       {state === "ready" && numPages > 0 && (
         <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Zoom out">
+          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.max(0.75, z - 0.25))} aria-label="Zoom out">
             −
           </button>
           <span>{Math.round(zoom * 100)}% · {numPages} pages</span>
-          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.min(3, z + 0.25))} aria-label="Zoom in">
+          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.min(4, z + 0.25))} aria-label="Zoom in">
             +
           </button>
         </div>
@@ -234,7 +234,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
                   else pageRefs.current.delete(pageNum);
                 }}
                 style={{ aspectRatio: `1 / ${pageRatio}` }}
-                className="flex w-full items-center justify-center overflow-hidden"
+                className="flex w-full items-center justify-center overflow-visible"
               >
                 {!renderedPages.current.has(pageNum) && (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

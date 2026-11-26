@@ -487,6 +487,7 @@ function LessonPage() {
   const [nativeH, setNativeH] = useState(0);
   const [quality, setQuality] = useState(0); // 0 = auto/source
   const [cachedUrl, setCachedUrl] = useState<string | null>(null);
+  const [cacheReady, setCacheReady] = useState(false);
   const [savedOffline, setSavedOffline] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showPolls, setShowPolls] = useState(false);
@@ -540,19 +541,26 @@ function LessonPage() {
     if (clickToggleTimerRef.current !== null) window.clearTimeout(clickToggleTimerRef.current);
   }, []);
 
-  // Offline copy: use the cached video when this lesson was downloaded.
+  // Resolve the offline source before mounting the player, so its src never
+  // switches underneath a Play action on slower mobile devices.
   useEffect(() => {
     let url: string | null = null;
     let cancelled = false;
     async function load() {
-      const blob = await getCachedMedia(lessonId);
-      if (blob && !cancelled) {
-        url = URL.createObjectURL(blob);
-        setCachedUrl(url);
-        setSavedOffline(true);
+      try {
+        const blob = await getCachedMedia(lessonId);
+        if (blob && !cancelled) {
+          url = URL.createObjectURL(blob);
+          setCachedUrl(url);
+          setSavedOffline(true);
+        }
+      } finally {
+        if (!cancelled) setCacheReady(true);
       }
     }
-    void load();
+    void load().catch(() => {
+      if (!cancelled) setCacheReady(true);
+    });
     if (isDownloaded(lessonId)) setSavedOffline(true);
     return () => {
       cancelled = true;
@@ -736,7 +744,7 @@ function LessonPage() {
   const next = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
   const embed = l.video_url ? embedUrl(l.video_url) : null;
   const completed = !!myProgress.data?.completed;
-  const videoSrc = cachedUrl ?? l.video_url;
+  const videoSrc = cacheReady ? (cachedUrl ?? l.video_url) : null;
   const qualities = QUALITIES.filter((q) => !nativeH || q <= nativeH);
 
   const playerElement = l.video_url ? (

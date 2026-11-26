@@ -239,20 +239,23 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     );
     // Add a subtle branded footer rule to every physical PDF page.
     try {
-      const pageCount = typeof (pdfDocument as any).getNumberOfPages === "function"
-        ? (pdfDocument as any).getNumberOfPages()
-        : 0;
+      const pageCount = Number(
+        (typeof (pdfDocument as any).getNumberOfPages === "function" && (pdfDocument as any).getNumberOfPages()) ||
+        (typeof (pdfDocument as any).internal?.getNumberOfPages === "function" && (pdfDocument as any).internal.getNumberOfPages()) ||
+        ((pdfDocument as any).internal?.pages?.length || 1) - 1 ||
+        0
+      );
       for (let page = 1; page <= pageCount; page += 1) {
         (pdfDocument as any).setPage(page);
         // Soft diagonal JK ACADEMY watermark centered on every physical page.
         // This decorates the finished PDF only; AI analysis and generated notes are untouched.
-        (pdfDocument as any).setTextColor(237, 239, 241);
+        (pdfDocument as any).setTextColor(224, 228, 232);
         (pdfDocument as any).setFont("times", "bold");
-        (pdfDocument as any).setFontSize(34);
+        (pdfDocument as any).setFontSize(42);
         (pdfDocument as any).text("JK ACADEMY", 105, 158, {
           align: "center",
           angle: -52,
-          charSpace: 2.2,
+          charSpace: 2.6,
         });
         (pdfDocument as any).setDrawColor(199, 154, 75);
         (pdfDocument as any).setLineWidth(0.35);

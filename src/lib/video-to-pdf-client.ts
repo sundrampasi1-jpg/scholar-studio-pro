@@ -120,6 +120,25 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     return text;
   };
 
+  const englishOptionNames: Record<string, string> = {
+    "यमुना": "Yamuna", "गंगा": "Ganga", "दामोदर": "Damodar", "दामोदर नदी": "Damodar River",
+    "सरस्वती": "Saraswati", "ब्रह्मपुत्र": "Brahmaputra", "गोदावरी": "Godavari", "कृष्णा": "Krishna",
+    "कावेरी": "Kaveri", "महानदी": "Mahanadi", "लूनी": "Luni", "साबरमती": "Sabarmati",
+    "नर्मदा": "Narmada", "ताप्ती": "Tapti", "तापी": "Tapti", "बराकर": "Barakar",
+    "बराकर नदी": "Barakar River", "कोनार": "Konar", "कोनार नदी": "Konar River",
+    "जामुनिया": "Jamunia", "जामुनिया नदी": "Jamunia River", "सोन": "Son",
+    "चंबल": "Chambal", "बेतवा": "Betwa", "रूस": "Russia", "ब्रिटेन": "Britain",
+    "अमेरिका": "America", "फ्रांस": "France", "झारखंड": "Jharkhand",
+    "पश्चिम बंगाल": "West Bengal", "बिहार": "Bihar", "छोटा नागपुर पठार": "Chota Nagpur Plateau",
+    "तिलैया बांध": "Tilaiya Dam", "मैथन बांध": "Maithon Dam", "पंचेत हिल बांध": "Panchet Hill Dam",
+  };
+  const renderOption = (value: string, language: "hi" | "en") => {
+    const cleaned = value.replace(/^[A-D]\.\s*/, "").trim();
+    const bilingual = pickLanguage(cleaned, language);
+    if (bilingual !== cleaned) return bilingual;
+    return language === "en" ? (englishOptionNames[cleaned] || cleaned) : cleaned;
+  };
+
   const renderLanguage = (language: "hi" | "en") => {
     const hindi = language === "hi";
     const heading = (hi: string, en: string) => hindi ? hi : en;
@@ -138,7 +157,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     const mcqs = notes.mcqs.map((item, index) => `
       <section class="mcq">
         <p><strong>${index + 1}. ${escapeHtml(pickLanguage(item.question, language) || item.question)}</strong></p>
-        <ol type="A">${item.options.map((option) => `<li>${escapeHtml(pickLanguage(option.replace(/^[A-D]\.\s*/, ""), language) || option.replace(/^[A-D]\.\s*/, ""))}</li>`).join("")}</ol>
+        <ol type="A">${item.options.map((option) => `<li>${escapeHtml(renderOption(option, language))}</li>`).join("")}</ol>
         <p><b>${heading("सही उत्तर:", "Correct answer:")}</b> ${escapeHtml(item.answer)}</p>
         <p><b>${heading("व्याख्या:", "Explanation:")}</b> ${escapeHtml(pickLanguage(item.explanation, language) || item.explanation)}</p>
       </section>`).join("");
@@ -167,17 +186,17 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   root.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#172033;z-index:-1;";
   root.innerHTML = `
     <style id="jk-pdf-render-styles">
-      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:19px;line-height:1.85;overflow-wrap:anywhere}
-      .jk-pdf h1{font-size:27px;text-align:center;color:#14532d;margin:0 0 7px}
-      .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:14px;margin:0 0 26px}
-      .jk-pdf h2{font-size:24px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
-      .jk-pdf h3{font-size:21px;color:#1f2937;margin:15px 0 7px}
+      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px 54px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:20px;line-height:1.9;overflow-wrap:anywhere;border-bottom:2px solid #c79a4b}
+      .jk-pdf h1{font-size:31px;font-weight:900;letter-spacing:3px;text-align:center;color:#14532d;margin:0 0 7px;text-shadow:0 1px 0 #e8d4ad}
+      .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:16px;font-weight:600;letter-spacing:.5px;margin:0 0 26px}
+      .jk-pdf h2{font-size:26px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
+      .jk-pdf h3{font-size:23px;color:#1f2937;margin:15px 0 7px}
       .jk-pdf p{margin:7px 0;white-space:pre-wrap}
       .jk-pdf ul,.jk-pdf ol{padding-left:28px;margin:7px 0 15px}
       .jk-pdf li{margin:5px 0}
       .jk-pdf .topic,.jk-pdf .qa,.jk-pdf .mcq{break-inside:avoid;page-break-inside:avoid;margin:0 0 14px}
       .jk-pdf .english-section{break-before:page;page-break-before:always}
-      .jk-pdf .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px;text-align:center}
+      .jk-pdf .foot{margin-top:28px;padding-top:12px;border-top:1px solid #d7b878;color:#64748b;font-size:14px;font-weight:800;letter-spacing:2px;text-align:center}
     </style>
     ${renderLanguage("hi")}
     ${renderLanguage("en")}`;

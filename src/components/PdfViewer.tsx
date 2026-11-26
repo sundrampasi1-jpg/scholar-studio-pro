@@ -11,6 +11,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const [numPages, setNumPages] = useState(0);
   const pinchZoomRef = useRef(1);
   const [attempt, setAttempt] = useState(0);
+  const [renderVersion, setRenderVersion] = useState(0);
   const [pageRatio, setPageRatio] = useState(1.414);
   const pdfDocRef = useRef<any>(null);
   const renderedPages = useRef<Set<number>>(new Set());
@@ -121,6 +122,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         if (nextZoom !== null) {
           pinchZoomRef.current = nextZoom;
           if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
+          // Re-render at the new pixel density after the pinch settles, instead of
+          // merely enlarging the old low-resolution canvas (which looks blurry).
+          setRenderVersion((version) => version + 1);
         }
       }
     };
@@ -165,10 +169,17 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         const width = Math.max(200, fitWidth);
         const cssHeight = width * (base.height / base.width);
         // Render sharply on high-DPI phones while keeping each canvas under a safe pixel budget.
-        const pixelBudget = 12_000_000;
+        const pixelBudget = 6_000_000;
         const qualityScale = Math.sqrt(pixelBudget / Math.max(1, width * cssHeight));
-        const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2, qualityScale);
-        const scale = (width / base.width) * pixelRatio;
+        const requestedZoom = Math.max(1, pinchZoomRef.current);
+        const pixelRatio = Math.min(
+          Math.max(window.devicePixelRatio || 1, 1),
+          2,
+          qualityScale / requestedZoom,
+        );
+        // Keep the CSS page width fixed while increasing the backing canvas
+        // resolution for pinch zoom; this stays sharp without unbounded memory use.
+        const scale = (width / base.width) * pixelRatio * requestedZoom;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);
@@ -263,7 +274,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       renderingPages.current.clear();
       pumpRef.current = () => {};
     };
-  }, [state, numPages]);
+  }, [state, numPages, renderVersion]);
 
   return (
     <div ref={gestureRef} className={className}>

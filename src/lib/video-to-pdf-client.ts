@@ -244,6 +244,16 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
         : 0;
       for (let page = 1; page <= pageCount; page += 1) {
         (pdfDocument as any).setPage(page);
+        // Soft diagonal JK ACADEMY watermark centered on every physical page.
+        // This decorates the finished PDF only; AI analysis and generated notes are untouched.
+        (pdfDocument as any).setTextColor(237, 239, 241);
+        (pdfDocument as any).setFont("times", "bold");
+        (pdfDocument as any).setFontSize(34);
+        (pdfDocument as any).text("JK ACADEMY", 105, 158, {
+          align: "center",
+          angle: -52,
+          charSpace: 2.2,
+        });
         (pdfDocument as any).setDrawColor(199, 154, 75);
         (pdfDocument as any).setLineWidth(0.35);
         // Keep the decorative footer in the reserved bottom margin, below all page content.

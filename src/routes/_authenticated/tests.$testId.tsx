@@ -206,16 +206,22 @@ function TakeTest() {
             <p className="truncate text-sm font-semibold text-foreground">{test.title}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Question {current + 1} of {questions.length}</p>
           </div>
-          <span
+          <div
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-bold tabular-nums shadow-sm",
+              "flex min-w-[126px] shrink-0 items-center gap-3 rounded-2xl border px-4 py-2.5 shadow-md transition-colors",
               remaining < 60
-                ? "border-destructive/30 bg-destructive/10 text-destructive"
-                : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                : "border-amber-300/90 bg-gradient-to-br from-amber-100 via-amber-50 to-orange-100 text-amber-900 dark:border-amber-700 dark:from-amber-950 dark:via-amber-950/80 dark:to-orange-950/70 dark:text-amber-200",
             )}
           >
-            <Clock className="h-4 w-4" /> {mm}:{ss}
-          </span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm dark:bg-black/20">
+              <Clock className="h-5 w-5" />
+            </span>
+            <span className="flex flex-col leading-none">
+              <span className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">Time left</span>
+              <span className="text-xl font-extrabold tabular-nums tracking-wide">{mm}:{ss}</span>
+            </span>
+          </div>
         </div>
 
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">

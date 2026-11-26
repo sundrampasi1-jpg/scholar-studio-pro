@@ -105,17 +105,17 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   }
 
   const pickLanguage = (value: string, language: "hi" | "en") => {
-    const text = String(value || "").replace(/\\r/g, "").trim();
+    const text = String(value || "").replace(/\r/g, "").trim();
     const normalized = text
-      .replace(/\\s*\\|\\s*(?=(?:Hindi|English)\\s*:)/gi, "\\n")
-      .replace(/\\s+(?=(?:Hindi|English)\\s*:)/gi, "\\n");
-    const hindi = normalized.match(/(?:^|\\n)\\s*Hindi\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*English\\s*:|$)/i)?.[1]?.trim();
-    const english = normalized.match(/(?:^|\\n)\\s*English\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*Hindi\\s*:|$)/i)?.[1]?.trim();
+      .replace(/\s*\|\s*(?=(?:Hindi|English)\s*:)/gi, "\n")
+      .replace(/\s+(?=(?:Hindi|English)\s*:)/gi, "\n");
+    const hindi = normalized.match(/(?:^|\n)\s*Hindi\s*:\s*([\s\S]*?)(?=\n\s*English\s*:|$)/i)?.[1]?.trim();
+    const english = normalized.match(/(?:^|\n)\s*English\s*:\s*([\s\S]*?)(?=\n\s*Hindi\s*:|$)/i)?.[1]?.trim();
     if (hindi || english) return (language === "hi" ? hindi : english) || "";
-    const devanagari = normalized.match(/(?:^|\\n)\\s*हिंदी\\s*[:：-]\\s*([\\s\\S]*?)(?=\\n\\s*(?:English|अंग्रेज़ी)\\s*[:：-]|$)/i)?.[1]?.trim();
-    const englishAlt = normalized.match(/(?:^|\\n)\\s*(?:English|अंग्रेज़ी)\\s*[:：-]\\s*([\\s\\S]*?)(?=\\n\\s*हिंदी\\s*[:：-]|$)/i)?.[1]?.trim();
+    const devanagari = normalized.match(/(?:^|\n)\s*हिंदी\s*[:：-]\s*([\s\S]*?)(?=\n\s*(?:English|अंग्रेज़ी)\s*[:：-]|$)/i)?.[1]?.trim();
+    const englishAlt = normalized.match(/(?:^|\n)\s*(?:English|अंग्रेज़ी)\s*[:：-]\s*([\s\S]*?)(?=\n\s*हिंदी\s*[:：-]|$)/i)?.[1]?.trim();
     if (devanagari || englishAlt) return (language === "hi" ? devanagari : englishAlt) || "";
-    const slashParts = text.split(/\\s+\\/\\s+/);
+    const slashParts = text.split(/\s+\/\s+/);
     if (slashParts.length === 2) return slashParts[language === "hi" ? 0 : 1].trim();
     return text;
   };

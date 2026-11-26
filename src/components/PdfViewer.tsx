@@ -109,10 +109,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       while (current && current !== document.body) {
         const style = window.getComputedStyle(current);
         const overflow = axis === "x" ? style.overflowX : style.overflowY;
-        const canScroll = axis === "x"
-          ? current.scrollWidth > current.clientWidth + 1
-          : current.scrollHeight > current.clientHeight + 1;
-        if (/(auto|scroll|overlay)/.test(overflow) && canScroll) return current;
+        // Keep the intended scrollport even before zoom creates overflow;
+        // horizontal overflow often appears only after the first pinch movement.
+        if (/(auto|scroll|overlay)/.test(overflow)) return current;
         current = current.parentElement;
       }
       return null;

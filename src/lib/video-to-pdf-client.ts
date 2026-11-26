@@ -126,7 +126,19 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     const worker = window.html2pdf!().set({
       margin: [8, 8, 8, 8],
       image: { type: "jpeg", quality: 0.96 },
-      html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff", windowWidth: 794 },
+      html2canvas: {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 794,
+        // html2canvas cannot parse the app's Tailwind oklch colors. Render this
+        // self-contained PDF document without inheriting the app-wide styles.
+        onclone: (clonedDoc: Document) => {
+          clonedDoc.head.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])')
+            .forEach((element) => element.remove());
+          clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
+        },
+      },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     }).from(root);

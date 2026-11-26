@@ -88,6 +88,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   useEffect(() => {
     const host = gestureRef.current;
     if (!host) return;
+    // Capture two-finger gestures before nested horizontal scrollers or the browser
+    // can interpret them as page navigation/viewport zoom. One-finger vertical scroll
+    // remains native because the viewer keeps pan-y.
     host.style.touchAction = "pan-y";
     const distance = (touches: TouchList) => {
       const dx = touches[0].clientX - touches[1].clientX;
@@ -96,13 +99,14 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     };
     const onStart = (event: TouchEvent) => {
       if (event.touches.length === 2) {
+        event.preventDefault();
         pinchStartRef.current = { distance: distance(event.touches), zoom };
         pinchPendingZoomRef.current = zoom;
       }
     };
     const onMove = (event: TouchEvent) => {
       if (event.touches.length !== 2 || !pinchStartRef.current) return;
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       const ratio = distance(event.touches) / Math.max(1, pinchStartRef.current.distance);
       pinchPendingZoomRef.current = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
     };
@@ -111,18 +115,20 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         pinchStartRef.current = null;
         const nextZoom = pinchPendingZoomRef.current;
         pinchPendingZoomRef.current = null;
-        if (nextZoom !== null) setZoom((current) => Math.abs(current - nextZoom) > 0.025 ? nextZoom : current);
+        if (nextZoom !== null) {
+          setZoom((current) => Math.abs(current - nextZoom) > 0.015 ? nextZoom : current);
+        }
       }
     };
-    host.addEventListener("touchstart", onStart, { passive: true });
-    host.addEventListener("touchmove", onMove, { passive: false });
-    host.addEventListener("touchend", onEnd, { passive: true });
-    host.addEventListener("touchcancel", onEnd, { passive: true });
+    host.addEventListener("touchstart", onStart, { passive: false, capture: true });
+    host.addEventListener("touchmove", onMove, { passive: false, capture: true });
+    host.addEventListener("touchend", onEnd, { passive: true, capture: true });
+    host.addEventListener("touchcancel", onEnd, { passive: true, capture: true });
     return () => {
-      host.removeEventListener("touchstart", onStart);
-      host.removeEventListener("touchmove", onMove);
-      host.removeEventListener("touchend", onEnd);
-      host.removeEventListener("touchcancel", onEnd);
+      host.removeEventListener("touchstart", onStart, true);
+      host.removeEventListener("touchmove", onMove, true);
+      host.removeEventListener("touchend", onEnd, true);
+      host.removeEventListener("touchcancel", onEnd, true);
     };
   }, [zoom]);
 

@@ -105,11 +105,11 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   }
 
   const pickLanguage = (value: string, language: "hi" | "en") => {
-    const text = String(value || "").replace(/\\s*\\|\\s*(English|Hindi):\\s*/gi, "\\n$1: ");
-    const hindi = text.match(/Hindi:\\s*([\\s\\S]*?)(?=\\nEnglish:|$)/i)?.[1]?.trim();
-    const english = text.match(/English:\\s*([\\s\\S]*?)(?=\\nHindi:|$)/i)?.[1]?.trim();
+    const text = String(value || "").replace(/\s*\|\s*(English|Hindi):\s*/gi, "\n$1: ");
+    const hindi = text.match(/Hindi:\s*([\s\S]*?)(?=\nEnglish:|$)/i)?.[1]?.trim();
+    const english = text.match(/English:\s*([\s\S]*?)(?=\nHindi:|$)/i)?.[1]?.trim();
     if (hindi || english) return (language === "hi" ? hindi : english) || "";
-    const parts = text.split(/\\s+\\/\\s+(?=[A-Za-z])/);
+    const parts = text.split(/\s+\/\s+(?=[A-Za-z])/);
     if (parts.length > 1) return (language === "hi" ? parts[0] : parts.slice(1).join(" / ")).trim();
     return text.trim();
   };
@@ -132,7 +132,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     const mcqs = notes.mcqs.map((item, index) => `
       <section class="mcq">
         <p><strong>${index + 1}. ${escapeHtml(pickLanguage(item.question, language) || item.question)}</strong></p>
-        <ol type="A">${item.options.map((option) => `<li>${escapeHtml(pickLanguage(option.replace(/^[A-D]\\.\\s*/, ""), language) || option.replace(/^[A-D]\\.\\s*/, ""))}</li>`).join("")}</ol>
+        <ol type="A">${item.options.map((option) => `<li>${escapeHtml(pickLanguage(option.replace(/^[A-D]\.\s*/, ""), language) || option.replace(/^[A-D]\.\s*/, ""))}</li>`).join("")}</ol>
         <p><b>${heading("सही उत्तर:", "Correct answer:")}</b> ${escapeHtml(item.answer)}</p>
         <p><b>${heading("व्याख्या:", "Explanation:")}</b> ${escapeHtml(pickLanguage(item.explanation, language) || item.explanation)}</p>
       </section>`).join("");

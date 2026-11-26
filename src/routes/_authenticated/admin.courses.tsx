@@ -15,7 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, run, confirmDelete, notifyAll } from "@/lib/admin-ui";
 import { toast } from "sonner";
-import { requestVideoPdf } from "@/lib/video-to-pdf.functions";
+import { requestVideoPdf, attachVideoPdf } from "@/lib/video-to-pdf.functions";
+import { buildVideoNotesPdf } from "@/lib/video-to-pdf-client";
+import { uploadMedia } from "@/lib/upload";
 
 export const Route = createFileRoute("/_authenticated/admin/courses")({
   head: () => ({
@@ -181,6 +183,7 @@ function AdminCourses() {
 function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnabled: boolean }) {
   const qc = useQueryClient();
   const invokeAiPdf = useServerFn(requestVideoPdf);
+  const attachAiPdf = useServerFn(attachVideoPdf);
   const key = ["admin-course-tree", course.id];
   const [lesson, setLesson] = useState<Partial<Lesson> | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -276,48 +279,162 @@ function CourseContent({ course, autoPdfEnabled }: { course: Course; autoPdfEnab
   });
   function latestAiJob(lessonId: string) { return aiJobs.data?.find((job) => job.lesson_id === lessonId); }
   async function generateAiPdf(lessonId: string, action: "auto" | "manual" = "manual") {
+    let jobId: string | null = null;
+    let sourceVideoUrl: string | null = null;
+    let pdfAttached = false;
     try {
-      toast.info("AI PDF job is being queued…");
+      toast.info("AI is analyzing the lesson video. This may take a few minutes.");
       const result = await invokeAiPdf({ data: { action, lessonId } });
-      if (!result.ok) {
-        toast.error(result.error);
-        await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
-        return;
+      if (!result.ok) { toast.error(result.error); await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] }); return; }
+      if (result.skipped) { toast.info(result.reason || "This video already has AI notes."); return; }
+      sourceVideoUrl = result.sourceVideoUrl;
+      jobId = result.jobId;
+      if (typeof sourceVideoUrl !== "string" || !sourceVideoUrl || typeof jobId !== "string" || !jobId) {
+        throw new Error("The video or PDF job reference is missing.");
       }
-      if (result.skipped) {
-        toast.info(result.reason || "Automatic video notes are OFF.");
-        return;
-      }
-      toast.success(result.existing ? "This lesson's PDF job is already running." : "PDF generation started in the background.");
-      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
-
-      // Poll only the small job-status row; video analysis and PDF creation
-      // continue independently inside the already-deployed Edge Function.
-      for (let attempt = 0; attempt < 180; attempt++) {
-        await new Promise((resolve) => window.setTimeout(resolve, 5000));
-        const { data: job, error } = await (supabase as any)
-          .from("ai_video_pdf_jobs")
-          .select("status,error_message")
-          .eq("id", result.jobId)
-          .maybeSingle();
-        if (error) throw new Error(error.message);
-        if (job?.status === "completed") {
-          toast.success("AI PDF generated and attached to the lesson.");
-          await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
-          await refresh();
-          return;
-        }
-        if (job?.status === "failed") {
-          throw new Error(job.error_message || "AI video-to-PDF processing failed.");
-        }
-      }
-      toast.info("PDF is still processing in the background. You can check its status here later.");
-      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+      toast.info("AI analysis complete. Creating and attaching the PDF…");
+      const pdfBlob = await buildVideoNotesPdf(result.notes, result.lessonTitle);
+      const pdfUrl = await uploadMedia(pdfBlob, "ai-video-notes", `${lessonId}-${Date.now()}-notes.pdf`);
+      const attached = await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl } });
+      if (!attached.ok) throw new Error(attached.error);
+      // Once the lesson has the PDF, later UI refresh errors must never mark
+      // this successful job as failed.
+      pdfAttached = true;
+      toast.success("AI PDF generated and attached to the lesson.");
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] }),
+        refresh(),
+      ]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "PDF generation failed.";
+      if (jobId && sourceVideoUrl && !pdfAttached) {
+        await attachAiPdf({ data: { jobId, lessonId, sourceVideoUrl, pdfUrl: null, errorMessage: message } }).catch(() => undefined);
+      }
+      if (pdfAttached) {
+        toast.success("AI PDF generated and attached to the lesson.");
+        return;
+      }
       toast.error(message);
-      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
-      await refresh();
+      await qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] }).catch(() => undefined);
+    }
+  }
+
+  const [gsSeeded, setGsSeeded] = useState(false);
+
+  useEffect(() => {
+    if (gsSeeded || batches.isLoading || tree.isLoading || !tree.data) return;
+    const foundationBatch = (course.title + " " + (batches.data ?? []).map((batch) => batch.name).join(" "))
+      .toLowerCase().includes("foundation");
+    if (!foundationBatch) {
+      setGsSeeded(true);
+      return;
+    }
+    let cancelled = false;
+    const setupGsSubjects = async () => {
+      const definitions = [
+        { name: "History", topics: ["Ancient History", "Medieval History", "Modern Indian History", "World History"] },
+        { name: "Geography", topics: ["Physical Geography", "World Geography", "Indian Geography", "Human Geography"] },
+        { name: "Indian Polity & Constitution", topics: ["Constitution", "Political System", "Governance", "Local Government"] },
+        { name: "Indian Economy", topics: ["Basic Concepts", "Budget & Taxation", "Banking", "Agriculture & Infrastructure"] },
+        { name: "Environment & Ecology", topics: ["Ecology", "Biodiversity", "Climate Change", "Environmental Conservation"] },
+        { name: "General Science & Technology", topics: ["Physics", "Chemistry", "Biology", "Space & Information Technology"] },
+        { name: "Art & Culture", topics: ["Architecture", "Literature", "Music & Dance", "Heritage & Traditions"] },
+        { name: "Indian Society", topics: ["Social Issues", "Population", "Women & Development", "Poverty & Inclusion"] },
+        { name: "International Relations", topics: ["India & Neighbouring Countries", "Bilateral Relations", "International Organisations"] },
+        { name: "Internal Security", topics: ["Security Challenges", "Cyber Security", "Border Management"] },
+        { name: "Disaster Management", topics: ["Types of Disasters", "Disaster Mitigation", "Preparedness & Response"] },
+        { name: "Ethics, Integrity & Aptitude", topics: ["Ethics & Human Values", "Attitude", "Aptitude", "Case Studies"] },
+        { name: "Current Affairs", topics: ["National Affairs", "International Affairs", "Government Schemes", "Reports & Indices"] },
+        { name: "Uttar Pradesh Special", topics: ["UP History & Culture", "UP Geography", "UP Economy", "UP Administration"] },
+      ];
+      const existingSubjects = new Map((tree.data ?? []).map((subject) => [subject.name.trim().toLowerCase(), subject.id]));
+      let changed = false;
+      for (const definition of definitions) {
+        let subjectId = existingSubjects.get(definition.name.toLowerCase());
+        if (!subjectId) {
+          const { data, error } = await supabase.from("subjects")
+            .insert({ course_id: course.id, name: definition.name, position: existingSubjects.size })
+            .select("id").single();
+          if (error) throw error;
+          subjectId = data.id;
+          existingSubjects.set(definition.name.toLowerCase(), subjectId);
+          changed = true;
+        }
+        const { data: chapters, error: chapterError } = await supabase.from("chapters")
+          .select("name").eq("subject_id", subjectId).limit(200);
+        if (chapterError) throw chapterError;
+        const existingTopics = new Set((chapters ?? []).map((chapter) => chapter.name.trim().toLowerCase()));
+        const missingTopics = definition.topics
+          .filter((topic) => !existingTopics.has(topic.toLowerCase()))
+          .map((name, index) => ({ subject_id: subjectId, name, position: (chapters?.length ?? 0) + index }));
+        if (missingTopics.length) {
+          const { error } = await supabase.from("chapters").insert(missingTopics);
+          if (error) throw error;
+          changed = true;
+        }
+      }
+      if (!cancelled) {
+        setGsSeeded(true);
+        if (changed) refresh();
+      }
+    };
+    void setupGsSubjects().catch((error) => {
+      console.error("Could not set up Foundation GS subjects:", error);
+      if (!cancelled) setGsSeeded(true);
+    });
+    return () => { cancelled = true; };
+  }, [gsSeeded, batches.isLoading, batches.data, tree.isLoading, tree.data, course.id, course.title]);
+
+  const refresh = () => qc.invalidateQueries({ queryKey: key });
+
+  async function addSubject() {
+    const name = window.prompt("Subject name");
+    if (name?.trim() && (await run(supabase.from("subjects").insert({ course_id: course.id, name: name.trim(), position: tree.data?.length ?? 0 })))) refresh();
+  }
+  async function renameRow(table: "subjects" | "chapters", id: string, cur: string) {
+    const name = window.prompt("New name", cur);
+    if (name?.trim() && (await run(supabase.from(table).update({ name: name.trim() }).eq("id", id)))) refresh();
+  }
+  async function delRow(table: "subjects" | "chapters" | "lessons", id: string, label: string) {
+    if (confirmDelete(label) && (await run(supabase.from(table).delete().eq("id", id), "Deleted"))) refresh();
+  }
+  async function addChapter(subjectId: string, count: number) {
+    const name = window.prompt("Chapter name");
+    if (name?.trim() && (await run(supabase.from("chapters").insert({ subject_id: subjectId, name: name.trim(), position: count })))) {
+      setOpen((o) => ({ ...o, [subjectId]: true }));
+      refresh();
+    }
+  }
+  async function saveLesson() {
+    if (!lesson?.title?.trim() || !lesson.chapter_id) return;
+    const row = {
+      chapter_id: lesson.chapter_id,
+      title: lesson.title.trim(),
+      description: lesson.description || null,
+      video_url: lesson.video_url || null,
+      pdf_url: lesson.pdf_url || null,
+      duration_minutes: lesson.duration_minutes ? Number(lesson.duration_minutes) : null,
+      position: lesson.position ?? 0,
+      is_published: lesson.is_published ?? true,
+    };
+    let savedId = lesson.id;
+    let ok = false;
+    if (lesson.id) {
+      ok = await run(supabase.from("lessons").update(row).eq("id", lesson.id));
+    } else {
+      const { data, error } = await supabase.from("lessons").insert(row).select("id").single();
+      if (error) { toast.error(error.message); return; }
+      savedId = data.id;
+      ok = true;
+    }
+    if (ok) {
+      if (!lesson.id && row.is_published) await notifyAll(supabase, `New lesson in ${course.title}: ${row.title}`, "lesson", `/courses/${course.id}`);
+      setLesson(null);
+      refresh();
+      if (autoPdfEnabled && row.video_url && savedId) {
+        void generateAiPdf(savedId, "auto");
+        void qc.invalidateQueries({ queryKey: ["ai-video-pdf-jobs", course.id] });
+      }
     }
   }
 

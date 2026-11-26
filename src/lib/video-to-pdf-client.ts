@@ -193,9 +193,10 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
       .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:16px;font-weight:700;letter-spacing:1.5px;margin:8px 0 26px}
       .jk-pdf h2{font-size:26px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
       .jk-pdf h3{font-size:23px;color:#1f2937;margin:15px 0 7px}
-      .jk-pdf p{margin:7px 0;white-space:pre-wrap}
+      .jk-pdf p{margin:7px 0;white-space:pre-wrap;break-inside:avoid;page-break-inside:avoid}
       .jk-pdf ul,.jk-pdf ol{padding-left:28px;margin:7px 0 15px}
-      .jk-pdf li{margin:5px 0}
+      .jk-pdf li{margin:5px 0;break-inside:avoid;page-break-inside:avoid}
+      .jk-pdf h2,.jk-pdf h3{break-after:avoid;page-break-after:avoid;break-inside:avoid;page-break-inside:avoid}
       .jk-pdf .topic,.jk-pdf .qa,.jk-pdf .mcq{break-inside:avoid;page-break-inside:avoid;margin:0 0 14px}
       .jk-pdf .english-section{break-before:page;page-break-before:always}
     </style>

@@ -21,6 +21,16 @@ declare global {
 
 let html2PdfLoader: Promise<void> | null = null;
 
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), milliseconds);
+    promise.then(
+      (value) => { window.clearTimeout(timer); resolve(value); },
+      (error) => { window.clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
 function loadScript(src: string, ready: () => boolean): Promise<void> {
   if (ready()) return Promise.resolve();
   return new Promise<void>((resolve, reject) => {

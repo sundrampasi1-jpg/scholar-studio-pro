@@ -106,7 +106,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
         canvas.style.width = Math.ceil(width) + "px";
-        canvas.style.maxWidth = zoom > 1 ? "none" : "100%";
+        canvas.style.maxWidth = "none";
+        canvas.style.flex = "0 0 auto";
         canvas.style.height = "auto";
         canvas.className = "mx-auto block bg-card";
         host.replaceChildren(canvas);
@@ -212,18 +213,19 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         </p>
       )}
       {state === "ready" && numPages > 0 && (
-        <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.max(0.75, z - 0.25))} aria-label="Zoom out">
+        <div className="sticky top-0 z-20 mb-2 flex items-center justify-center gap-3 bg-surface/95 px-2 py-2 text-sm text-foreground shadow-sm">
+          <button type="button" className="h-10 min-w-10 rounded-lg border bg-card px-3 text-lg font-bold" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Zoom out">
             −
           </button>
-          <span>{Math.round(zoom * 100)}% · {numPages} pages</span>
-          <button type="button" className="rounded border bg-card px-2 py-1" onClick={() => setZoom((z) => Math.min(4, z + 0.25))} aria-label="Zoom in">
+          <span className="min-w-24 text-center font-semibold">{Math.round(zoom * 100)}% · {numPages} pages</span>
+          <button type="button" className="h-10 rounded-lg border bg-card px-2 text-xs font-semibold" onClick={() => setZoom(1)}>Fit</button>
+          <button type="button" className="h-10 min-w-10 rounded-lg border bg-card px-3 text-lg font-bold" onClick={() => setZoom((z) => Math.min(4, z + 0.25))} aria-label="Zoom in">
             +
           </button>
         </div>
       )}
-      <div className="w-full overflow-x-auto">
-        <div ref={containerRef} className="w-full">
+      <div className="w-full overflow-x-auto overscroll-x-contain">
+        <div ref={containerRef} className="w-max min-w-full">
           {state === "ready" &&
             Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
               <div
@@ -234,7 +236,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
                   else pageRefs.current.delete(pageNum);
                 }}
                 style={{ aspectRatio: `1 / ${pageRatio}` }}
-                className="flex w-full items-center justify-center overflow-visible"
+                className="flex w-max min-w-full items-center justify-center overflow-visible"
               >
                 {!renderedPages.current.has(pageNum) && (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

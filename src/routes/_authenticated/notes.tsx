@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Download, FileText, X } from "lucide-react";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LoadingState } from "@/components/DataStates";
@@ -24,13 +25,16 @@ export const Route = createFileRoute("/_authenticated/notes")({
 function NotesPage() {
   const [q, setQ] = useState("");
   const [viewing, setViewing] = useState<{ title: string; url: string; download: boolean } | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
 
   const notes = useQuery({
     queryKey: ["notes"],
     queryFn: async () => {
+      // Keep the Notes list independent of optional course/subject/chapter joins.
+      // A broken relationship embed must not hide already-uploaded PDF records.
       const { data, error } = await supabase
         .from("notes")
-        .select("*, courses(title), subjects(name), chapters(name)")
+        .select("id,title,file_url,allow_download,created_at,course_id")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -39,19 +43,38 @@ function NotesPage() {
 
   const list = (notes.data ?? []).filter((n) => n.title.toLowerCase().includes(q.toLowerCase()));
 
-  async function openNote(n: { title: string; file_url: string; allow_download: boolean }) {
-    const raw = n.file_url;
-    const path = raw.includes("/object/public/media/")
-      ? (raw.split("/object/public/media/")[1] ?? raw)
-      : raw.includes("/object/sign/media/")
-      ? (raw.split("/object/sign/media/")[1]?.split("?")[0] ?? raw)
-      : raw;
-    const { data, error } = await supabase.storage.from("media").createSignedUrl(path, 3600);
-    if (error || !data) {
-      alert("Could not open this file.");
-      return;
+  async function openNote(n: { id: string; title: string; file_url: string; allow_download: boolean }) {
+    setOpeningId(n.id);
+    try {
+      const raw = String(n.file_url || "").trim();
+      if (!raw) throw new Error("This note has no PDF file attached.");
+
+      let resolvedUrl = raw;
+      let storagePath: string | null = null;
+      try {
+        const parsed = new URL(raw, window.location.origin);
+        const match = parsed.pathname.match(/\\/storage\\/v1\\/object\\/(?:sign|public|authenticated)\\/media\\/(.+)$/i);
+        if (match?.[1]) storagePath = match[1];
+      } catch {
+        // A relative storage path is handled below.
+      }
+
+      if (storagePath !== null || !/^https?:\\/\\//i.test(raw)) {
+        let path = storagePath ?? raw.split("?")[0].replace(/^\\/+/, "");
+        try { path = decodeURIComponent(path); } catch { /* Keep the original storage path if it is already decoded. */ }
+        path = path.replace(/^\\/+/, "");
+        const { data, error } = await supabase.storage.from("media").createSignedUrl(path, 3600);
+        if (error || !data?.signedUrl) throw error ?? new Error("Could not create a secure PDF link.");
+        resolvedUrl = data.signedUrl;
+      }
+
+      setViewing({ title: n.title, url: resolvedUrl, download: n.allow_download });
+    } catch (error) {
+      console.error("Could not open uploaded note PDF", error);
+      toast.error(error instanceof Error ? error.message : "Could not open this PDF. Please retry.");
+    } finally {
+      setOpeningId(null);
     }
-    setViewing({ title: n.title, url: data.signedUrl, download: n.allow_download });
   }
 
   return (
@@ -82,6 +105,11 @@ function NotesPage() {
       />
       {notes.isLoading ? (
         <LoadingState />
+      ) : notes.isError ? (
+        <div className="surface-card flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+          <span>Could not load notes. Please check your connection and retry.</span>
+          <Button size="sm" variant="outline" onClick={() => void notes.refetch()}>Retry</Button>
+        </div>
       ) : list.length === 0 ? (
         <EmptyState title="No notes yet" />
       ) : (
@@ -92,12 +120,11 @@ function NotesPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{n.title}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {[n.courses?.title, n.subjects?.name, n.chapters?.name].filter(Boolean).join(" › ") ||
-                    "General"}
+                  {n.course_id ? "Course notes" : "General notes"}
                 </p>
               </div>
-              <Button size="sm" onClick={() => openNote(n)}>
-                View
+              <Button size="sm" disabled={openingId === n.id} onClick={() => void openNote(n)}>
+                {openingId === n.id ? "Opening…" : "View"}
               </Button>
             </div>
           ))}

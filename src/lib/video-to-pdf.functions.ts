@@ -269,7 +269,7 @@ Teacher-provided description (context only): ${lesson.description || "None"}`;
       });
       const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
       const modelErrors: string[] = [];
-      let output = "";
+      let notes: Notes | null = null;
       for (const model of models) {
         try {
           const response = await fetchWithRetry(
@@ -291,17 +291,21 @@ Teacher-provided description (context only): ${lesson.description || "None"}`;
             }
             throw error;
           }
-          output = await readGeminiSse(response);
+          const output = await readGeminiSse(response);
+          // Validate the structured result before accepting this model. If Gemini
+          // emits malformed/truncated JSON, try the alternate model automatically.
+          notes = parseNotes(output);
           break;
         } catch (error) {
-          if (!isTransientFailure(error) || model === models[models.length - 1]) throw error;
-          modelErrors.push(model + ": " + (error instanceof Error ? error.message : String(error)));
+          const message = error instanceof Error ? error.message : String(error);
+          const invalidJson = error instanceof SyntaxError || /AI returned notes in an unreadable format|AI notes are missing required exam sections/i.test(message);
+          if ((!isTransientFailure(error) && !invalidJson) || model === models[models.length - 1]) throw error;
+          modelErrors.push(model + ": " + message);
         }
       }
-      if (!output.trim()) {
-        throw new Error("All Gemini models are temporarily unavailable. " + modelErrors.join(" | "));
+      if (!notes) {
+        throw new Error("Both Gemini models failed to return valid study notes. " + modelErrors.join(" | "));
       }
-      const notes = parseNotes(output);
       await adminDb.from("ai_video_pdf_jobs").update({ updated_at: new Date().toISOString() }).eq("id", jobId);
       return { ok: true as const, jobId, lessonId: lesson.id, lessonTitle: lesson.title, sourceVideoUrl: lesson.video_url, notes };
     } catch (error) {

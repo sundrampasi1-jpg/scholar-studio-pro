@@ -10,7 +10,12 @@ type Notes = {
 
 declare global {
   interface Window {
-    html2pdf?: (...args: any[]) => any;
+    html2PDF?: (
+      element: HTMLElement,
+      options?: Record<string, unknown>,
+    ) => Promise<{ output: (type: "blob") => Blob }>;
+    html2canvas?: (...args: any[]) => any;
+    jspdf?: { jsPDF?: new (...args: any[]) => any };
   }
 }
 
@@ -47,12 +52,24 @@ function loadScript(src: string, ready: () => boolean): Promise<void> {
 
 function loadHtml2Pdf() {
   if (typeof window === "undefined") return Promise.reject(new Error("PDF generation requires a browser."));
-  if (window.html2pdf) return Promise.resolve();
+  if (window.html2PDF && window.html2canvas && window.jspdf?.jsPDF) return Promise.resolve();
   if (!html2PdfLoader) {
-    html2PdfLoader = loadScript(
-      "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js",
-      () => typeof window.html2pdf === "function",
-    ).catch((error) => {
+    html2PdfLoader = (async () => {
+      // html2pdf.js bundles html2canvas 1.4.1, which cannot parse Tailwind v4
+      // oklch() colors. Use the maintained html2canvas-pro renderer instead.
+      await loadScript(
+        "https://cdn.jsdelivr.net/npm/jspdf@4.2.0/dist/jspdf.umd.min.js",
+        () => !!window.jspdf?.jsPDF,
+      );
+      await loadScript(
+        "https://cdn.jsdelivr.net/npm/html2canvas-pro@1.6.7/dist/html2canvas-pro.min.js",
+        () => typeof window.html2canvas === "function",
+      );
+      await loadScript(
+        "https://cdn.jsdelivr.net/npm/jspdf-html2canvas@1.7.0/dist/jspdf-html2canvas.min.js",
+        () => typeof window.html2PDF === "function",
+      );
+    })().catch((error) => {
       html2PdfLoader = null;
       throw error;
     });
@@ -149,7 +166,7 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     return `
       <article class="jk-pdf language-section ${hindi ? "hindi-section" : "english-section"}">
         <h1 class="jk-brand">JK ACADEMY</h1>
-        <p class="subtitle">${heading("अध्ययन नोट्स", "STUDY NOTES")}</p>
+        <p class="subtitle">${heading("वीडियो अध्ययन नोट्स", "Video Study Notes")}</p>
         <h2>${escapeHtml(pickLanguage(notes.title || lessonTitle, language) || notes.title || lessonTitle)}</h2>
         <h2>${heading("सारांश", "Overview")}</h2>
         <p>${escapeHtml(pickLanguage(notes.overview, language) || notes.overview)}</p>
@@ -171,15 +188,14 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   root.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#172033;z-index:-1;";
   root.innerHTML = `
     <style id="jk-pdf-render-styles">
-      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px 54px;background-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='794' height='1123' viewBox='0 0 794 1123'%3E%3Cg transform='translate(397 561) rotate(-52)'%3E%3Ctext x='0' y='0' text-anchor='middle' font-family='Georgia,serif' font-size='82' font-weight='700' letter-spacing='5' fill='%2378927D' fill-opacity='.17'%3EJK ACADEMY%3C/text%3E%3C/g%3E%3C/svg%3E");background-size:794px 1123px;background-position:center top;background-repeat:repeat-y;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:20px;line-height:1.9;overflow-wrap:anywhere}
-      .jk-pdf h1.jk-brand{font-family:Georgia,"Times New Roman",serif;font-size:40px;font-weight:900;letter-spacing:5px;text-align:center;color:#14532d;margin:0 0 5px;padding-bottom:9px;border-bottom:2px solid #c79a4b;text-shadow:0 1px 0 #e8d4ad}
-      .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:16px;font-weight:700;letter-spacing:1.5px;margin:8px 0 26px}
+      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px 54px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:20px;line-height:1.9;overflow-wrap:anywhere}
+      .jk-pdf h1.jk-brand{font-family:Georgia,"Times New Roman",serif;font-size:34px;font-weight:900;letter-spacing:4px;text-align:center;color:#14532d;margin:0 0 7px;text-shadow:0 1px 0 #e8d4ad}
+      .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:16px;font-weight:600;letter-spacing:.5px;margin:0 0 26px}
       .jk-pdf h2{font-size:26px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
       .jk-pdf h3{font-size:23px;color:#1f2937;margin:15px 0 7px}
-      .jk-pdf p{margin:7px 0;white-space:pre-wrap;break-inside:avoid;page-break-inside:avoid}
+      .jk-pdf p{margin:7px 0;white-space:pre-wrap}
       .jk-pdf ul,.jk-pdf ol{padding-left:28px;margin:7px 0 15px}
-      .jk-pdf li{margin:5px 0;break-inside:avoid;page-break-inside:avoid}
-      .jk-pdf h2,.jk-pdf h3{break-after:avoid;page-break-after:avoid;break-inside:avoid;page-break-inside:avoid}
+      .jk-pdf li{margin:5px 0}
       .jk-pdf .topic,.jk-pdf .qa,.jk-pdf .mcq{break-inside:avoid;page-break-inside:avoid;margin:0 0 14px}
       .jk-pdf .english-section{break-before:page;page-break-before:always}
     </style>
@@ -188,42 +204,36 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
   document.body.appendChild(root);
   try {
     const pdfDocument = await withTimeout(
-      window.html2pdf!()
-        .set({
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          html2canvas: {
-            scale: 1.5,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            windowWidth: 794,
-            scrollX: 0,
-            scrollY: -window.scrollY,
-            onclone: (clonedDoc: Document) => {
-              const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
-              clonedDoc.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])').forEach((element) => element.remove());
-              const safeStyle = clonedDoc.createElement("style");
-              safeStyle.textContent = pdfStyles;
-              clonedDoc.head.appendChild(safeStyle);
-              clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
-              clonedDoc.querySelectorAll<HTMLElement>("#jk-pdf-render-root").forEach((element) => {
-                element.style.cssText = "position:static;width:794px;margin:0;padding:0;background:#fff;color:#172033;";
-              });
-            },
+      window.html2PDF!(root, {
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        html2canvas: {
+          scale: 1.5,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          onclone: (clonedDoc: Document) => {
+            const pdfStyles = clonedDoc.querySelector("#jk-pdf-render-styles")?.textContent || "";
+            clonedDoc.querySelectorAll('style, link[rel="stylesheet"]:not([data-jk-hindi-font="true"])').forEach((element) => element.remove());
+
+            const safeStyle = clonedDoc.createElement("style");
+            safeStyle.textContent = pdfStyles;
+            clonedDoc.head.appendChild(safeStyle);
+
+            clonedDoc.body.style.cssText = "margin:0;padding:0;background:#fff;color:#172033;";
+            clonedDoc.querySelectorAll<HTMLElement>("#jk-pdf-render-root").forEach((element) => {
+              element.style.cssText = "position:static;width:794px;margin:0;padding:0;background:#fff;color:#172033;";
+            });
           },
-          image: { type: "jpeg", quality: 0.96 },
-          // The old renderer sliced one tall screenshot and ignored CSS pagination.
-          // This renderer honors keep-together rules for complete text blocks.
-          pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: ["p", "li", ".topic", ".qa", ".mcq", "h2", "h3"],
-          },
-          margin: [8, 8, 22, 8],
-          filename: "jk-academy-notes.pdf",
-          enableLinks: false,
-        })
-        .from(root)
-        .toPdf()
-        .get("pdf"),
+        },
+        imageType: "image/jpeg",
+        imageQuality: 0.96,
+        // Reserve a dedicated footer band so the rule never crosses question text.
+        margin: { top: 8, right: 8, bottom: 19, left: 8 },
+        autoResize: true,
+        success: () => undefined,
+      }),
       90_000,
       "PDF rendering took too long. Please retry with a shorter lesson video.",
     );
@@ -237,11 +247,11 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
         (pdfDocument as any).setDrawColor(199, 154, 75);
         (pdfDocument as any).setLineWidth(0.35);
         // Keep the decorative footer in the reserved bottom margin, below all page content.
-        (pdfDocument as any).line(9, 286, 201, 286);
+        (pdfDocument as any).line(9, 291, 201, 291);
         (pdfDocument as any).setTextColor(20, 83, 45);
         (pdfDocument as any).setFont("times", "bold");
         (pdfDocument as any).setFontSize(7);
-        (pdfDocument as any).text("JK ACADEMY", 105, 291, { align: "center", charSpace: 1.1 });
+        (pdfDocument as any).text("JK ACADEMY", 105, 295, { align: "center", charSpace: 1.1 });
       }
     } catch (footerError) {
       console.warn("PDF decorative footer could not be added", footerError);

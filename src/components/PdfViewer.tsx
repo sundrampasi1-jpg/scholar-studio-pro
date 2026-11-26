@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 export function PdfViewer({ url, className }: { url: string; className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const gestureRef = useRef<HTMLDivElement>(null);
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -83,6 +85,42 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   }, [url, attempt]);
 
   useEffect(() => {
+    const host = gestureRef.current;
+    if (!host) return;
+    host.style.touchAction = "pan-x pan-y";
+    const distance = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+    const onStart = (event: TouchEvent) => {
+      if (event.touches.length === 2) {
+        pinchStartRef.current = { distance: distance(event.touches), zoom };
+      }
+    };
+    const onMove = (event: TouchEvent) => {
+      if (event.touches.length !== 2 || !pinchStartRef.current) return;
+      event.preventDefault();
+      const ratio = distance(event.touches) / Math.max(1, pinchStartRef.current.distance);
+      const nextZoom = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
+      setZoom((current) => Math.abs(current - nextZoom) > 0.035 ? nextZoom : current);
+    };
+    const onEnd = (event: TouchEvent) => {
+      if (event.touches.length < 2) pinchStartRef.current = null;
+    };
+    host.addEventListener("touchstart", onStart, { passive: true });
+    host.addEventListener("touchmove", onMove, { passive: false });
+    host.addEventListener("touchend", onEnd, { passive: true });
+    host.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      host.removeEventListener("touchstart", onStart);
+      host.removeEventListener("touchmove", onMove);
+      host.removeEventListener("touchend", onEnd);
+      host.removeEventListener("touchcancel", onEnd);
+    };
+  }, [zoom]);
+
+  useEffect(() => {
     if (state !== "ready" || !containerRef.current) return;
 
     let disposed = false;
@@ -99,7 +137,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         const base = page.getViewport({ scale: 1 });
         const fitWidth = host.parentElement?.clientWidth || window.innerWidth || 800;
         const width = Math.max(200, fitWidth) * zoom;
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.75);
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.25);
         const scale = (width / base.width) * pixelRatio;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
@@ -198,7 +236,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   }, [state, numPages, zoom]);
 
   return (
-    <div className={className}>
+    <div ref={gestureRef} className={className}>
       {state === "loading" && (
         <p className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Opening PDF…
@@ -213,15 +251,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         </p>
       )}
       {state === "ready" && numPages > 0 && (
-        <div className="sticky top-0 z-20 mb-2 flex items-center justify-center gap-3 bg-surface/95 px-2 py-2 text-sm text-foreground shadow-sm">
-          <button type="button" className="h-10 min-w-10 rounded-lg border bg-card px-3 text-lg font-bold" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Zoom out">
-            −
-          </button>
-          <span className="min-w-24 text-center font-semibold">{Math.round(zoom * 100)}% · {numPages} pages</span>
-          <button type="button" className="h-10 rounded-lg border bg-card px-2 text-xs font-semibold" onClick={() => setZoom(1)}>Fit</button>
-          <button type="button" className="h-10 min-w-10 rounded-lg border bg-card px-3 text-lg font-bold" onClick={() => setZoom((z) => Math.min(4, z + 0.25))} aria-label="Zoom in">
-            +
-          </button>
+        <div className="sticky top-0 z-20 mb-2 bg-surface/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-sm">
+          Pinch with two fingers to zoom · {numPages} pages
         </div>
       )}
       <div className="w-full overflow-x-auto overscroll-x-contain">

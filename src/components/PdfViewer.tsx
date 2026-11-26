@@ -6,6 +6,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   const containerRef = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<HTMLDivElement>(null);
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const pinchAnchorRef = useRef<{ x: number; y: number; scrollX: number; scrollY: number; startZoom: number; horizontal: HTMLElement | null; vertical: HTMLElement | null } | null>(null);
+  const renderedZoom = useRef<Map<number, number>>(new Map());
+  const scheduleVisiblePagesRef = useRef<() => void>(() => {});
   const pinchPendingZoomRef = useRef<number | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [numPages, setNumPages] = useState(0);
@@ -28,6 +31,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     pinchZoomRef.current = 1;
     if (containerRef.current) containerRef.current.style.zoom = "1";
     renderedPages.current.clear();
+    renderedZoom.current.clear();
     renderingPages.current.clear();
     pageRefs.current.clear();
     queue.current = [];
@@ -101,6 +105,26 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     const onStart = (event: TouchEvent) => {
       if (event.touches.length === 2) {
         if (event.cancelable) event.preventDefault();
+        const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        const horizontal = containerRef.current?.parentElement || null;
+        let vertical: HTMLElement | null = host;
+        while (vertical && vertical !== document.body) {
+          const style = window.getComputedStyle(vertical);
+          if (/(auto|scroll|overlay)/.test(style.overflowY) && vertical.scrollHeight > vertical.clientHeight + 1) break;
+          vertical = vertical.parentElement;
+        }
+        const hRect = horizontal?.getBoundingClientRect();
+        const vRect = vertical?.getBoundingClientRect();
+        pinchAnchorRef.current = {
+          x: midX - (hRect?.left || 0),
+          y: midY - (vRect?.top || 0),
+          scrollX: horizontal?.scrollLeft || 0,
+          scrollY: vertical?.scrollTop || 0,
+          startZoom: pinchZoomRef.current,
+          horizontal,
+          vertical,
+        };
         pinchStartRef.current = { distance: distance(event.touches), zoom: pinchZoomRef.current };
         pinchPendingZoomRef.current = pinchZoomRef.current;
       }
@@ -112,6 +136,11 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       const nextZoom = Math.max(0.75, Math.min(2.5, pinchStartRef.current.zoom * ratio));
       pinchPendingZoomRef.current = nextZoom;
       if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
+      const anchor = pinchAnchorRef.current;
+      if (anchor) {
+        if (anchor.horizontal) anchor.horizontal.scrollLeft = ((anchor.scrollX + anchor.x) / anchor.startZoom) * nextZoom - anchor.x;
+        if (anchor.vertical) anchor.vertical.scrollTop = ((anchor.scrollY + anchor.y) / anchor.startZoom) * nextZoom - anchor.y;
+      }
     };
     const onEnd = (event: TouchEvent) => {
       if (event.touches.length < 2) {
@@ -121,7 +150,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         if (nextZoom !== null) {
           pinchZoomRef.current = nextZoom;
           if (containerRef.current) containerRef.current.style.zoom = String(nextZoom);
+          scheduleVisiblePagesRef.current();
         }
+        pinchAnchorRef.current = null;
       }
     };
     host.addEventListener("touchstart", onStart, { passive: false, capture: true });
@@ -139,13 +170,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
   useEffect(() => {
     if (state !== "ready" || !containerRef.current) return;
 
-    // Zoom changes must invalidate old-resolution canvases so the new pinch scale is rendered.
-    renderedPages.current.clear();
-    pageRefs.current.forEach((el) => {
-      const oldCanvas = el.querySelector("canvas");
-      if (oldCanvas) oldCanvas.remove();
-    });
-    queue.current = [];
+    // Keep existing canvases visible while only pages in/near the viewport are
+    // upgraded to a sharper backing resolution after a pinch gesture.
 
     let disposed = false;
     const processPage = async (pageNum: number) => {
@@ -165,9 +191,10 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         const width = Math.max(200, fitWidth);
         const cssHeight = width * (base.height / base.width);
         // Bound each backing canvas so a long PDF cannot exhaust Android WebView memory.
-        const pixelBudget = 8_000_000;
+        const pixelBudget = 12_000_000;
         const qualityScale = Math.sqrt(pixelBudget / Math.max(1, width * cssHeight));
-        const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2, qualityScale);
+        const requestedZoom = Math.max(1, pinchZoomRef.current);
+        const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1) * requestedZoom, 3, qualityScale);
         const scale = (width / base.width) * pixelRatio;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
@@ -178,13 +205,16 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         canvas.style.flex = "0 0 auto";
         canvas.style.height = "auto";
         canvas.className = "mx-auto block bg-card";
-        host.replaceChildren(canvas);
         const context = canvas.getContext("2d", { alpha: false });
         if (!context) throw new Error("Canvas is unavailable");
         const task = page.render({ canvasContext: context, viewport });
         renderTasks.current.set(pageNum, task);
         await task.promise;
-        renderedPages.current.add(pageNum);
+        if (!disposed && host.isConnected) {
+          host.replaceChildren(canvas);
+          renderedPages.current.add(pageNum);
+          renderedZoom.current.set(pageNum, requestedZoom);
+        }
         page.cleanup();
       } catch (e: any) {
         if (e?.name !== "RenderingCancelledException") {
@@ -217,13 +247,26 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       if (
         pageNum < 1 ||
         pageNum > numPages ||
-        renderedPages.current.has(pageNum) ||
+        (renderedPages.current.has(pageNum) && (renderedZoom.current.get(pageNum) || 1) >= Math.max(1, pinchZoomRef.current) - 0.05) ||
         renderingPages.current.has(pageNum)
       ) return;
       renderingPages.current.add(pageNum);
       queue.current.push(pageNum);
       pump();
     };
+
+    const scheduleVisiblePages = () => {
+      const viewportTop = scrollRoot?.getBoundingClientRect().top ?? 0;
+      const viewportBottom = scrollRoot ? viewportTop + scrollRoot.clientHeight : window.innerHeight;
+      const candidates: number[] = [];
+      pageRefs.current.forEach((el, pageNum) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom >= viewportTop - 500 && rect.top <= viewportBottom + 500) candidates.push(pageNum);
+      });
+      candidates.sort((a, b) => a - b);
+      candidates.forEach(schedulePage);
+    };
+    scheduleVisiblePagesRef.current = scheduleVisiblePages;
 
     // Observe against the actual scrollable ancestor, not always the viewport.
     // Notes modal scrolls on the PdfViewer wrapper itself. Use that real vertical
@@ -246,7 +289,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         visible.sort((a, b) => a - b);
         visible.forEach(schedulePage);
       },
-      { root: scrollRoot, rootMargin: "500px 0px", threshold: 0.01 }
+      { root: scrollRoot, rootMargin: "900px 0px", threshold: 0.01 }
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));
@@ -263,6 +306,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       });
       renderTasks.current.clear();
       renderingPages.current.clear();
+      scheduleVisiblePagesRef.current = () => {};
       pumpRef.current = () => {};
     };
   }, [state, numPages]);

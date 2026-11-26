@@ -169,7 +169,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       (entries) => {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
-          .map((entry) => Number((entry.target as HTMLElement).dataset.page))
+          .map((entry) => Number((entry.target as HTMLElement).dataset["page"]))
           .filter((pageNum) => Number.isFinite(pageNum));
         // Prioritize pages nearest the current viewport.
         visible.sort((a, b) => a - b);

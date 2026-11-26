@@ -5,7 +5,7 @@ const RETRYABLE_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504, 524]);
 
 function isTransientFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /(?:\b(?:408|429|500|502|503|504|524)\b|high demand|resource exhausted|rate[ -]?limit|overloaded|model is currently experiencing|network connection lost|failed to fetch|fetch failed|connection reset|temporarily unavailable|timed out|timeout)/i.test(message);
+  return /(?:\b(?:408|429|500|502|503|504|524)\b|network connection lost|failed to fetch|fetch failed|connection reset|temporarily unavailable|timed out|timeout)/i.test(message);
 }
 
 function wait(ms: number) {
@@ -267,9 +267,9 @@ Teacher-provided description (context only): ${lesson.description || "None"}`;
         ] }],
         generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 },
       });
-      const models = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"];
+      const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
       const modelErrors: string[] = [];
-      let notes: Notes | null = null;
+      let output = "";
       for (const model of models) {
         try {
           const response = await fetchWithRetry(
@@ -291,21 +291,17 @@ Teacher-provided description (context only): ${lesson.description || "None"}`;
             }
             throw error;
           }
-          const output = await readGeminiSse(response);
-          // Validate the structured result before accepting this model. If Gemini
-          // emits malformed/truncated JSON, try the alternate model automatically.
-          notes = parseNotes(output);
+          output = await readGeminiSse(response);
           break;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          const invalidJson = error instanceof SyntaxError || /AI returned notes in an unreadable format|AI notes are missing required exam sections/i.test(message);
-          if ((!isTransientFailure(error) && !invalidJson) || model === models[models.length - 1]) throw error;
-          modelErrors.push(model + ": " + message);
+          if (!isTransientFailure(error) || model === models[models.length - 1]) throw error;
+          modelErrors.push(model + ": " + (error instanceof Error ? error.message : String(error)));
         }
       }
-      if (!notes) {
-        throw new Error("Both Gemini models failed to return valid study notes. " + modelErrors.join(" | "));
+      if (!output.trim()) {
+        throw new Error("All Gemini models are temporarily unavailable. " + modelErrors.join(" | "));
       }
+      const notes = parseNotes(output);
       await adminDb.from("ai_video_pdf_jobs").update({ updated_at: new Date().toISOString() }).eq("id", jobId);
       return { ok: true as const, jobId, lessonId: lesson.id, lessonTitle: lesson.title, sourceVideoUrl: lesson.video_url, notes };
     } catch (error) {

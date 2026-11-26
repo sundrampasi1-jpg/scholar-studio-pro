@@ -160,7 +160,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     let scrollRoot: HTMLElement | null = containerRef.current.parentElement;
     while (scrollRoot && scrollRoot !== document.body) {
       const overflowY = window.getComputedStyle(scrollRoot).overflowY;
-      if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") break;
+      if ((overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") && scrollRoot.scrollHeight > scrollRoot.clientHeight + 1) break;
       scrollRoot = scrollRoot.parentElement;
     }
     if (scrollRoot === document.body) scrollRoot = null;

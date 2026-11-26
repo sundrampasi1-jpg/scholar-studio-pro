@@ -251,6 +251,17 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       pump();
     };
 
+    // Observe against the actual scrollable ancestor, not always the viewport.
+    // Notes modal scrolls on the PdfViewer wrapper itself. Use that real vertical
+    // scroller as the observer root so pages are rendered as they enter view.
+    let scrollRoot: HTMLElement | null = gestureRef.current;
+    while (scrollRoot && scrollRoot !== document.body) {
+      const overflowY = window.getComputedStyle(scrollRoot).overflowY;
+      if ((overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") && scrollRoot.scrollHeight > scrollRoot.clientHeight + 1) break;
+      scrollRoot = scrollRoot.parentElement;
+    }
+    if (scrollRoot === document.body) scrollRoot = null;
+
     const scheduleVisiblePages = () => {
       const viewportTop = scrollRoot?.getBoundingClientRect().top ?? 0;
       const viewportBottom = scrollRoot ? viewportTop + scrollRoot.clientHeight : window.innerHeight;
@@ -263,17 +274,6 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
       candidates.forEach(schedulePage);
     };
     scheduleVisiblePagesRef.current = scheduleVisiblePages;
-
-    // Observe against the actual scrollable ancestor, not always the viewport.
-    // Notes modal scrolls on the PdfViewer wrapper itself. Use that real vertical
-    // scroller as the observer root so pages are rendered as they enter view.
-    let scrollRoot: HTMLElement | null = gestureRef.current;
-    while (scrollRoot && scrollRoot !== document.body) {
-      const overflowY = window.getComputedStyle(scrollRoot).overflowY;
-      if ((overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") && scrollRoot.scrollHeight > scrollRoot.clientHeight + 1) break;
-      scrollRoot = scrollRoot.parentElement;
-    }
-    if (scrollRoot === document.body) scrollRoot = null;
 
     const observer = new IntersectionObserver(
       (entries) => {

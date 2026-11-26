@@ -470,6 +470,7 @@ function LessonPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
+  const pendingVideoTimeRef = useRef<number | null>(null);
 
   const [speed, setSpeed] = useState(1);
   const [playing, setPlaying] = useState(false);
@@ -488,6 +489,7 @@ function LessonPage() {
   const [quality, setQuality] = useState(0); // 0 = auto/source
   const [cachedUrl, setCachedUrl] = useState<string | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
+  const [videoReloadKey, setVideoReloadKey] = useState(0);
   const [savedOffline, setSavedOffline] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showPolls, setShowPolls] = useState(false);
@@ -769,7 +771,7 @@ function LessonPage() {
           {videoSrc ? (
             <video
               ref={videoRef}
-              key={videoSrc}
+              key={`${videoSrc}:${videoReloadKey}`}
               src={videoSrc}
               playsInline
               preload="metadata"
@@ -827,6 +829,11 @@ function LessonPage() {
                 const el = event.currentTarget;
                 setDuration(el.duration || 0);
                 el.playbackRate = speed;
+                if (pendingVideoTimeRef.current !== null) {
+                  const resumeAt = pendingVideoTimeRef.current;
+                  pendingVideoTimeRef.current = null;
+                  try { el.currentTime = Math.min(resumeAt, el.duration || resumeAt); } catch {}
+                }
                 setNativeH(el.videoHeight || 0);
                 if (quality) applyQuality(quality);
               }}
@@ -1071,7 +1078,15 @@ function LessonPage() {
               <div>
                 <button
                   type="button"
-                  onClick={() => setShowPdf((s) => !s)}
+                  onClick={() => {
+                    if (showPdf) {
+                      pendingVideoTimeRef.current = videoRef.current?.currentTime ?? current;
+                      setVideoReloadKey((key) => key + 1);
+                    } else {
+                      videoRef.current?.pause();
+                    }
+                    setShowPdf((s) => !s);
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-[10px] font-black text-destructive">
@@ -1106,7 +1121,15 @@ function LessonPage() {
             ) : null}
             {l.ai_pdf_url && (
               <div className="border-t border-gold/20">
-                <button type="button" onClick={() => setShowAiPdf((value) => !value)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                <button type="button" onClick={() => {
+                  if (showAiPdf) {
+                    pendingVideoTimeRef.current = videoRef.current?.currentTime ?? current;
+                    setVideoReloadKey((key) => key + 1);
+                  } else {
+                    videoRef.current?.pause();
+                  }
+                  setShowAiPdf((value) => !value);
+                }} className="flex w-full items-center gap-3 px-4 py-3 text-left">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[10px] font-black text-emerald-800">PDF</span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-bold">Teacher PDF · Hindi + English</span>

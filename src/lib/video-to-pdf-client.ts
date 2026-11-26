@@ -244,11 +244,12 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
         (pdfDocument as any).setPage(page);
         (pdfDocument as any).setDrawColor(199, 154, 75);
         (pdfDocument as any).setLineWidth(0.35);
-        (pdfDocument as any).line(9, 284, 201, 284);
+        // Keep the decorative footer in the reserved bottom margin, below all page content.
+        (pdfDocument as any).line(9, 291, 201, 291);
         (pdfDocument as any).setTextColor(20, 83, 45);
         (pdfDocument as any).setFont("times", "bold");
-        (pdfDocument as any).setFontSize(8);
-        (pdfDocument as any).text("JK ACADEMY", 105, 289, { align: "center", charSpace: 1.2 });
+        (pdfDocument as any).setFontSize(7);
+        (pdfDocument as any).text("JK ACADEMY", 105, 295, { align: "center", charSpace: 1.1 });
       }
     } catch (footerError) {
       console.warn("PDF decorative footer could not be added", footerError);

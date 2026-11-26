@@ -104,59 +104,77 @@ export async function buildVideoNotesPdf(notes: Notes, lessonTitle: string): Pro
     // The browser's native Devanagari fallback remains available.
   }
 
-  const topics = notes.topics.map((topic) => `
-    <section class="topic">
-      <h3>${escapeHtml(topic.title)}</h3>
-      <ul>${topic.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
-    </section>`).join("");
-  const facts = notes.keyFacts.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("");
-  const visuals = notes.visualHighlights.map((item) => `<li><strong>${escapeHtml(item.timestamp)}</strong> — ${escapeHtml(item.detail)}</li>`).join("");
-  const questions = notes.questions.map((item, index) => `
-    <section class="qa">
-      <p><strong>${index + 1}. ${escapeHtml(item.question)}</strong></p>
-      <p><b>Answer / उत्तर:</b> ${escapeHtml(item.answer)}</p>
-    </section>`).join("");
-  const mcqs = notes.mcqs.map((item, index) => `
-    <section class="mcq">
-      <p><strong>${index + 1}. ${escapeHtml(item.question)}</strong></p>
-      <ol type="A">${item.options.map((option) => `<li>${escapeHtml(option.replace(/^[A-D]\.\s*/, ""))}</li>`).join("")}</ol>
-      <p><b>Correct answer / सही उत्तर:</b> ${escapeHtml(item.answer)}</p>
-      <p><b>Explanation / व्याख्या:</b> ${escapeHtml(item.explanation)}</p>
-    </section>`).join("");
+  const pickLanguage = (value: string, language: "hi" | "en") => {
+    const text = String(value || "").replace(/\\s*\\|\\s*(English|Hindi):\\s*/gi, "\\n$1: ");
+    const hindi = text.match(/Hindi:\\s*([\\s\\S]*?)(?=\\nEnglish:|$)/i)?.[1]?.trim();
+    const english = text.match(/English:\\s*([\\s\\S]*?)(?=\\nHindi:|$)/i)?.[1]?.trim();
+    if (hindi || english) return (language === "hi" ? hindi : english) || "";
+    const parts = text.split(/\\s+\\/\\s+(?=[A-Za-z])/);
+    if (parts.length > 1) return (language === "hi" ? parts[0] : parts.slice(1).join(" / ")).trim();
+    return text.trim();
+  };
+
+  const renderLanguage = (language: "hi" | "en") => {
+    const hindi = language === "hi";
+    const heading = (hi: string, en: string) => hindi ? hi : en;
+    const topics = notes.topics.map((topic) => `
+      <section class="topic">
+        <h3>${escapeHtml(pickLanguage(topic.title, language) || topic.title)}</h3>
+        <ul>${topic.points.map((point) => `<li>${escapeHtml(pickLanguage(point, language) || point)}</li>`).join("")}</ul>
+      </section>`).join("");
+    const facts = notes.keyFacts.map((fact) => `<li>${escapeHtml(pickLanguage(fact, language) || fact)}</li>`).join("");
+    const visuals = notes.visualHighlights.map((item) => `<li><strong>${escapeHtml(item.timestamp)}</strong> — ${escapeHtml(pickLanguage(item.detail, language) || item.detail)}</li>`).join("");
+    const questions = notes.questions.map((item, index) => `
+      <section class="qa">
+        <p><strong>${index + 1}. ${escapeHtml(pickLanguage(item.question, language) || item.question)}</strong></p>
+        <p><b>${heading("उत्तर:", "Answer:")}</b> ${escapeHtml(pickLanguage(item.answer, language) || item.answer)}</p>
+      </section>`).join("");
+    const mcqs = notes.mcqs.map((item, index) => `
+      <section class="mcq">
+        <p><strong>${index + 1}. ${escapeHtml(pickLanguage(item.question, language) || item.question)}</strong></p>
+        <ol type="A">${item.options.map((option) => `<li>${escapeHtml(pickLanguage(option.replace(/^[A-D]\\.\\s*/, ""), language) || option.replace(/^[A-D]\\.\\s*/, ""))}</li>`).join("")}</ol>
+        <p><b>${heading("सही उत्तर:", "Correct answer:")}</b> ${escapeHtml(item.answer)}</p>
+        <p><b>${heading("व्याख्या:", "Explanation:")}</b> ${escapeHtml(pickLanguage(item.explanation, language) || item.explanation)}</p>
+      </section>`).join("");
+    return `
+      <article class="jk-pdf language-section ${hindi ? "hindi-section" : "english-section"}">
+        <h1>JK ACADEMY</h1>
+        <p class="subtitle">${heading("वीडियो अध्ययन नोट्स", "Video Study Notes")}</p>
+        <h2>${escapeHtml(pickLanguage(notes.title || lessonTitle, language) || notes.title || lessonTitle)}</h2>
+        <h2>${heading("सारांश", "Overview")}</h2>
+        <p>${escapeHtml(pickLanguage(notes.overview, language) || notes.overview)}</p>
+        <h2>${heading("विषय-वस्तु", "Topics Covered")}</h2>
+        ${topics}
+        <h2>${heading("महत्वपूर्ण तथ्य", "Important Facts")}</h2>
+        <ul>${facts}</ul>
+        ${visuals ? `<h2>${heading("स्लाइड, चित्र और मुख्य दृश्य", "Slides, Diagrams & Visual Highlights")}</h2><ul>${visuals}</ul>` : ""}
+        <h2>${heading("महत्वपूर्ण प्रश्न-उत्तर", "Important Questions & Answers")}</h2>
+        ${questions}
+        <h2>${heading("अभ्यास प्रश्न", "Practice MCQs")}</h2>
+        ${mcqs}
+        <p class="foot">JK Academy · ${heading("अध्ययन सामग्री", "Study Material")}</p>
+      </article>`;
+  };
 
   const root = document.createElement("div");
   root.id = "jk-pdf-render-root";
   root.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#172033;z-index:-1;";
   root.innerHTML = `
     <style id="jk-pdf-render-styles">
-      .jk-pdf{box-sizing:border-box;width:794px;padding:42px 48px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
-      .jk-pdf h1{font-size:23px;text-align:center;color:#14532d;margin:0 0 6px}
-      .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:10px;margin:0 0 24px}
-      .jk-pdf h2{font-size:16px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:5px;margin:22px 0 9px}
-      .jk-pdf h3{font-size:13px;color:#1f2937;margin:12px 0 5px}
-      .jk-pdf p{margin:5px 0;white-space:pre-wrap}
-      .jk-pdf ul,.jk-pdf ol{padding-left:24px;margin:5px 0 12px}
-      .jk-pdf li{margin:3px 0}
-      .jk-pdf .topic,.jk-pdf .qa,.jk-pdf .mcq{break-inside:avoid;page-break-inside:avoid;margin:0 0 10px}
-      .jk-pdf .foot{margin-top:24px;padding-top:10px;border-top:1px solid #e5e7eb;color:#64748b;font-size:9px;text-align:center}
+      .jk-pdf{box-sizing:border-box;width:794px;padding:46px 50px;background:#fff;color:#172033;font-family:"Noto Sans Devanagari",Arial,sans-serif;font-size:16px;line-height:1.8;overflow-wrap:anywhere}
+      .jk-pdf h1{font-size:27px;text-align:center;color:#14532d;margin:0 0 7px}
+      .jk-pdf .subtitle{text-align:center;color:#64748b;font-size:14px;margin:0 0 26px}
+      .jk-pdf h2{font-size:21px;color:#166534;border-bottom:1px solid #d1fae5;padding-bottom:6px;margin:24px 0 11px}
+      .jk-pdf h3{font-size:18px;color:#1f2937;margin:15px 0 7px}
+      .jk-pdf p{margin:7px 0;white-space:pre-wrap}
+      .jk-pdf ul,.jk-pdf ol{padding-left:28px;margin:7px 0 15px}
+      .jk-pdf li{margin:5px 0}
+      .jk-pdf .topic,.jk-pdf .qa,.jk-pdf .mcq{break-inside:avoid;page-break-inside:avoid;margin:0 0 14px}
+      .jk-pdf .english-section{break-before:page;page-break-before:always}
+      .jk-pdf .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px;text-align:center}
     </style>
-    <article class="jk-pdf">
-      <h1>JK ACADEMY</h1>
-      <p class="subtitle">Bilingual Video-Based Exam Notes · Hindi + English</p>
-      <h2>${escapeHtml(notes.title || lessonTitle)}</h2>
-      <h2>Overview / सारांश</h2>
-      <p>${escapeHtml(notes.overview)}</p>
-      <h2>Topics Covered / सभी विषय</h2>
-      ${topics}
-      <h2>Important Facts / महत्वपूर्ण तथ्य</h2>
-      <ul>${facts}</ul>
-      ${visuals ? `<h2>Slides, Diagrams & Visual Highlights / दृश्य सामग्री</h2><ul>${visuals}</ul>` : ""}
-      <h2>Important Questions & Answers / प्रश्न-उत्तर</h2>
-      ${questions}
-      <h2>Practice MCQs / बहुविकल्पीय प्रश्न</h2>
-      ${mcqs}
-      <p class="foot">Prepared from the lesson video for study support. Verify important current-affairs facts with official sources.</p>
-    </article>`;
+    ${renderLanguage("hi")}
+    ${renderLanguage("en")}`;
   document.body.appendChild(root);
   try {
     const pdfDocument = await withTimeout(

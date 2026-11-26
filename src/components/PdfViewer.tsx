@@ -48,7 +48,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         // entire document into memory before the first page can appear.
         loadingTask = pdfjs.getDocument({
           url,
-          rangeChunkSize: 65536,
+          rangeChunkSize: 262144,
           disableRange: false,
           disableStream: false,
           disableAutoFetch: false,
@@ -147,7 +147,12 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     renderedPages.current.clear();
     pageRefs.current.forEach((el) => {
       const oldCanvas = el.querySelector("canvas");
-      if (oldCanvas) oldCanvas.remove();
+      if (oldCanvas) {
+        // Release the backing bitmap immediately before rebuilding at the new zoom.
+        oldCanvas.width = 0;
+        oldCanvas.height = 0;
+        oldCanvas.remove();
+      }
     });
     queue.current = [];
 
@@ -257,7 +262,12 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
           for (const [pageNum, element] of pageRefs.current) {
             const isNearViewport = visible.some((visiblePage) => Math.abs(visiblePage - pageNum) <= 1);
             if (!isNearViewport && renderedPages.current.has(pageNum)) {
-              element.querySelector("canvas")?.remove();
+              const staleCanvas = element.querySelector("canvas");
+              if (staleCanvas) {
+                staleCanvas.width = 0;
+                staleCanvas.height = 0;
+                staleCanvas.remove();
+              }
               renderedPages.current.delete(pageNum);
             }
           }

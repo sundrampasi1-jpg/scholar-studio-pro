@@ -772,7 +772,7 @@ function LessonPage() {
               ref={videoRef}
               src={videoSrc}
               playsInline
-              preload="metadata"
+              preload="auto"
               onTouchEnd={(event) => {
                 lastTouchAtRef.current = Date.now();
                 const touch = event.changedTouches[0];

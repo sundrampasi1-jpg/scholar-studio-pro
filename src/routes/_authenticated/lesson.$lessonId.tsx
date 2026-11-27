@@ -481,6 +481,7 @@ function LessonPage() {
   const clickToggleTimerRef = useRef<number | null>(null);
   const lastTouchAtRef = useRef(0);
   const [current, setCurrent] = useState(0);
+  const lastUiSecondRef = useRef(-1);
   const [duration, setDuration] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -830,7 +831,14 @@ function LessonPage() {
                 if (quality) applyQuality(quality);
               }}
               onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
-              onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
+              onTimeUpdate={(event) => {
+                const time = event.currentTarget.currentTime;
+                const wholeSecond = Math.floor(time);
+                if (wholeSecond !== lastUiSecondRef.current) {
+                  lastUiSecondRef.current = wholeSecond;
+                  setCurrent(time);
+                }
+              }}
               onEnded={() => setPlaying(false)}
               className="h-full w-full object-contain"
             />

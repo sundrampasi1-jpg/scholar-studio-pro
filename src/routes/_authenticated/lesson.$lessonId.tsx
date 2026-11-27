@@ -480,8 +480,8 @@ function LessonPage() {
   const tapToggleTimerRef = useRef<number | null>(null);
   const clickToggleTimerRef = useRef<number | null>(null);
   const lastTouchAtRef = useRef(0);
-  const [current, setCurrent] = useState(0);
-  const lastUiSecondRef = useRef(-1);
+  const progressInputRef = useRef<HTMLInputElement>(null);
+  const currentTimeLabelRef = useRef<HTMLSpanElement>(null);
   const [duration, setDuration] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -772,7 +772,7 @@ function LessonPage() {
               ref={videoRef}
               src={videoSrc}
               playsInline
-              preload="auto"
+              preload="metadata"
               onTouchEnd={(event) => {
                 lastTouchAtRef.current = Date.now();
                 const touch = event.changedTouches[0];
@@ -832,11 +832,14 @@ function LessonPage() {
               }}
               onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
               onTimeUpdate={(event) => {
-                const time = event.currentTarget.currentTime;
-                const wholeSecond = Math.floor(time);
-                if (wholeSecond !== lastUiSecondRef.current) {
-                  lastUiSecondRef.current = wholeSecond;
-                  setCurrent(time);
+                const video = event.currentTarget;
+                const time = video.currentTime;
+                // Update only player controls; avoid rerendering the full lesson page.
+                if (progressInputRef.current) {
+                  progressInputRef.current.value = String(Math.min(time, video.duration || 100));
+                }
+                if (currentTimeLabelRef.current) {
+                  currentTimeLabelRef.current.textContent = formatTime(time);
                 }
               }}
               onEnded={() => setPlaying(false)}
@@ -955,16 +958,19 @@ function LessonPage() {
           {/* Bottom bar */}
           {showControls && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 pb-2.5 pt-8">
             <input
+              ref={progressInputRef}
               aria-label="Video progress"
               type="range"
               min={0}
               max={duration || 100}
               step={1}
-              value={Math.min(current, duration || 100)}
+              defaultValue={0}
               onChange={(event) => {
                 const value = Number(event.target.value);
                 if (videoRef.current) videoRef.current.currentTime = value;
-                setCurrent(value);
+                if (currentTimeLabelRef.current) {
+                  currentTimeLabelRef.current.textContent = formatTime(value);
+                }
               }}
               className="h-1.5 w-full cursor-pointer accent-gold"
             />
@@ -976,7 +982,7 @@ function LessonPage() {
                 aria-label={playing ? "Pause" : "Play"}
               >
                 {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                <span>{formatTime(current)}</span>
+                <span ref={currentTimeLabelRef}>0:00</span>
               </button>
               <span className="text-white/85">{formatTime(duration)}</span>
             </div>

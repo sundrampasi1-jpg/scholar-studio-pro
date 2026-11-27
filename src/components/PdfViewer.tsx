@@ -213,7 +213,8 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
     const processPage = async (pageNum: number) => {
       const doc = pdfDocRef.current;
       const host = pageRefs.current.get(pageNum);
-      if (!doc || !host || disposed) return;
+      const canvasHost = host?.querySelector<HTMLDivElement>("[data-canvas-host]");
+      if (!doc || !host || !canvasHost || disposed) return;
       try {
         const page = await doc.getPage(pageNum);
         if (disposed || !host.isConnected) {
@@ -246,8 +247,9 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         const task = page.render({ canvasContext: context, viewport });
         renderTasks.current.set(pageNum, task);
         await task.promise;
-        if (!disposed && host.isConnected) {
-          host.replaceChildren(canvas);
+        if (!disposed && host.isConnected && canvasHost.isConnected) {
+          // React owns the page wrapper; only mutate this intentionally empty mount node.
+          canvasHost.replaceChildren(canvas);
           renderedPages.current.add(pageNum);
           renderedZoom.current.set(pageNum, requestedZoom);
         }
@@ -334,7 +336,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
         if (!isFarAway) return;
         // Zero the backing store before removing the canvas so WebView can reclaim
         // the large GPU/bitmap allocation, then allow this page to render on return.
-        host.querySelectorAll("canvas").forEach((canvas) => {
+        host.querySelectorAll("[data-canvas-host] canvas").forEach((canvas) => {
           canvas.width = 0;
           canvas.height = 0;
           canvas.remove();
@@ -438,9 +440,7 @@ export function PdfViewer({ url, className }: { url: string; className?: string 
                 style={{ aspectRatio: `1 / ${pageRatio}` }}
                 className="flex w-max min-w-full items-center justify-center overflow-visible"
               >
-                {!renderedPages.current.has(pageNum) && (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                )}
+                <div data-canvas-host="" className="flex min-h-full w-full items-center justify-center" />
               </div>
             ))}
         </div>
